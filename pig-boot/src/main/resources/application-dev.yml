@@ -1,15 +1,18 @@
+server:
+  port: 8089
 spring:
   cache:
     type: redis # 缓存类型 Redis
   data:
     redis:
       host: 127.0.0.1  # Redis地址
+      password: Jz123456
   # 数据库相关配置
   datasource:
     driver-class-name: com.mysql.cj.jdbc.Driver
     username: root
-    password: root
-    url: jdbc:mysql://127.0.0.1:3306/pig?characterEncoding=utf8&zeroDateTimeBehavior=convertToNull&useSSL=false&useJDBCCompliantTimezoneShift=true&useLegacyDatetimeCode=false&serverTimezone=GMT%2B8&allowMultiQueries=true&nullCatalogMeansCurrent=true
+    password: Jz123456
+    url: jdbc:mysql://127.0.0.1:3306/pig?characterEncoding=utf8&zeroDateTimeBehavior=convertToNull&useSSL=false&useJDBCCompliantTimezoneShift=true&useLegacyDatetimeCode=false&serverTimezone=GMT%2B8&allowMultiQueries=true&nullCatalogMeansCurrent=true&allowPublicKeyRetrieval=true
 
 # 本地文件系统
 file:
@@ -24,6 +27,7 @@ security:
   # 跳过验证码校验的客户端
   ignore-clients:
     - test
+    - pig
 
 # 配置文件加密根密码
 jasypt:

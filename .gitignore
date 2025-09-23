@@ -59,3 +59,5 @@ Thumbs.db
 Servers
 .metadata
 .flattened-pom.xml
+
+**/application-*.yml

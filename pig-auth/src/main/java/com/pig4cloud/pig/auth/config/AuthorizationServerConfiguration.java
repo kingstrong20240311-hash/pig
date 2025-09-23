@@ -52,6 +52,7 @@ import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.AuthenticationConverter;
 import org.springframework.security.web.authentication.DelegatingAuthenticationConverter;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.web.cors.CorsConfigurationSource;
 
 import java.util.Arrays;
 
@@ -71,6 +72,8 @@ public class AuthorizationServerConfiguration {
 
 	private final ValidateCodeFilter validateCodeFilter;
 
+	private final CorsConfigurationSource corsConfigurationSource;
+
 	/**
 	 * Authorization Server 配置，仅对 /oauth2/** 的请求有效
 	 * @param http http
@@ -83,6 +86,9 @@ public class AuthorizationServerConfiguration {
 		// 配置授权服务器的安全策略，只有/oauth2/**的请求才会走如下的配置
 		http.securityMatcher("/oauth2/**");
 		OAuth2AuthorizationServerConfigurer authorizationServerConfigurer = new OAuth2AuthorizationServerConfigurer();
+
+		// 配置跨域
+		http.cors(cors -> cors.configurationSource(corsConfigurationSource));
 
 		// 增加验证码过滤器
 		http.addFilterBefore(validateCodeFilter, UsernamePasswordAuthenticationFilter.class);
@@ -165,5 +171,6 @@ public class AuthorizationServerConfiguration {
 		// 处理 OAuth2ResourceOwnerSmsAuthenticationToken
 		http.authenticationProvider(resourceOwnerSmsAuthenticationProvider);
 	}
+
 
 }
