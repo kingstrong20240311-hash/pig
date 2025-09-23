@@ -366,7 +366,7 @@ INSERT INTO `sys_menu` VALUES (9054, '新增', NULL, 'codegen_template_add', NUL
 INSERT INTO `sys_menu` VALUES (9055, '导出', NULL, 'codegen_template_export', NULL, 9051, NULL, '0', 2, '0', '0', '1', 'admin', '2023-02-21 13:51:58', ' ', NULL, '0');
 INSERT INTO `sys_menu` VALUES (9056, '删除', NULL, 'codegen_template_del', NULL, 9051, NULL, '0', 3, '0', '0', '1', 'admin', '2023-02-21 13:52:16', ' ', NULL, '0');
 INSERT INTO `sys_menu` VALUES (9057, '编辑', NULL, 'codegen_template_edit', NULL, 9051, NULL, '0', 4, '0', '0', '1', 'admin', '2023-02-21 13:52:58', ' ', NULL, '0');
-INSERT INTO `sys_menu` VALUES (9059, '模板分组', 'group', NULL, '/gen/group/index', 9050, 'iconfont icon-shuxingtu', '1', 6, '0', '0', '0', 'admin', '2023-02-21 15:06:50', 'admin', '2023-07-05 10:27:22', '0');
+INSERT INTO `sys_menu` VALUES (9059, '模板分组', 'smmGroup', NULL, '/gen/smmGroup/index', 9050, 'iconfont icon-shuxingtu', '1', 6, '0', '0', '0', 'admin', '2023-02-21 15:06:50', 'admin', '2023-07-05 10:27:22', '0');
 INSERT INTO `sys_menu` VALUES (9060, '查询', NULL, 'codegen_group_view', NULL, 9059, NULL, '0', 0, '0', '0', '1', 'admin', '2023-02-21 15:08:07', ' ', NULL, '0');
 INSERT INTO `sys_menu` VALUES (9061, '新增', NULL, 'codegen_group_add', NULL, 9059, NULL, '0', 0, '0', '0', '1', 'admin', '2023-02-21 15:08:28', ' ', NULL, '0');
 INSERT INTO `sys_menu` VALUES (9062, '修改', NULL, 'codegen_group_edit', NULL, 9059, NULL, '0', 0, '0', '0', '1', 'admin', '2023-02-21 15:08:43', ' ', NULL, '0');

@@ -42,6 +42,12 @@
             <artifactId>pig-upms-biz</artifactId>
             <version>${revision}</version>
         </dependency>
+		<!--必备：用户管理模块-->
+		<dependency>
+			<groupId>com.pig4cloud</groupId>
+			<artifactId>pig-smm-biz</artifactId>
+			<version>${revision}</version>
+		</dependency>
         <!--可选：代码生成模块-->
         <dependency>
             <groupId>com.pig4cloud</groupId>
