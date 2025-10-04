@@ -31,6 +31,8 @@ import org.quartz.Trigger;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Component;
 
+import java.io.PrintWriter;
+import java.io.StringWriter;
 import java.time.ZoneId;
 import java.util.Date;
 
@@ -90,12 +92,14 @@ public class TaskInvokUtil {
 			updateSysjob.setJobExecuteStatus(PigQuartzEnum.JOB_LOG_STATUS_SUCCESS.getType());
 		}
 		catch (Throwable e) {
-			log.error("定时任务执行失败，任务名称：{}；任务组名：{}，cron执行表达式：{}，执行时间：{}", sysJob.getJobName(), sysJob.getJobGroup(),
-					sysJob.getCronExpression(), new Date());
+			log.error("定时任务执行失败，任务名称：{}；任务组名：{}，cron执行表达式：{}，执行时间：{}",
+					sysJob.getJobName(), sysJob.getJobGroup(), sysJob.getCronExpression(), new Date(), e);
 			// 记录失败状态
 			sysJobLog.setJobMessage(PigQuartzEnum.JOB_LOG_STATUS_FAIL.getDescription());
 			sysJobLog.setJobLogStatus(PigQuartzEnum.JOB_LOG_STATUS_FAIL.getType());
-			sysJobLog.setExceptionInfo(StrUtil.sub(e.getMessage(), 0, 2000));
+			StringWriter sw = new StringWriter();
+			e.printStackTrace(new PrintWriter(sw));
+			sysJobLog.setExceptionInfo(StrUtil.sub(sw.toString(), 0, 2000));
 			// 任务表信息更新
 			updateSysjob.setJobExecuteStatus(PigQuartzEnum.JOB_LOG_STATUS_FAIL.getType());
 		}
