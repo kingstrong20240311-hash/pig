@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.pig4cloud.pig.smm.mapper.TelegramGroupMapper">
+
+    <resultMap id="BaseResultMap" type="com.pig4cloud.pig.smm.entity.TelegramGroup">
+        <id column="id" property="id"/>
+        <result column="group_id" property="groupId"/>
+        <result column="group_name" property="groupName"/>
+        <result column="member_count" property="memberCount"/>
+        <result column="join_failure_count" property="joinFailureCount"/>
+        <result column="total_join_count" property="totalJoinCount"/>
+        <result column="send_failure_count" property="sendFailureCount"/>
+        <result column="total_send_count" property="totalSendCount"/>
+        <result column="last_join_attempt" property="lastJoinAttempt"/>
+        <result column="last_send_attempt" property="lastSendAttempt"/>
+        <result column="create_time" property="createTime"/>
+        <result column="update_time" property="updateTime"/>
+    </resultMap>
+
+    <select id="selectByGroupIds" resultMap="BaseResultMap">
+        SELECT * FROM telegram_group
+        WHERE group_id IN
+        <foreach item="groupId" collection="groupIds" open="(" separator="," close=")">
+            #{groupId}
+        </foreach>
+    </select>
+
+    <update id="updateJoinStats">
+        UPDATE telegram_group SET
+        total_join_count = total_join_count + 1,
+        join_failure_count = CASE WHEN #{success} = 0 THEN join_failure_count + 1 ELSE join_failure_count END,
+        last_join_attempt = NOW(),
+        update_time = NOW()
+        WHERE id = #{id}
+    </update>
+
+    <update id="updateSendStats">
+        UPDATE telegram_group SET
+        total_send_count = total_send_count + 1,
+        send_failure_count = CASE WHEN #{success} = 0 THEN send_failure_count + 1 ELSE send_failure_count END,
+        last_send_attempt = NOW(),
+        update_time = NOW()
+        WHERE id = #{id}
+    </update>
+
+</mapper>

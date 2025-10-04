@@ -48,12 +48,12 @@
 			<artifactId>pig-smm-biz</artifactId>
 			<version>${revision}</version>
 		</dependency>
-        <!--可选：代码生成模块-->
-        <dependency>
-            <groupId>com.pig4cloud</groupId>
-            <artifactId>pig-codegen</artifactId>
-            <version>${revision}</version>
-        </dependency>
+<!--        &lt;!&ndash;可选：代码生成模块&ndash;&gt;-->
+<!--        <dependency>-->
+<!--            <groupId>com.pig4cloud</groupId>-->
+<!--            <artifactId>pig-codegen</artifactId>-->
+<!--            <version>${revision}</version>-->
+<!--        </dependency>-->
         <!--可选：定时任务模块-->
         <dependency>
             <groupId>com.pig4cloud</groupId>

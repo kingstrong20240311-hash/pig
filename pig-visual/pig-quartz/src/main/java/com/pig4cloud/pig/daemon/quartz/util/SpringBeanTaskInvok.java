@@ -58,7 +58,7 @@ public class SpringBeanTaskInvok implements ITaskInvok {
 				returnValue = method.invoke(target, sysJob.getMethodParamsValue());
 			}
 			else {
-				method = target.getClass().getDeclaredMethod(sysJob.getMethodName());
+				method = target.getClass().getDeclaredMethod(sysJob.getMethodName(), (Class<?>[]) null);
 				ReflectionUtils.makeAccessible(method);
 				returnValue = method.invoke(target);
 			}

@@ -27,7 +27,7 @@
     <artifactId>pig-smm-biz</artifactId>
     <packaging>jar</packaging>
 
-    <description>pig 社交媒体管理系统业务处理模块</description>
+    <description>Telegram群组批量消息管理系统业务实现模块</description>
 
     <dependencies>
         <!--smm api、model 模块-->
@@ -90,7 +90,22 @@
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-undertow</artifactId>
         </dependency>
-    </dependencies>
+		<dependency>
+			<groupId>cn.hutool</groupId>
+			<artifactId>hutool-json</artifactId>
+			<scope>test</scope>
+		</dependency>
+		<dependency>
+			<groupId>cn.hutool</groupId>
+			<artifactId>hutool-json</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>com.pig4cloud</groupId>
+			<artifactId>pig-quartz</artifactId>
+			<version>3.9.1</version>
+			<scope>compile</scope>
+		</dependency>
+	</dependencies>
 
     <profiles>
         <profile>

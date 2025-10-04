@@ -27,7 +27,7 @@
     <artifactId>pig-smm-api</artifactId>
     <packaging>jar</packaging>
 
-    <description>pig 社交媒体管理系统公共api模块</description>
+    <description>Telegram群组批量消息管理系统API模块</description>
 
 
     <dependencies>

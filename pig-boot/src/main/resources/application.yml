@@ -43,6 +43,7 @@ security:
         - /error
         - /token/**
         - /actuator/**
+        - /smm/test/**
 
 #--------------如下配置尽量不要变动-------------
 # swagger 配置
@@ -64,3 +65,33 @@ mybatis-plus:
     jdbc-type-for-null: 'null' # 是否设置字段为null
     call-setters-on-nulls: true # 是否调用set方法时传入null值
     shrink-whitespaces-in-sql: true # 去掉sql中多余的空格
+
+# SMM模块配置
+pig:
+  smm:
+    # 第三方API配置
+    telegram:
+      gateway:
+        base-url: https://api.feitapp.com/feit-api/v1
+        timeout: 30000
+        # 登录账号配置
+        account: kingstrong
+        password: Ks@163.com
+    # 批量处理配置
+    batch:
+      size: 5
+    # 优先级权重配置
+    priority:
+      weight:
+        join-success: 0.4
+        send-success: 0.4
+        member-count: 0.0001
+    # API健康监控配置
+    api:
+      monitor:
+        interval: 60
+    # 任务重试配置
+    task:
+      retry:
+        max-attempts: 3
+        delay: 5000

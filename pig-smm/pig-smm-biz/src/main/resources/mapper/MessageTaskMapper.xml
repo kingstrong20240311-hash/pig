@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.pig4cloud.pig.smm.mapper.MessageTaskMapper">
+
+    <resultMap id="BaseResultMap" type="com.pig4cloud.pig.smm.entity.MessageTask">
+        <id column="id" property="id"/>
+        <result column="third_party_task_id" property="thirdPartyTaskId"/>
+        <result column="task_name" property="taskName"/>
+        <result column="message_content" property="messageContent"/>
+        <result column="account_id" property="accountId"/>
+        <result column="target_groups" property="targetGroups"/>
+        <result column="task_status" property="taskStatus"/>
+        <result column="success_count" property="successCount"/>
+        <result column="failure_count" property="failureCount"/>
+        <result column="create_time" property="createTime"/>
+        <result column="start_time" property="startTime"/>
+        <result column="end_time" property="endTime"/>
+        <result column="created_by" property="createdBy"/>
+        <result column="update_time" property="updateTime"/>
+    </resultMap>
+
+</mapper>
