@@ -11,6 +11,7 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.util.ClassUtils;
 
 import java.nio.charset.Charset;
+import java.time.Instant;
 import java.time.LocalDateTime;
 import java.util.Optional;
 
@@ -30,10 +31,10 @@ public class MybatisPlusMetaObjectHandler implements MetaObjectHandler {
 	@Override
 	public void insertFill(MetaObject metaObject) {
 		log.debug("mybatis plus start insert fill ....");
-		LocalDateTime now = LocalDateTime.now();
 
-		fillValIfNullByName("createTime", now, metaObject, true);
-		fillValIfNullByName("updateTime", now, metaObject, true);
+		// Support both LocalDateTime (legacy) and Instant (new modules)
+		fillTimeFieldIfNullByName("createTime", metaObject, true);
+		fillTimeFieldIfNullByName("updateTime", metaObject, true);
 		fillValIfNullByName("createBy", getUserName(), metaObject, true);
 		fillValIfNullByName("updateBy", getUserName(), metaObject, true);
 
@@ -48,8 +49,37 @@ public class MybatisPlusMetaObjectHandler implements MetaObjectHandler {
 	@Override
 	public void updateFill(MetaObject metaObject) {
 		log.debug("mybatis plus start update fill ....");
-		fillValIfNullByName("updateTime", LocalDateTime.now(), metaObject, true);
+		fillTimeFieldIfNullByName("updateTime", metaObject, true);
 		fillValIfNullByName("updateBy", getUserName(), metaObject, true);
+	}
+
+	/**
+	 * 填充时间字段，自动根据字段类型选择 LocalDateTime 或 Instant
+	 * @param fieldName 字段名
+	 * @param metaObject MetaObject
+	 * @param isCover 是否覆盖原有值
+	 */
+	private static void fillTimeFieldIfNullByName(String fieldName, MetaObject metaObject, boolean isCover) {
+		// 1. 没有 set 方法
+		if (!metaObject.hasSetter(fieldName)) {
+			return;
+		}
+
+		// 2. 如果用户有手动设置的值
+		Object userSetValue = metaObject.getValue(fieldName);
+		String setValueStr = StrUtil.str(userSetValue, Charset.defaultCharset());
+		if (StrUtil.isNotBlank(setValueStr) && !isCover) {
+			return;
+		}
+
+		// 3. 根据字段类型填充对应的时间值
+		Class<?> getterType = metaObject.getGetterType(fieldName);
+		if (ClassUtils.isAssignableValue(getterType, LocalDateTime.now())) {
+			metaObject.setValue(fieldName, LocalDateTime.now());
+		}
+		else if (ClassUtils.isAssignableValue(getterType, Instant.now())) {
+			metaObject.setValue(fieldName, Instant.now());
+		}
 	}
 
 	/**

@@ -1,0 +1,123 @@
+server:
+  port: 5003
+  servlet:
+    context-path: /
+
+spring:
+  main:
+    allow-bean-definition-overriding: true
+  cloud:
+    config:
+      import-check:
+        enabled: false
+    nacos:
+      config:
+        enabled: false
+      discovery:
+        enabled: false
+  cache:
+    type: redis # 缓存类型 Redis
+  data:
+    redis:
+      database: 6 # 使用独立的测试库
+      host: ${REDIS_HOST:127.0.0.1}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:test123456}
+  # 数据库相关配置
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    username: ${MYSQL_USERNAME:root}
+    password: ${MYSQL_PASSWORD:test123456}
+    url: jdbc:mysql://${MYSQL_HOST:127.0.0.1}:${MYSQL_PORT:3306}/pig-test?characterEncoding=utf8&zeroDateTimeBehavior=convertToNull&useSSL=false&useJDBCCompliantTimezoneShift=true&useLegacyDatetimeCode=false&serverTimezone=GMT%2B8&allowMultiQueries=true&nullCatalogMeansCurrent=true&allowPublicKeyRetrieval=true
+
+# MyBatis Plus 配置
+mybatis-plus:
+  mapper-locations: classpath*:/mapper/**/*.xml
+  global-config:
+    banner: false
+    db-config:
+      id-type: assign_id
+      logic-delete-field: delFlag
+      logic-delete-value: 1
+      logic-not-delete-value: 0
+  configuration:
+    map-underscore-to-camel-case: true
+    cache-enabled: false
+    call-setters-on-nulls: true
+    jdbc-type-for-null: null
+    log-impl: org.apache.ibatis.logging.slf4j.Slf4jImpl
+
+# 配置文件加密根密码
+jasypt:
+  encryptor:
+    password: pig-test  # 测试环境加密根密码
+    algorithm: PBEWithMD5AndDES  # 加密算法
+    iv-generator-classname: org.jasypt.iv.NoIvGenerator # 无向量生成器
+
+# 日志配置
+logging:
+  level:
+    root: INFO
+  pattern:
+    console: '%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{50} - %msg%n'
+
+# Vault 业务配置
+vault:
+  # 账户配置
+  account:
+    # 系统账户初始化（测试环境）
+    system-accounts:
+      enabled: true
+      fee-account-id: 1000001  # 手续费账户
+      treasury-account-id: 1000002  # 国库账户
+      insurance-account-id: 1000003  # 保险基金账户
+
+  # 资产配置
+  asset:
+    # 支持的资产（测试环境）
+    supported-assets:
+      - symbol: USDC
+        decimals: 6
+      - symbol: USDT
+        decimals: 6
+      - symbol: ETH
+        decimals: 18
+
+  # 余额配置
+  balance:
+    # 最小余额精度
+    min-precision: 0.000001
+    # 是否启用乐观锁重试
+    optimistic-lock-retry: true
+    # 最大重试次数
+    max-retry-times: 3
+
+  # 冻结配置
+  freeze:
+    # 冻结记录过期时间（小时）
+    expire-hours: 72
+    # 是否自动清理过期冻结
+    auto-cleanup-expired: true
+
+# Feign 配置
+feign:
+  client:
+    config:
+      default:
+        connectTimeout: 5000
+        readTimeout: 10000
+  httpclient:
+    enabled: false
+  okhttp:
+    enabled: true
+
+# Swagger 配置
+springdoc:
+  api-docs:
+    enabled: true
+  swagger-ui:
+    enabled: true
+    path: /swagger-ui.html
+  group-configs:
+    - group: vault
+      paths-to-match: /vault/**

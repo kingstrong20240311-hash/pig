@@ -32,4 +32,9 @@ public interface ServiceNameConstants {
 	 */
 	String UPMS_SERVICE = "pig-upms-biz";
 
+	/**
+	 * Vault模块
+	 */
+	String VAULT_SERVICE = "pig-vault-biz";
+
 }

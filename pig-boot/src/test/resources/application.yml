@@ -1,0 +1,10 @@
+# 安全日志配置
+security:
+  log:
+    enabled: false  # 测试环境禁用 @SysLog 切面
+
+# 日志配置
+logging:
+  level:
+    root: INFO
+    com.pig4cloud.pig: DEBUG

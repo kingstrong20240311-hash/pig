@@ -1,0 +1,32 @@
+spring:
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: jdbc:mysql://${MYSQL_HOST:127.0.0.1}:${MYSQL_PORT:3306}/pig-test?characterEncoding=utf8&zeroDateTimeBehavior=convertToNull&useSSL=false&useJDBCCompliantTimezoneShift=true&useLegacyDatetimeCode=false&serverTimezone=GMT%2B8&allowMultiQueries=true&nullCatalogMeansCurrent=true&allowPublicKeyRetrieval=true
+    username: ${MYSQL_USERNAME:root}
+    password: ${MYSQL_PASSWORD:test123456}
+  sql:
+    init:
+      mode: never  # 不自动执行初始化脚本，由测试代码控制
+
+# MyBatis Plus 配置
+mybatis-plus:
+  mapper-locations: classpath*:/mapper/**/*.xml
+  global-config:
+    banner: false
+    db-config:
+      id-type: assign_id
+  configuration:
+    map-underscore-to-camel-case: true
+    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
+
+# 安全日志配置
+security:
+  log:
+    enabled: false  # 测试环境禁用 @SysLog 切面
+
+# 日志配置
+logging:
+  level:
+    root: INFO
+    com.pig4cloud.pig.vault: DEBUG
+    com.pig4cloud.pig.vault.mapper: DEBUG

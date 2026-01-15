@@ -17,6 +17,7 @@
 package com.pig4cloud.pig.common.mybatis;
 
 import com.baomidou.mybatisplus.extension.plugins.MybatisPlusInterceptor;
+import com.baomidou.mybatisplus.extension.plugins.inner.OptimisticLockerInnerInterceptor;
 import com.pig4cloud.pig.common.mybatis.config.MybatisPlusMetaObjectHandler;
 import com.pig4cloud.pig.common.mybatis.plugins.PigPaginationInnerInterceptor;
 import com.pig4cloud.pig.common.mybatis.resolver.SqlFilterArgumentResolver;
@@ -54,6 +55,9 @@ public class MybatisAutoConfiguration implements WebMvcConfigurer {
 	@Bean
 	public MybatisPlusInterceptor mybatisPlusInterceptor() {
 		MybatisPlusInterceptor interceptor = new MybatisPlusInterceptor();
+		// Add optimistic locker interceptor for @Version support
+		interceptor.addInnerInterceptor(new OptimisticLockerInnerInterceptor());
+		// Add pagination interceptor
 		interceptor.addInnerInterceptor(new PigPaginationInnerInterceptor());
 		return interceptor;
 	}
