@@ -34,5 +34,6 @@
 	<modules>
 		<module>pig-order-api</module>
 		<module>pig-order-biz</module>
+		<module>matcher</module>
 	</modules>
 </project>
