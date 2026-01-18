@@ -101,6 +101,7 @@
 		<module>pig-visual</module>
 		<module>pig-vault</module>
 		<module>pig-outbox</module>
+		<module>pig-order</module>
 	</modules>
 
 	<dependencyManagement>
