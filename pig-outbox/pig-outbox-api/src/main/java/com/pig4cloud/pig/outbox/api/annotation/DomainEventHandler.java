@@ -25,7 +25,8 @@ import java.lang.annotation.Target;
 /**
  * 领域事件处理器注解
  * <p>
- * 统一监听注解，单体与微服务都支持： - 单体模式：扫描注册到 InProcessEventBus - 微服务模式：扫描创建 @KafkaListener 或统一Listener分发
+ * 统一监听注解，单体与微服务都支持： - 单体模式：扫描注册到 InProcessEventBus - 微服务模式：扫描创建 @KafkaListener
+ * 或统一Listener分发
  *
  * @author pig4cloud
  * @date 2025-01-15

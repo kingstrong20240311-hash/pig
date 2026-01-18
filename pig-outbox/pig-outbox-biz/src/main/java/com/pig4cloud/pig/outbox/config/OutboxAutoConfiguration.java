@@ -63,8 +63,7 @@ public class OutboxAutoConfiguration {
 	 */
 	@Bean
 	@Primary
-	@ConditionalOnProperty(prefix = "pig.outbox", name = "mode", havingValue = "microservice",
-			matchIfMissing = true)
+	@ConditionalOnProperty(prefix = "pig.outbox", name = "mode", havingValue = "microservice", matchIfMissing = true)
 	public DomainEventPublisher dbOutboxEventPublisher(OutboxEventService outboxEventService,
 			ObjectMapper objectMapper) {
 		log.info("Outbox configured in MICROSERVICE mode: using DbOutboxEventPublisher");

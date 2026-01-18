@@ -7,12 +7,12 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 Pig is an enterprise-grade RBAC rapid development platform based on Spring Cloud, Spring Boot, and OAuth2. It supports both microservice and monolithic architectures.
 
 **Key Technologies:**
-- Spring Boot 3.5.7
-- Spring Cloud 2025.0.0
+- Spring Boot 3.5.9
+- Spring Cloud 2025.0.1
 - Spring Cloud Alibaba 2025.0.0.0
 - Spring Authorization Server 1.5.2
-- MyBatis Plus 3.5.14
-- Java 17
+- MyBatis Plus 3.5.15
+- Java 21
 
 ## Architecture Modes
 

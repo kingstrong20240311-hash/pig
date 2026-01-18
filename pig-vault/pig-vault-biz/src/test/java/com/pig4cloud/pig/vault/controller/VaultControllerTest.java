@@ -112,8 +112,9 @@ class VaultControllerTest {
 		request.setRefType(RefType.ORDER);
 		request.setRefId("ORD-001");
 
-		mockMvc.perform(post("/vault/freeze/create").contentType(MediaType.APPLICATION_JSON)
-			.content(objectMapper.writeValueAsString(request)))
+		mockMvc
+			.perform(post("/vault/freeze/create").contentType(MediaType.APPLICATION_JSON)
+				.content(objectMapper.writeValueAsString(request)))
 			.andDo(print())
 			.andExpect(status().isOk())
 			.andExpect(jsonPath("$.code").value(0))
@@ -128,8 +129,8 @@ class VaultControllerTest {
 		assertThat(balance.getFrozen()).isEqualByComparingTo(new BigDecimal("10.000000"));
 
 		// Verify freeze record created
-		Freeze freeze = freezeMapper
-			.selectOne(Wrappers.<Freeze>lambdaQuery().eq(Freeze::getRefType, RefType.ORDER).eq(Freeze::getRefId, "ORD-001"));
+		Freeze freeze = freezeMapper.selectOne(
+				Wrappers.<Freeze>lambdaQuery().eq(Freeze::getRefType, RefType.ORDER).eq(Freeze::getRefId, "ORD-001"));
 		assertThat(freeze).isNotNull();
 		assertThat(freeze.getStatus()).isEqualTo(FreezeStatus.HELD);
 
@@ -157,8 +158,9 @@ class VaultControllerTest {
 		request.setRefType(RefType.ORDER);
 		request.setRefId("ORD-002");
 
-		mockMvc.perform(post("/vault/freeze/create").contentType(MediaType.APPLICATION_JSON)
-			.content(objectMapper.writeValueAsString(request)))
+		mockMvc
+			.perform(post("/vault/freeze/create").contentType(MediaType.APPLICATION_JSON)
+				.content(objectMapper.writeValueAsString(request)))
 			.andDo(print())
 			.andExpect(status().isOk())
 			.andExpect(jsonPath("$.code").value(0))
@@ -166,13 +168,14 @@ class VaultControllerTest {
 			.andExpect(jsonPath("$.data.amount").value(15.0));
 
 		// Get freeze ID from database
-		Freeze freeze1 = freezeMapper
-			.selectOne(Wrappers.<Freeze>lambdaQuery().eq(Freeze::getRefType, RefType.ORDER).eq(Freeze::getRefId, "ORD-002"));
+		Freeze freeze1 = freezeMapper.selectOne(
+				Wrappers.<Freeze>lambdaQuery().eq(Freeze::getRefType, RefType.ORDER).eq(Freeze::getRefId, "ORD-002"));
 		Long freezeId1 = freeze1.getFreezeId();
 
 		// Second request with same refType+refId should return same freeze
-		mockMvc.perform(post("/vault/freeze/create").contentType(MediaType.APPLICATION_JSON)
-			.content(objectMapper.writeValueAsString(request)))
+		mockMvc
+			.perform(post("/vault/freeze/create").contentType(MediaType.APPLICATION_JSON)
+				.content(objectMapper.writeValueAsString(request)))
 			.andDo(print())
 			.andExpect(status().isOk())
 			.andExpect(jsonPath("$.code").value(0))
@@ -203,8 +206,9 @@ class VaultControllerTest {
 		request.setRefType(RefType.ORDER);
 		request.setRefId("ORD-003");
 
-		mockMvc.perform(post("/vault/freeze/create").contentType(MediaType.APPLICATION_JSON)
-			.content(objectMapper.writeValueAsString(request)))
+		mockMvc
+			.perform(post("/vault/freeze/create").contentType(MediaType.APPLICATION_JSON)
+				.content(objectMapper.writeValueAsString(request)))
 			.andDo(print())
 			.andExpect(status().isOk())
 			.andExpect(jsonPath("$.code").value(1));
@@ -217,8 +221,8 @@ class VaultControllerTest {
 		assertThat(balance.getFrozen()).isEqualByComparingTo(BigDecimal.ZERO);
 
 		// Verify no freeze created
-		Freeze freeze = freezeMapper
-			.selectOne(Wrappers.<Freeze>lambdaQuery().eq(Freeze::getRefType, RefType.ORDER).eq(Freeze::getRefId, "ORD-003"));
+		Freeze freeze = freezeMapper.selectOne(
+				Wrappers.<Freeze>lambdaQuery().eq(Freeze::getRefType, RefType.ORDER).eq(Freeze::getRefId, "ORD-003"));
 		assertThat(freeze).isNull();
 	}
 
@@ -237,8 +241,9 @@ class VaultControllerTest {
 		request1.setRefType(RefType.ORDER);
 		request1.setRefId("ORD-004");
 
-		mockMvc.perform(post("/vault/freeze/create").contentType(MediaType.APPLICATION_JSON)
-			.content(objectMapper.writeValueAsString(request1)))
+		mockMvc
+			.perform(post("/vault/freeze/create").contentType(MediaType.APPLICATION_JSON)
+				.content(objectMapper.writeValueAsString(request1)))
 			.andDo(print())
 			.andExpect(status().is4xxClientError());
 
@@ -250,8 +255,9 @@ class VaultControllerTest {
 		request2.setRefType(RefType.ORDER);
 		request2.setRefId("ORD-005");
 
-		mockMvc.perform(post("/vault/freeze/create").contentType(MediaType.APPLICATION_JSON)
-			.content(objectMapper.writeValueAsString(request2)))
+		mockMvc
+			.perform(post("/vault/freeze/create").contentType(MediaType.APPLICATION_JSON)
+				.content(objectMapper.writeValueAsString(request2)))
 			.andDo(print())
 			.andExpect(status().is4xxClientError());
 	}
@@ -273,8 +279,9 @@ class VaultControllerTest {
 		createRequest.setRefType(RefType.ORDER);
 		createRequest.setRefId("ORD-006");
 
-		mockMvc.perform(post("/vault/freeze/create").contentType(MediaType.APPLICATION_JSON)
-			.content(objectMapper.writeValueAsString(createRequest)))
+		mockMvc
+			.perform(post("/vault/freeze/create").contentType(MediaType.APPLICATION_JSON)
+				.content(objectMapper.writeValueAsString(createRequest)))
 			.andExpect(status().isOk());
 
 		// Then release it
@@ -282,8 +289,9 @@ class VaultControllerTest {
 		releaseRequest.setRefType(RefType.ORDER);
 		releaseRequest.setRefId("ORD-006");
 
-		mockMvc.perform(post("/vault/freeze/release").contentType(MediaType.APPLICATION_JSON)
-			.content(objectMapper.writeValueAsString(releaseRequest)))
+		mockMvc
+			.perform(post("/vault/freeze/release").contentType(MediaType.APPLICATION_JSON)
+				.content(objectMapper.writeValueAsString(releaseRequest)))
 			.andDo(print())
 			.andExpect(status().isOk())
 			.andExpect(jsonPath("$.code").value(0))
@@ -297,8 +305,8 @@ class VaultControllerTest {
 		assertThat(balance.getFrozen()).isEqualByComparingTo(BigDecimal.ZERO);
 
 		// Verify freeze status updated
-		Freeze freeze = freezeMapper
-			.selectOne(Wrappers.<Freeze>lambdaQuery().eq(Freeze::getRefType, RefType.ORDER).eq(Freeze::getRefId, "ORD-006"));
+		Freeze freeze = freezeMapper.selectOne(
+				Wrappers.<Freeze>lambdaQuery().eq(Freeze::getRefType, RefType.ORDER).eq(Freeze::getRefId, "ORD-006"));
 		assertThat(freeze.getStatus()).isEqualTo(FreezeStatus.RELEASED);
 	}
 
@@ -319,8 +327,9 @@ class VaultControllerTest {
 		createRequest.setRefType(RefType.ORDER);
 		createRequest.setRefId("ORD-007");
 
-		mockMvc.perform(post("/vault/freeze/create").contentType(MediaType.APPLICATION_JSON)
-			.content(objectMapper.writeValueAsString(createRequest)))
+		mockMvc
+			.perform(post("/vault/freeze/create").contentType(MediaType.APPLICATION_JSON)
+				.content(objectMapper.writeValueAsString(createRequest)))
 			.andExpect(status().isOk());
 
 		// Release first time
@@ -328,8 +337,9 @@ class VaultControllerTest {
 		releaseRequest.setRefType(RefType.ORDER);
 		releaseRequest.setRefId("ORD-007");
 
-		mockMvc.perform(post("/vault/freeze/release").contentType(MediaType.APPLICATION_JSON)
-			.content(objectMapper.writeValueAsString(releaseRequest)))
+		mockMvc
+			.perform(post("/vault/freeze/release").contentType(MediaType.APPLICATION_JSON)
+				.content(objectMapper.writeValueAsString(releaseRequest)))
 			.andExpect(status().isOk())
 			.andExpect(jsonPath("$.data.status").value("RELEASED"));
 
@@ -339,8 +349,9 @@ class VaultControllerTest {
 			.eq(LedgerEntry::getRefId, "ORD-007"));
 
 		// Release second time (idempotent)
-		mockMvc.perform(post("/vault/freeze/release").contentType(MediaType.APPLICATION_JSON)
-			.content(objectMapper.writeValueAsString(releaseRequest)))
+		mockMvc
+			.perform(post("/vault/freeze/release").contentType(MediaType.APPLICATION_JSON)
+				.content(objectMapper.writeValueAsString(releaseRequest)))
 			.andExpect(status().isOk())
 			.andExpect(jsonPath("$.data.status").value("RELEASED"));
 
@@ -369,8 +380,9 @@ class VaultControllerTest {
 		createRequest.setRefType(RefType.SETTLEMENT);
 		createRequest.setRefId("SETTLE-001");
 
-		mockMvc.perform(post("/vault/freeze/create").contentType(MediaType.APPLICATION_JSON)
-			.content(objectMapper.writeValueAsString(createRequest)))
+		mockMvc
+			.perform(post("/vault/freeze/create").contentType(MediaType.APPLICATION_JSON)
+				.content(objectMapper.writeValueAsString(createRequest)))
 			.andExpect(status().isOk());
 
 		// Claim it
@@ -378,8 +390,9 @@ class VaultControllerTest {
 		claimRequest.setRefType(RefType.SETTLEMENT);
 		claimRequest.setRefId("SETTLE-001");
 
-		mockMvc.perform(post("/vault/freeze/claim").contentType(MediaType.APPLICATION_JSON)
-			.content(objectMapper.writeValueAsString(claimRequest)))
+		mockMvc
+			.perform(post("/vault/freeze/claim").contentType(MediaType.APPLICATION_JSON)
+				.content(objectMapper.writeValueAsString(claimRequest)))
 			.andDo(print())
 			.andExpect(status().isOk())
 			.andExpect(jsonPath("$.code").value(0))
@@ -387,8 +400,9 @@ class VaultControllerTest {
 			.andExpect(jsonPath("$.data.claimTime").isNotEmpty());
 
 		// Verify freeze status and claim time
-		Freeze freeze = freezeMapper.selectOne(
-				Wrappers.<Freeze>lambdaQuery().eq(Freeze::getRefType, RefType.SETTLEMENT).eq(Freeze::getRefId, "SETTLE-001"));
+		Freeze freeze = freezeMapper.selectOne(Wrappers.<Freeze>lambdaQuery()
+			.eq(Freeze::getRefType, RefType.SETTLEMENT)
+			.eq(Freeze::getRefId, "SETTLE-001"));
 		assertThat(freeze.getStatus()).isEqualTo(FreezeStatus.CLAIMED);
 		assertThat(freeze.getClaimTime()).isNotNull();
 
@@ -416,16 +430,18 @@ class VaultControllerTest {
 		createRequest.setRefType(RefType.SETTLEMENT);
 		createRequest.setRefId("SETTLE-002");
 
-		mockMvc.perform(post("/vault/freeze/create").contentType(MediaType.APPLICATION_JSON)
-			.content(objectMapper.writeValueAsString(createRequest)))
+		mockMvc
+			.perform(post("/vault/freeze/create").contentType(MediaType.APPLICATION_JSON)
+				.content(objectMapper.writeValueAsString(createRequest)))
 			.andExpect(status().isOk());
 
 		FreezeLookupRequest releaseRequest = new FreezeLookupRequest();
 		releaseRequest.setRefType(RefType.SETTLEMENT);
 		releaseRequest.setRefId("SETTLE-002");
 
-		mockMvc.perform(post("/vault/freeze/release").contentType(MediaType.APPLICATION_JSON)
-			.content(objectMapper.writeValueAsString(releaseRequest)))
+		mockMvc
+			.perform(post("/vault/freeze/release").contentType(MediaType.APPLICATION_JSON)
+				.content(objectMapper.writeValueAsString(releaseRequest)))
 			.andExpect(status().isOk());
 
 		// Try to claim already released freeze
@@ -433,15 +449,17 @@ class VaultControllerTest {
 		claimRequest.setRefType(RefType.SETTLEMENT);
 		claimRequest.setRefId("SETTLE-002");
 
-		mockMvc.perform(post("/vault/freeze/claim").contentType(MediaType.APPLICATION_JSON)
-			.content(objectMapper.writeValueAsString(claimRequest)))
+		mockMvc
+			.perform(post("/vault/freeze/claim").contentType(MediaType.APPLICATION_JSON)
+				.content(objectMapper.writeValueAsString(claimRequest)))
 			.andDo(print())
 			.andExpect(status().isOk())
 			.andExpect(jsonPath("$.code").value(1));
 
 		// Verify status unchanged
-		Freeze freeze = freezeMapper.selectOne(
-				Wrappers.<Freeze>lambdaQuery().eq(Freeze::getRefType, RefType.SETTLEMENT).eq(Freeze::getRefId, "SETTLE-002"));
+		Freeze freeze = freezeMapper.selectOne(Wrappers.<Freeze>lambdaQuery()
+			.eq(Freeze::getRefType, RefType.SETTLEMENT)
+			.eq(Freeze::getRefId, "SETTLE-002"));
 		assertThat(freeze.getStatus()).isEqualTo(FreezeStatus.RELEASED);
 	}
 
@@ -462,8 +480,9 @@ class VaultControllerTest {
 		createRequest.setRefType(RefType.ORDER);
 		createRequest.setRefId("ORD-008");
 
-		mockMvc.perform(post("/vault/freeze/create").contentType(MediaType.APPLICATION_JSON)
-			.content(objectMapper.writeValueAsString(createRequest)))
+		mockMvc
+			.perform(post("/vault/freeze/create").contentType(MediaType.APPLICATION_JSON)
+				.content(objectMapper.writeValueAsString(createRequest)))
 			.andExpect(status().isOk());
 
 		// Consume it
@@ -471,8 +490,9 @@ class VaultControllerTest {
 		consumeRequest.setRefType(RefType.ORDER);
 		consumeRequest.setRefId("ORD-008");
 
-		mockMvc.perform(post("/vault/freeze/consume").contentType(MediaType.APPLICATION_JSON)
-			.content(objectMapper.writeValueAsString(consumeRequest)))
+		mockMvc
+			.perform(post("/vault/freeze/consume").contentType(MediaType.APPLICATION_JSON)
+				.content(objectMapper.writeValueAsString(consumeRequest)))
 			.andDo(print())
 			.andExpect(status().isOk())
 			.andExpect(jsonPath("$.code").value(0))
@@ -503,8 +523,9 @@ class VaultControllerTest {
 		createRequest.setRefType(RefType.SETTLEMENT);
 		createRequest.setRefId("SETTLE-003");
 
-		mockMvc.perform(post("/vault/freeze/create").contentType(MediaType.APPLICATION_JSON)
-			.content(objectMapper.writeValueAsString(createRequest)))
+		mockMvc
+			.perform(post("/vault/freeze/create").contentType(MediaType.APPLICATION_JSON)
+				.content(objectMapper.writeValueAsString(createRequest)))
 			.andExpect(status().isOk());
 
 		// Claim it first
@@ -512,8 +533,9 @@ class VaultControllerTest {
 		claimRequest.setRefType(RefType.SETTLEMENT);
 		claimRequest.setRefId("SETTLE-003");
 
-		mockMvc.perform(post("/vault/freeze/claim").contentType(MediaType.APPLICATION_JSON)
-			.content(objectMapper.writeValueAsString(claimRequest)))
+		mockMvc
+			.perform(post("/vault/freeze/claim").contentType(MediaType.APPLICATION_JSON)
+				.content(objectMapper.writeValueAsString(claimRequest)))
 			.andExpect(status().isOk());
 
 		// Then consume it
@@ -521,16 +543,18 @@ class VaultControllerTest {
 		consumeRequest.setRefType(RefType.SETTLEMENT);
 		consumeRequest.setRefId("SETTLE-003");
 
-		mockMvc.perform(post("/vault/freeze/consume").contentType(MediaType.APPLICATION_JSON)
-			.content(objectMapper.writeValueAsString(consumeRequest)))
+		mockMvc
+			.perform(post("/vault/freeze/consume").contentType(MediaType.APPLICATION_JSON)
+				.content(objectMapper.writeValueAsString(consumeRequest)))
 			.andDo(print())
 			.andExpect(status().isOk())
 			.andExpect(jsonPath("$.code").value(0))
 			.andExpect(jsonPath("$.data.status").value("CONSUMED"));
 
 		// Verify freeze status
-		Freeze freeze = freezeMapper.selectOne(
-				Wrappers.<Freeze>lambdaQuery().eq(Freeze::getRefType, RefType.SETTLEMENT).eq(Freeze::getRefId, "SETTLE-003"));
+		Freeze freeze = freezeMapper.selectOne(Wrappers.<Freeze>lambdaQuery()
+			.eq(Freeze::getRefType, RefType.SETTLEMENT)
+			.eq(Freeze::getRefId, "SETTLE-003"));
 		assertThat(freeze.getStatus()).isEqualTo(FreezeStatus.CONSUMED);
 	}
 
@@ -542,8 +566,9 @@ class VaultControllerTest {
 	@WithMockUser(username = "test", roles = "USER")
 	@DisplayName("Get balance successfully")
 	void testGetBalanceSuccess() throws Exception {
-		mockMvc.perform(get("/vault/balance").param("accountId", ACCOUNT_ID.toString())
-			.param("assetId", ASSET_ID.toString()))
+		mockMvc
+			.perform(get("/vault/balance").param("accountId", ACCOUNT_ID.toString())
+				.param("assetId", ASSET_ID.toString()))
 			.andDo(print())
 			.andExpect(status().isOk())
 			.andExpect(jsonPath("$.code").value(0))

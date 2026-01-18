@@ -62,6 +62,11 @@
 			<groupId>com.pig4cloud</groupId>
 			<artifactId>pig-common-swagger</artifactId>
 		</dependency>
+		<!-- hutool json -->
+		<dependency>
+			<groupId>cn.hutool</groupId>
+			<artifactId>hutool-json</artifactId>
+		</dependency>
 		<!-- orm 模块 -->
 		<dependency>
 			<groupId>com.baomidou</groupId>

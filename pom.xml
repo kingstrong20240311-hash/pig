@@ -27,14 +27,14 @@
 	<properties>
 		<!-- 项目版本号 -->
 		<revision>3.9.2</revision>
-		<java.version>17</java.version>
+		<java.version>21</java.version>
 		<spring-boot.version>3.5.9</spring-boot.version>
 		<spring-cloud.version>2025.0.1</spring-cloud.version>
 		<spring-cloud-alibaba.version>2025.0.0.0</spring-cloud-alibaba.version>
 		<jasypt.version>3.0.5</jasypt.version>
 		<git.commit.plugin>9.0.1</git.commit.plugin>
 		<docker.namespace>pig4cloud</docker.namespace>
-		<maven.compiler.target>17</maven.compiler.target>
+		<maven.compiler.target>21</maven.compiler.target>
 		<docker.host>http://192.168.0.100:2375</docker.host>
 		<commons-lang3.version>3.20.0</commons-lang3.version>
 		<docker.plugin.version>0.45.1</docker.plugin.version>
@@ -79,7 +79,7 @@
 			<artifactId>lombok</artifactId>
 			<scope>provided</scope>
 		</dependency>
-		<!-- JAVA 17 -->
+		<!-- JAVA 21 -->
 		<dependency>
 			<groupId>com.sun.xml.bind</groupId>
 			<artifactId>jaxb-impl</artifactId>

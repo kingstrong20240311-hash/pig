@@ -202,8 +202,7 @@ class OutboxEventMapperIT {
 		mapper.insert(evt3);
 
 		// When
-		int claimed = mapper.claimEvents(List.of(evt1.getId(), evt2.getId(), evt3.getId()), "worker-1",
-				Instant.now());
+		int claimed = mapper.claimEvents(List.of(evt1.getId(), evt2.getId(), evt3.getId()), "worker-1", Instant.now());
 
 		// Then
 		assertThat(claimed).isEqualTo(1); // 仅 evt1
@@ -244,8 +243,7 @@ class OutboxEventMapperIT {
 		mapper.insert(evt3);
 
 		// When
-		int claimed = mapper.claimEvents(List.of(evt1.getId(), evt2.getId(), evt3.getId()), "worker-1",
-				Instant.now());
+		int claimed = mapper.claimEvents(List.of(evt1.getId(), evt2.getId(), evt3.getId()), "worker-1", Instant.now());
 
 		// Then
 		assertThat(claimed).isEqualTo(2);

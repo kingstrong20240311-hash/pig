@@ -34,8 +34,8 @@
 		<common.io.version>2.18.0</common.io.version>
 		<dynamic-ds.version>4.5.0</dynamic-ds.version>
 		<swagger.fox.version>3.0.0</swagger.fox.version>
-		<maven.compiler.source>17</maven.compiler.source>
-		<maven.compiler.target>17</maven.compiler.target>
+		<maven.compiler.source>21</maven.compiler.source>
+		<maven.compiler.target>21</maven.compiler.target>
 		<nacos.client.version>3.1.0</nacos.client.version>
 		<velocity.tool.version>3.1</velocity.tool.version>
 		<configuration.version>1.10</configuration.version>

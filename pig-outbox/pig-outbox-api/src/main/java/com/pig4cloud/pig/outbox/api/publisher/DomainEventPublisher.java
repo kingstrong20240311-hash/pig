@@ -22,8 +22,8 @@ import com.pig4cloud.pig.outbox.api.model.DomainEventEnvelope;
 /**
  * 领域事件发布器统一接口
  * <p>
- * 业务代码只依赖此接口，运行时按profile切换实现： - 单体模式：InProcessEventPublisher（进程内总线） - 微服务模式：DbOutboxEventPublisher（写MySQL
- * outbox表）
+ * 业务代码只依赖此接口，运行时按profile切换实现： - 单体模式：InProcessEventPublisher（进程内总线） -
+ * 微服务模式：DbOutboxEventPublisher（写MySQL outbox表）
  *
  * @author pig4cloud
  * @date 2025-01-15

@@ -16,8 +16,7 @@
  */
 
 /**
- * Vault API 模块
- * 包含实体类、DTO、VO、Feign接口等公共API
+ * Vault API 模块 包含实体类、DTO、VO、Feign接口等公共API
  *
  * @author pig4cloud
  * @date 2025-01-13

@@ -84,15 +84,14 @@ public class VaultFreezeServiceImpl implements VaultFreezeService {
 		}
 
 		// 2) Get balance with FOR UPDATE semantics (pessimistic lock)
-		Balance balance = balanceMapper
-			.selectOne(Wrappers.<Balance>lambdaQuery()
-				.eq(Balance::getAccountId, request.getAccountId())
-				.eq(Balance::getAssetId, request.getAssetId())
-				.last("FOR UPDATE"));
+		Balance balance = balanceMapper.selectOne(Wrappers.<Balance>lambdaQuery()
+			.eq(Balance::getAccountId, request.getAccountId())
+			.eq(Balance::getAssetId, request.getAssetId())
+			.last("FOR UPDATE"));
 
 		if (balance == null) {
-			throw new IllegalStateException("Balance not found for accountId=" + request.getAccountId() + ", assetId="
-					+ request.getAssetId());
+			throw new IllegalStateException(
+					"Balance not found for accountId=" + request.getAccountId() + ", assetId=" + request.getAssetId());
 		}
 
 		// Check available >= amount
@@ -150,11 +149,10 @@ public class VaultFreezeServiceImpl implements VaultFreezeService {
 		freezeMapper.updateById(freeze);
 
 		// 3) Get balance and update (frozen -> available)
-		Balance balance = balanceMapper
-			.selectOne(Wrappers.<Balance>lambdaQuery()
-				.eq(Balance::getAccountId, freeze.getAccountId())
-				.eq(Balance::getAssetId, freeze.getAssetId())
-				.last("FOR UPDATE"));
+		Balance balance = balanceMapper.selectOne(Wrappers.<Balance>lambdaQuery()
+			.eq(Balance::getAccountId, freeze.getAccountId())
+			.eq(Balance::getAssetId, freeze.getAssetId())
+			.last("FOR UPDATE"));
 
 		if (balance == null) {
 			throw new IllegalStateException(
@@ -269,11 +267,10 @@ public class VaultFreezeServiceImpl implements VaultFreezeService {
 		freezeMapper.updateById(freeze);
 
 		// 3) Get balance and consume (frozen -> spent, total decreases)
-		Balance balance = balanceMapper
-			.selectOne(Wrappers.<Balance>lambdaQuery()
-				.eq(Balance::getAccountId, freeze.getAccountId())
-				.eq(Balance::getAssetId, freeze.getAssetId())
-				.last("FOR UPDATE"));
+		Balance balance = balanceMapper.selectOne(Wrappers.<Balance>lambdaQuery()
+			.eq(Balance::getAccountId, freeze.getAccountId())
+			.eq(Balance::getAssetId, freeze.getAssetId())
+			.last("FOR UPDATE"));
 
 		if (balance == null) {
 			throw new IllegalStateException(
@@ -344,8 +341,8 @@ public class VaultFreezeServiceImpl implements VaultFreezeService {
 	/**
 	 * Build idempotency key for ledger entry
 	 */
-	private String buildIdempotencyKey(LedgerType ledgerType,
-			com.pig4cloud.pig.vault.api.enums.RefType refType, String refId) {
+	private String buildIdempotencyKey(LedgerType ledgerType, com.pig4cloud.pig.vault.api.enums.RefType refType,
+			String refId) {
 		return ledgerType.name() + ":" + refType.name() + ":" + refId;
 	}
 

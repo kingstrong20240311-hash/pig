@@ -32,36 +32,32 @@ import com.pig4cloud.pig.vault.api.dto.FreezeResponse;
 public interface VaultFreezeService {
 
 	/**
-	 * Create a freeze (lock funds from available to frozen)
-	 * Idempotent based on refType + refId
-	 *
+	 * Create a freeze (lock funds from available to frozen) Idempotent based on refType +
+	 * refId
 	 * @param request freeze request
 	 * @return freeze response
 	 */
 	FreezeResponse createFreeze(CreateFreezeRequest request);
 
 	/**
-	 * Release a freeze (unlock funds from frozen back to available)
-	 * Idempotent based on refType + refId
-	 *
+	 * Release a freeze (unlock funds from frozen back to available) Idempotent based on
+	 * refType + refId
 	 * @param request freeze lookup request
 	 * @return freeze response
 	 */
 	FreezeResponse releaseFreeze(FreezeLookupRequest request);
 
 	/**
-	 * Claim a freeze (mark freeze as claimed by settlement process)
-	 * Idempotent based on refType + refId
-	 *
+	 * Claim a freeze (mark freeze as claimed by settlement process) Idempotent based on
+	 * refType + refId
 	 * @param request freeze lookup request
 	 * @return freeze response
 	 */
 	FreezeResponse claimFreeze(FreezeLookupRequest request);
 
 	/**
-	 * Consume a freeze (spend frozen funds, total decreases)
-	 * Idempotent based on refType + refId
-	 *
+	 * Consume a freeze (spend frozen funds, total decreases) Idempotent based on refType
+	 * + refId
 	 * @param request freeze lookup request
 	 * @return freeze response
 	 */

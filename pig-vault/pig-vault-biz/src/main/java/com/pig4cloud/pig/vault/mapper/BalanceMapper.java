@@ -37,9 +37,8 @@ import java.math.BigDecimal;
 public interface BalanceMapper extends BaseMapper<Balance> {
 
 	/**
-	 * Update balance for freeze operation (available -> frozen)
-	 * Uses optimistic locking with version
-	 *
+	 * Update balance for freeze operation (available -> frozen) Uses optimistic locking
+	 * with version
 	 * @param accountId account ID
 	 * @param assetId asset ID
 	 * @param amount amount to freeze
@@ -54,7 +53,6 @@ public interface BalanceMapper extends BaseMapper<Balance> {
 
 	/**
 	 * Update balance for unfreeze operation (frozen -> available)
-	 *
 	 * @param accountId account ID
 	 * @param assetId asset ID
 	 * @param amount amount to unfreeze
@@ -69,7 +67,6 @@ public interface BalanceMapper extends BaseMapper<Balance> {
 
 	/**
 	 * Update balance for consume operation (frozen -> spent)
-	 *
 	 * @param accountId account ID
 	 * @param assetId asset ID
 	 * @param amount amount to consume

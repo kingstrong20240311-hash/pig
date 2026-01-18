@@ -32,7 +32,6 @@ import org.springframework.stereotype.Service;
  */
 @Service
 @RequiredArgsConstructor
-public class OutboxEventServiceImpl extends ServiceImpl<OutboxEventMapper, OutboxEvent>
-		implements OutboxEventService {
+public class OutboxEventServiceImpl extends ServiceImpl<OutboxEventMapper, OutboxEvent> implements OutboxEventService {
 
 }

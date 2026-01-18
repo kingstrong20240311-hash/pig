@@ -151,8 +151,8 @@ public class OrderServiceImpl implements OrderService {
 
 		// 9. TODO: Submit to matching engine (async, with retry)
 		// This will be implemented later when matching engine integration is ready
-		log.info("Order created and moved to OPEN: orderId={}, marketId={}, side={}, price={}, quantity={}",
-				orderId, order.getMarketId(), order.getSide(), order.getPrice(), order.getQuantity());
+		log.info("Order created and moved to OPEN: orderId={}, marketId={}, side={}, price={}, quantity={}", orderId,
+				order.getMarketId(), order.getSide(), order.getPrice(), order.getQuantity());
 
 		return buildCreateOrderResponse(order);
 	}
@@ -291,9 +291,9 @@ public class OrderServiceImpl implements OrderService {
 
 		// Validate remaining quantity: must not be negative
 		if (newTakerRemaining.compareTo(BigDecimal.ZERO) < 0) {
-			throw new IllegalStateException("Taker order remaining quantity cannot be negative: orderId="
-					+ takerOrder.getOrderId() + ", remaining=" + takerOrder.getRemainingQuantity() + ", filled="
-					+ totalTakerFilled);
+			throw new IllegalStateException(
+					"Taker order remaining quantity cannot be negative: orderId=" + takerOrder.getOrderId()
+							+ ", remaining=" + takerOrder.getRemainingQuantity() + ", filled=" + totalTakerFilled);
 		}
 
 		takerOrder.setRemainingQuantity(newTakerRemaining);
