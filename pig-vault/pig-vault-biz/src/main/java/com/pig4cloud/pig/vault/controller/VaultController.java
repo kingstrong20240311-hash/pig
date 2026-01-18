@@ -24,7 +24,9 @@ import com.pig4cloud.pig.common.core.util.R;
 import com.pig4cloud.pig.common.log.annotation.SysLog;
 import com.pig4cloud.pig.vault.api.dto.*;
 import com.pig4cloud.pig.vault.api.entity.Balance;
+import com.pig4cloud.pig.vault.api.entity.VaultAsset;
 import com.pig4cloud.pig.vault.mapper.BalanceMapper;
+import com.pig4cloud.pig.vault.mapper.VaultAssetMapper;
 import com.pig4cloud.pig.vault.service.VaultFreezeService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
@@ -53,6 +55,8 @@ public class VaultController {
 	private final VaultFreezeService vaultFreezeService;
 
 	private final BalanceMapper balanceMapper;
+
+	private final VaultAssetMapper vaultAssetMapper;
 
 	/**
 	 * Create a freeze (lock funds from available to frozen)
@@ -133,17 +137,26 @@ public class VaultController {
 	/**
 	 * Get balance for an account and asset
 	 * @param accountId account ID
-	 * @param assetId asset ID
+	 * @param symbol asset symbol
 	 * @return balance response
 	 */
 	@GetMapping("/balance")
 	@Operation(summary = "Get Balance", description = "Get balance for an account and asset")
 	public R<BalanceResponse> getBalance(@RequestParam("accountId") Long accountId,
-			@RequestParam("assetId") Long assetId) {
+			@RequestParam("symbol") String symbol) {
 		try {
+			// Convert symbol to assetId
+			VaultAsset asset = vaultAssetMapper.selectOne(Wrappers.<VaultAsset>lambdaQuery()
+				.eq(VaultAsset::getSymbol, symbol)
+				.eq(VaultAsset::getIsActive, true));
+
+			if (asset == null) {
+				return R.failed("Asset not found or inactive for symbol: " + symbol);
+			}
+
 			Balance balance = balanceMapper.selectOne(Wrappers.<Balance>lambdaQuery()
 				.eq(Balance::getAccountId, accountId)
-				.eq(Balance::getAssetId, assetId));
+				.eq(Balance::getAssetId, asset.getAssetId()));
 
 			if (balance == null) {
 				return R.failed("Balance not found");
@@ -153,6 +166,7 @@ public class VaultController {
 			response.setBalanceId(balance.getBalanceId());
 			response.setAccountId(balance.getAccountId());
 			response.setAssetId(balance.getAssetId());
+			response.setSymbol(symbol);
 			response.setAvailable(balance.getAvailable());
 			response.setFrozen(balance.getFrozen());
 			response.setUpdateTime(balance.getUpdateTime());

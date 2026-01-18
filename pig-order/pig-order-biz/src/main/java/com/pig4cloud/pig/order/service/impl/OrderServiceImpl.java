@@ -110,8 +110,8 @@ public class OrderServiceImpl implements OrderService {
 		// 5. Create freeze in Vault
 		CreateFreezeRequest freezeRequest = new CreateFreezeRequest();
 		freezeRequest.setAccountId(request.getUserId());
-		// TODO: get assetId from marketId mapping
-		freezeRequest.setAssetId(1L);
+		// TODO: get symbol from marketId mapping
+		freezeRequest.setSymbol("USDC");
 		freezeRequest.setAmount(calculateFreezeAmount(request));
 		freezeRequest.setRefType(RefType.ORDER);
 		freezeRequest.setRefId(String.valueOf(orderId));
@@ -189,7 +189,7 @@ public class OrderServiceImpl implements OrderService {
 
 		// 5. Insert cancel record (idempotent anchor)
 		OrderCancel orderCancel = new OrderCancel();
-		orderCancel.setCancelId(IdUtil.getSnowflake(workerId, datacenterId).nextId());
+		orderCancel.setCancelId(IdUtil.getSnowflake(nodeId, DATACENTER_ID).nextId());
 		orderCancel.setOrderId(request.getOrderId());
 		orderCancel.setReason(request.getReason() != null ? request.getReason() : "User requested");
 		orderCancel.setIdempotencyKey(idempotencyKey);
@@ -248,7 +248,7 @@ public class OrderServiceImpl implements OrderService {
 
 			// 4.2 Insert fill record
 			OrderFill fill = new OrderFill();
-			fill.setTradeId(IdUtil.getSnowflake(workerId, datacenterId).nextId());
+			fill.setTradeId(IdUtil.getSnowflake(nodeId, DATACENTER_ID).nextId());
 			fill.setMatchId(request.getMatchId());
 			fill.setTakerOrderId(request.getTakerOrderId());
 			fill.setMakerOrderId(fillDTO.getMakerOrderId());
