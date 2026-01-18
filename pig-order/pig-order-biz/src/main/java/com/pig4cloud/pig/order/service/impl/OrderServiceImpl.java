@@ -73,11 +73,10 @@ public class OrderServiceImpl implements OrderService {
 
 	private final VaultService vaultService;
 
-	@Value("${snowflake.worker-id:0}")
-	private long workerId;
+	@Value("${node-id:0}")
+	private long nodeId;
 
-	@Value("${snowflake.datacenter-id:0}")
-	private long datacenterId;
+	private static final long DATACENTER_ID = 0L;
 
 	private static final String DOMAIN_ORDER = "order";
 
@@ -106,7 +105,7 @@ public class OrderServiceImpl implements OrderService {
 		validateCreateOrderRequest(request);
 
 		// 4. Generate order ID using configured workerId and datacenterId
-		Long orderId = IdUtil.getSnowflake(workerId, datacenterId).nextId();
+		Long orderId = IdUtil.getSnowflake(nodeId, DATACENTER_ID).nextId();
 
 		// 5. Create freeze in Vault
 		CreateFreezeRequest freezeRequest = new CreateFreezeRequest();
