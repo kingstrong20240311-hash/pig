@@ -32,6 +32,8 @@ import com.pig4cloud.pig.order.api.enums.TimeInForce;
 import com.pig4cloud.pig.order.mapper.OrderCancelMapper;
 import com.pig4cloud.pig.order.mapper.OrderFillMapper;
 import com.pig4cloud.pig.order.mapper.OrderMapper;
+import com.pig4cloud.pig.order.match.MatchingEngineProperties;
+import com.pig4cloud.pig.order.match.OrderCommandConverter;
 import com.pig4cloud.pig.order.service.OrderService;
 import com.pig4cloud.pig.outbox.entity.OutboxEvent;
 import com.pig4cloud.pig.outbox.enums.OutboxStatus;
@@ -41,6 +43,10 @@ import com.pig4cloud.pig.vault.api.dto.FreezeLookupRequest;
 import com.pig4cloud.pig.vault.api.dto.FreezeResponse;
 import com.pig4cloud.pig.vault.api.enums.RefType;
 import com.pig4cloud.pig.vault.api.feign.VaultService;
+import exchange.core2.core.ExchangeApi;
+import exchange.core2.core.common.api.ApiCancelOrder;
+import exchange.core2.core.common.api.ApiPlaceOrder;
+import exchange.core2.core.common.cmd.CommandResultCode;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -72,6 +78,10 @@ public class OrderServiceImpl implements OrderService {
 	private final OutboxEventService outboxEventService;
 
 	private final VaultService vaultService;
+
+	private final ExchangeApi exchangeApi;
+
+	private final MatchingEngineProperties matchingEngineProperties;
 
 	@Value("${node-id:0}")
 	private long nodeId;
@@ -143,15 +153,23 @@ public class OrderServiceImpl implements OrderService {
 		// 7. Emit OrderCreatedEvent to Outbox
 		publishOrderCreatedEvent(order);
 
-		// 8. Transition to OPEN status (freeze is now in CREATED state, will be
-		// CLAIMED by Vault upon receiving event)
-		order.setStatus(OrderStatus.OPEN);
+		// 8. Submit to matching engine and wait for result
+		int symbolId = order.getMarketId().intValue(); // Use marketId as symbolId
+		ApiPlaceOrder placeOrderCmd = OrderCommandConverter.toApiPlaceOrder(order, symbolId);
+		CommandResultCode resultCode = exchangeApi.submitCommandAsync(placeOrderCmd).join();
+
+		if (resultCode != CommandResultCode.SUCCESS) {
+			log.error("Failed to submit order to matching engine: orderId={}, resultCode={}", orderId, resultCode);
+			throw new IllegalStateException("Matching engine rejected order: " + resultCode);
+		}
+
+		// 9. Transition to MATCHING status after successful submission to matching engine
+		order.setStatus(OrderStatus.MATCHING);
 		orderMapper.updateById(order);
 
-		// 9. TODO: Submit to matching engine (async, with retry)
-		// This will be implemented later when matching engine integration is ready
-		log.info("Order created and moved to OPEN: orderId={}, marketId={}, side={}, price={}, quantity={}", orderId,
-				order.getMarketId(), order.getSide(), order.getPrice(), order.getQuantity());
+		log.info(
+				"Order created and submitted to matching engine: orderId={}, marketId={}, side={}, price={}, quantity={}",
+				orderId, order.getMarketId(), order.getSide(), order.getPrice(), order.getQuantity());
 
 		return buildCreateOrderResponse(order);
 	}
@@ -202,8 +220,17 @@ public class OrderServiceImpl implements OrderService {
 		// 7. Emit OrderCancelRequestedEvent
 		publishOrderCancelRequestedEvent(order, idempotencyKey);
 
-		// 8. TODO: Notify matching engine to apply cancel (async)
-		// The actual cancellation will be done by matching thread calling applyCancel
+		// 8. Submit cancel to matching engine and wait for result
+		int symbolId = order.getMarketId().intValue(); // Use marketId as symbolId
+		ApiCancelOrder cancelOrderCmd = OrderCommandConverter.toApiCancelOrder(order.getOrderId(), order.getUserId(),
+				symbolId);
+		CommandResultCode resultCode = exchangeApi.submitCommandAsync(cancelOrderCmd).join();
+
+		if (resultCode != CommandResultCode.SUCCESS) {
+			log.error("Failed to submit cancel to matching engine: orderId={}, resultCode={}", order.getOrderId(),
+					resultCode);
+			throw new IllegalStateException("Matching engine rejected cancel: " + resultCode);
+		}
 
 		log.info("Order cancel requested: orderId={}, reason={}", order.getOrderId(), orderCancel.getReason());
 

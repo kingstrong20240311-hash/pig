@@ -19,3 +19,10 @@ spring:
 
 # Shared node identifier (used for sharding and Snowflake worker ID)
 node-id: ${NODE_ID:0}
+
+# Matching Engine Configuration
+matching-engine:
+  # Default asset symbol ID (1 = USDC)
+  default-asset: 1
+  # Enable state recovery from order table on startup
+  enable-state-recovery: true
