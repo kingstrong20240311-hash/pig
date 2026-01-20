@@ -17,18 +17,23 @@
 
 package com.pig4cloud.pig.outbox.publisher;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.pig4cloud.pig.outbox.api.model.DomainEventEnvelope;
 import com.pig4cloud.pig.outbox.api.publisher.DomainEventPublisher;
-import com.pig4cloud.pig.outbox.handler.EventHandlerRegistry;
+import com.pig4cloud.pig.outbox.entity.OutboxEvent;
+import com.pig4cloud.pig.outbox.enums.OutboxStatus;
+import com.pig4cloud.pig.outbox.service.OutboxEventService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.transaction.annotation.Transactional;
 
-import java.util.List;
+import java.time.Instant;
 
 /**
  * 进程内事件发布器（单体模式）
  * <p>
- * 直接在同一进程内同步调用事件处理器，无需经过数据库或消息队列
+ * 先保存事件到数据库，后台由定时任务调度发布
  *
  * @author pig4cloud
  * @date 2025-01-15
@@ -37,36 +42,40 @@ import java.util.List;
 @RequiredArgsConstructor
 public class InProcessEventPublisher implements DomainEventPublisher {
 
-	private final EventHandlerRegistry eventHandlerRegistry;
+	private final OutboxEventService outboxEventService;
+
+	private final ObjectMapper objectMapper;
 
 	@Override
+	@Transactional(rollbackFor = Exception.class)
 	public void publish(DomainEventEnvelope event) {
-		log.debug("Publishing event in-process: eventId={}, domain={}, eventType={}", event.eventId(), event.domain(),
-				event.eventType());
+		OutboxEvent outboxEvent = new OutboxEvent();
+		outboxEvent.setEventId(event.eventId());
+		outboxEvent.setDomain(event.domain());
+		outboxEvent.setAggregateType(event.aggregateType());
+		outboxEvent.setAggregateId(event.aggregateId());
+		outboxEvent.setEventType(event.eventType());
+		outboxEvent.setPayloadJson(event.payloadJson());
+		outboxEvent.setPartitionKey(event.aggregateId());
 
-		// 获取注册的处理器
-		List<EventHandlerRegistry.HandlerMethod> handlers = eventHandlerRegistry.getHandlers(event.domain(),
-				event.eventType());
-
-		if (handlers.isEmpty()) {
-			log.warn("No handler found for event: domain={}, eventType={}", event.domain(), event.eventType());
-			return;
-		}
-
-		// 依次调用所有处理器
-		for (EventHandlerRegistry.HandlerMethod handler : handlers) {
+		// 序列化headers
+		if (event.headers() != null && !event.headers().isEmpty()) {
 			try {
-				handler.getMethod().invoke(handler.getBean(), event);
-				log.debug("Event handled successfully: eventId={}, handler={}.{}", event.eventId(),
-						handler.getBean().getClass().getSimpleName(), handler.getMethod().getName());
+				outboxEvent.setHeadersJson(objectMapper.writeValueAsString(event.headers()));
 			}
-			catch (Exception e) {
-				log.error("Failed to handle event: eventId={}, handler={}.{}", event.eventId(),
-						handler.getBean().getClass().getSimpleName(), handler.getMethod().getName(), e);
-				// 单体模式下可以选择：继续处理其他handler，或者抛出异常中断事务
-				// 这里选择继续处理，避免一个handler失败影响其他handler
+			catch (JsonProcessingException e) {
+				log.warn("Failed to serialize event headers, eventId={}", event.eventId(), e);
 			}
 		}
+
+		outboxEvent.setStatus(OutboxStatus.PENDING);
+		outboxEvent.setAttempts(0);
+		outboxEvent.setCreatedAt(Instant.now());
+		outboxEvent.setUpdatedAt(Instant.now());
+
+		outboxEventService.save(outboxEvent);
+		log.debug("Published event to outbox: eventId={}, domain={}, eventType={}", event.eventId(), event.domain(),
+				event.eventType());
 	}
 
 }

@@ -28,7 +28,6 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.testcontainers.containers.MySQLContainer;
-import org.testcontainers.images.PullPolicy;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 
@@ -79,7 +78,7 @@ class OutboxConcurrencyIT {
 	@DisplayName("CON-001: claimEvents 竞争")
 	void claimEvents_competition() throws InterruptedException {
 		// Given
-		OutboxEvent evt = createEvent("evt-1", OutboxStatus.NEW);
+		OutboxEvent evt = createEvent("evt-1", OutboxStatus.PENDING);
 		mapper.insert(evt);
 
 		AtomicInteger worker1Claims = new AtomicInteger(0);
@@ -147,7 +146,7 @@ class OutboxConcurrencyIT {
 			executor.submit(() -> {
 				try {
 					for (int j = 0; j < eventsPerThread; j++) {
-						OutboxEvent event = createEvent("evt-" + threadId + "-" + j, OutboxStatus.NEW);
+						OutboxEvent event = createEvent("evt-" + threadId + "-" + j, OutboxStatus.PENDING);
 						service.save(event);
 					}
 				}

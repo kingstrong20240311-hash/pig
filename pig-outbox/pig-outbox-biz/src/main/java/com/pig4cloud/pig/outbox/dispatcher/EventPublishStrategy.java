@@ -15,53 +15,22 @@
  * Author: lengleng (wangiegie@gmail.com)
  */
 
-package com.pig4cloud.pig.outbox.enums;
+package com.pig4cloud.pig.outbox.dispatcher;
 
-import com.baomidou.mybatisplus.annotation.EnumValue;
-import lombok.Getter;
+import com.pig4cloud.pig.outbox.entity.OutboxEvent;
 
 /**
- * Outbox事件状态枚举
+ * 事件发布策略接口
  *
  * @author pig4cloud
- * @date 2025-01-15
+ * @date 2025-01-20
  */
-@Getter
-public enum OutboxStatus {
+public interface EventPublishStrategy {
 
 	/**
-	 * 新建
+	 * 发布事件
+	 * @param event 待发布事件
 	 */
-	PENDING(0, "新建"),
-
-	/**
-	 * 发送中
-	 */
-	SENDING(1, "发送中"),
-
-	/**
-	 * 已发送
-	 */
-	SENT(2, "已发送"),
-
-	/**
-	 * 重试中
-	 */
-	RETRY(3, "重试中"),
-
-	/**
-	 * 死信
-	 */
-	DEAD(9, "死信");
-
-	@EnumValue
-	private final int code;
-
-	private final String description;
-
-	OutboxStatus(int code, String description) {
-		this.code = code;
-		this.description = description;
-	}
+	void publish(OutboxEvent event);
 
 }

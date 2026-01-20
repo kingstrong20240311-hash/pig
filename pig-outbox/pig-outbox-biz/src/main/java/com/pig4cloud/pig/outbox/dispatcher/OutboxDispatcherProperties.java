@@ -15,53 +15,44 @@
  * Author: lengleng (wangiegie@gmail.com)
  */
 
-package com.pig4cloud.pig.outbox.enums;
+package com.pig4cloud.pig.outbox.dispatcher;
 
-import com.baomidou.mybatisplus.annotation.EnumValue;
-import lombok.Getter;
+import lombok.Data;
+import org.springframework.boot.context.properties.ConfigurationProperties;
 
 /**
- * Outbox事件状态枚举
+ * Outbox调度器配置属性
  *
  * @author pig4cloud
- * @date 2025-01-15
+ * @date 2025-01-20
  */
-@Getter
-public enum OutboxStatus {
+@Data
+@ConfigurationProperties(prefix = "pig.outbox.dispatcher")
+public class OutboxDispatcherProperties {
 
 	/**
-	 * 新建
+	 * 是否启用调度器
 	 */
-	PENDING(0, "新建"),
+	private boolean enabled = true;
 
 	/**
-	 * 发送中
+	 * 每次批量处理数量
 	 */
-	SENDING(1, "发送中"),
+	private int batchSize = 100;
 
 	/**
-	 * 已发送
+	 * 锁超时时间（秒）
 	 */
-	SENT(2, "已发送"),
+	private int lockTimeoutSeconds = 60;
 
 	/**
-	 * 重试中
+	 * 最大重试次数
 	 */
-	RETRY(3, "重试中"),
+	private int maxRetries = 5;
 
 	/**
-	 * 死信
+	 * 重试延迟基数（秒）
 	 */
-	DEAD(9, "死信");
-
-	@EnumValue
-	private final int code;
-
-	private final String description;
-
-	OutboxStatus(int code, String description) {
-		this.code = code;
-		this.description = description;
-	}
+	private int retryDelaySeconds = 10;
 
 }
