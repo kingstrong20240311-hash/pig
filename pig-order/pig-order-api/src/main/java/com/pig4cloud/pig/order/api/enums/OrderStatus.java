@@ -30,49 +30,49 @@ import lombok.Getter;
 public enum OrderStatus {
 
 	/**
-	 * Created - Order validated but not yet in orderbook
+	 * Open - Order persisted but not yet submitted or submission not confirmed
 	 */
-	CREATED(1, "CREATED"),
+	OPEN(1, "OPEN"),
 
 	/**
-	 * Open - Matchable, in orderbook
+	 * Matching - Accepted by matching engine
 	 */
-	OPEN(2, "OPEN"),
-
-	/**
-	 * Matching - Being processed by matching engine
-	 */
-	MATCHING(3, "MATCHING"),
+	MATCHING(2, "MATCHING"),
 
 	/**
 	 * Partially Filled - Partial execution, still matchable
 	 */
-	PARTIALLY_FILLED(4, "PARTIALLY_FILLED"),
+	PARTIALLY_FILLED(3, "PARTIALLY_FILLED"),
 
 	/**
 	 * Filled - Fully executed
 	 */
-	FILLED(5, "FILLED"),
+	FILLED(4, "FILLED"),
 
 	/**
 	 * Cancel Requested - Cancel request recorded, waiting for matching thread
 	 */
-	CANCEL_REQUESTED(6, "CANCEL_REQUESTED"),
+	CANCEL_REQUESTED(5, "CANCEL_REQUESTED"),
 
 	/**
 	 * Cancelled - Final state
 	 */
-	CANCELLED(7, "CANCELLED"),
+	CANCELLED(6, "CANCELLED"),
 
 	/**
 	 * Expired - Final state
 	 */
-	EXPIRED(8, "EXPIRED"),
+	EXPIRED(7, "EXPIRED"),
 
 	/**
-	 * Rejected - Final state
+	 * Rejected - Rejected by matching engine (business rejection)
 	 */
-	REJECTED(9, "REJECTED");
+	REJECTED(8, "REJECTED"),
+
+	/**
+	 * Failed - Submission failed (system/network/exception), Final state
+	 */
+	FAILED(9, "FAILED");
 
 	@EnumValue
 	@JsonValue
@@ -98,7 +98,7 @@ public enum OrderStatus {
 	 * Check if this is a final state (terminal state)
 	 */
 	public boolean isFinalState() {
-		return this == FILLED || this == CANCELLED || this == EXPIRED || this == REJECTED;
+		return this == FILLED || this == CANCELLED || this == EXPIRED || this == REJECTED || this == FAILED;
 	}
 
 	/**

@@ -20,15 +20,29 @@ import exchange.core2.core.ExchangeApi;
 import exchange.core2.core.ExchangeCore;
 import exchange.core2.core.IEventsHandler;
 import exchange.core2.core.SimpleEventsProcessor;
+import exchange.core2.core.common.api.ApiAddUser;
+import exchange.core2.core.common.api.ApiAdjustUserBalance;
 import exchange.core2.core.common.config.ExchangeConfiguration;
 import exchange.core2.core.common.config.InitialStateConfiguration;
 import exchange.core2.core.common.config.OrdersProcessingConfiguration;
+import exchange.core2.core.common.cmd.CommandResultCode;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
+import org.springframework.boot.context.event.ApplicationReadyEvent;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.context.SmartLifecycle;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.event.EventListener;
+
+import com.pig4cloud.pig.order.api.entity.Market;
+import com.pig4cloud.pig.order.match.MatchingEngineSymbolService;
+import com.pig4cloud.pig.order.match.event.ExchangeCoreInitedEvent;
+import com.pig4cloud.pig.order.service.MarketService;
+
+import java.util.List;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * ExchangeCore Configuration for Order Matching Engine
@@ -56,8 +70,10 @@ public class ExchangeCoreConfiguration {
 			.riskProcessingMode(OrdersProcessingConfiguration.RiskProcessingMode.NO_RISK_PROCESSING)
 			.build();
 
-		InitialStateConfiguration initStateCfg = InitialStateConfiguration
-			.cleanStart(matchingEngineProperties.getDefaultAsset());
+		// Get default asset symbol name from mapping (e.g., 1 -> "USDC")
+		String defaultAssetSymbol = matchingEngineProperties.getAssetSymbol(matchingEngineProperties.getDefaultAsset());
+
+		InitialStateConfiguration initStateCfg = InitialStateConfiguration.cleanStart(defaultAssetSymbol);
 
 		ExchangeConfiguration exchangeConfiguration = ExchangeConfiguration.defaultBuilder()
 			.ordersProcessingCfg(ordersProcessingCfg)
@@ -73,7 +89,9 @@ public class ExchangeCoreConfiguration {
 			.exchangeConfiguration(exchangeConfiguration)
 			.build();
 
-		log.info("ExchangeCore created with configuration: {}", exchangeConfiguration);
+		log.info("ExchangeCore created with default asset: {} ({}), risk mode: {}",
+				matchingEngineProperties.getDefaultAsset(), defaultAssetSymbol,
+				ordersProcessingCfg.getRiskProcessingMode());
 
 		return exchangeCore;
 	}
@@ -89,6 +107,14 @@ public class ExchangeCoreConfiguration {
 	@Bean
 	public ExchangeCoreLifecycle exchangeCoreLifecycle(ExchangeCore exchangeCore) {
 		return new ExchangeCoreLifecycle(exchangeCore);
+	}
+
+	@Bean
+	public ExchangeCoreInitializer exchangeCoreInitializer(MarketService marketService,
+			MatchingEngineSymbolService matchingEngineSymbolService, ExchangeApi exchangeApi,
+			MatchingEngineProperties matchingEngineProperties, ApplicationEventPublisher eventPublisher) {
+		return new ExchangeCoreInitializer(marketService, matchingEngineSymbolService, exchangeApi,
+				matchingEngineProperties, eventPublisher);
 	}
 
 	/**
@@ -138,6 +164,72 @@ public class ExchangeCoreConfiguration {
 		public int getPhase() {
 			// Start early, stop late
 			return Integer.MIN_VALUE;
+		}
+
+	}
+
+	/**
+	 * Initializes exchange-core with system user and active markets.
+	 */
+	@Slf4j
+	@RequiredArgsConstructor
+	static class ExchangeCoreInitializer {
+
+		private static final long SYSTEM_UID = 0L;
+
+		private final AtomicBoolean initialized = new AtomicBoolean(false);
+
+		private final MarketService marketService;
+
+		private final MatchingEngineSymbolService matchingEngineSymbolService;
+
+		private final ExchangeApi exchangeApi;
+
+		private final MatchingEngineProperties matchingEngineProperties;
+
+		private final ApplicationEventPublisher eventPublisher;
+
+		@EventListener(ApplicationReadyEvent.class)
+		public void initialize(ApplicationReadyEvent event) {
+			if (!initialized.compareAndSet(false, true)) {
+				return;
+			}
+
+			initSystemUser();
+
+			List<Market> activeMarkets = marketService.listActiveMarkets(java.time.Instant.now());
+			for (Market market : activeMarkets) {
+				matchingEngineSymbolService.ensureSymbol(market.getMarketId().intValue());
+			}
+			log.info("Registered {} active markets in matching engine", activeMarkets.size());
+
+			eventPublisher.publishEvent(new ExchangeCoreInitedEvent());
+		}
+
+		private void initSystemUser() {
+			CommandResultCode addUserResult = exchangeApi
+				.submitCommandAsync(ApiAddUser.builder().uid(SYSTEM_UID).build())
+				.join();
+			if (addUserResult != CommandResultCode.SUCCESS
+					&& addUserResult != CommandResultCode.USER_MGMT_USER_ALREADY_EXISTS) {
+				throw new IllegalStateException("Failed to register system user: " + addUserResult);
+			}
+
+			// TODO: Replace with real balance provisioning for the system user.
+			long maxBalance = Long.MAX_VALUE / 4;
+			CommandResultCode balanceResult = exchangeApi
+				.submitCommandAsync(ApiAdjustUserBalance.builder()
+					.uid(SYSTEM_UID)
+					.currency(matchingEngineProperties.getDefaultAsset())
+					.amount(maxBalance)
+					.transactionId(SYSTEM_UID + 1) // default transactionId is 0. avoid
+													// duplicate transactionId
+					.build())
+				.join();
+
+			if (balanceResult != CommandResultCode.SUCCESS) {
+				throw new IllegalStateException("Failed to fund system user: " + balanceResult);
+			}
 		}
 
 	}

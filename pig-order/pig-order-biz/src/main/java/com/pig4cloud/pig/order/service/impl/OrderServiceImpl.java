@@ -25,27 +25,23 @@ import com.pig4cloud.pig.common.core.util.R;
 import com.pig4cloud.pig.order.api.dto.*;
 import com.pig4cloud.pig.order.api.entity.Order;
 import com.pig4cloud.pig.order.api.entity.OrderCancel;
-import com.pig4cloud.pig.order.api.entity.OrderFill;
 import com.pig4cloud.pig.order.api.enums.OrderStatus;
 import com.pig4cloud.pig.order.api.enums.OrderType;
 import com.pig4cloud.pig.order.api.enums.TimeInForce;
 import com.pig4cloud.pig.order.mapper.OrderCancelMapper;
-import com.pig4cloud.pig.order.mapper.OrderFillMapper;
 import com.pig4cloud.pig.order.mapper.OrderMapper;
-import com.pig4cloud.pig.order.match.MatchingEngineProperties;
+import com.pig4cloud.pig.order.match.MatchingEngineSymbolService;
 import com.pig4cloud.pig.order.match.OrderCommandConverter;
+import com.pig4cloud.pig.order.service.MarketService;
 import com.pig4cloud.pig.order.service.OrderService;
-import com.pig4cloud.pig.outbox.entity.OutboxEvent;
-import com.pig4cloud.pig.outbox.enums.OutboxStatus;
-import com.pig4cloud.pig.outbox.service.OutboxEventService;
+import com.pig4cloud.pig.outbox.api.model.DomainEventEnvelope;
+import com.pig4cloud.pig.outbox.api.publisher.DomainEventPublisher;
 import com.pig4cloud.pig.vault.api.dto.CreateFreezeRequest;
 import com.pig4cloud.pig.vault.api.dto.FreezeLookupRequest;
 import com.pig4cloud.pig.vault.api.dto.FreezeResponse;
 import com.pig4cloud.pig.vault.api.enums.RefType;
 import com.pig4cloud.pig.vault.api.feign.VaultService;
-import exchange.core2.core.ExchangeApi;
 import exchange.core2.core.common.api.ApiCancelOrder;
-import exchange.core2.core.common.api.ApiPlaceOrder;
 import exchange.core2.core.common.cmd.CommandResultCode;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -71,17 +67,13 @@ public class OrderServiceImpl implements OrderService {
 
 	private final OrderMapper orderMapper;
 
-	private final OrderFillMapper orderFillMapper;
-
 	private final OrderCancelMapper orderCancelMapper;
 
-	private final OutboxEventService outboxEventService;
+	private final DomainEventPublisher domainEventPublisher;
 
 	private final VaultService vaultService;
 
-	private final ExchangeApi exchangeApi;
-
-	private final MatchingEngineProperties matchingEngineProperties;
+	private final MarketService marketService;
 
 	@Value("${node-id:0}")
 	private long nodeId;
@@ -132,7 +124,7 @@ public class OrderServiceImpl implements OrderService {
 			return buildRejectedResponse(orderId, "Insufficient balance or freeze failed");
 		}
 
-		// 6. Create order entity in CREATED status
+		// 6. Create order entity in OPEN status (not yet submitted to matching engine)
 		Order order = new Order();
 		order.setOrderId(orderId);
 		order.setUserId(request.getUserId());
@@ -142,7 +134,7 @@ public class OrderServiceImpl implements OrderService {
 		order.setPrice(request.getPrice());
 		order.setQuantity(request.getQuantity());
 		order.setRemainingQuantity(request.getQuantity());
-		order.setStatus(OrderStatus.CREATED);
+		order.setStatus(OrderStatus.OPEN);
 		order.setTimeInForce(request.getTimeInForce() != null ? request.getTimeInForce() : TimeInForce.GTC);
 		order.setExpireAt(request.getExpireAt());
 		order.setIdempotencyKey(idempotencyKey);
@@ -150,26 +142,12 @@ public class OrderServiceImpl implements OrderService {
 
 		orderMapper.insert(order);
 
-		// 7. Emit OrderCreatedEvent to Outbox
+		// 7. Emit OrderCreatedEvent to Outbox for asynchronous submission
 		publishOrderCreatedEvent(order);
 
-		// 8. Submit to matching engine and wait for result
-		int symbolId = order.getMarketId().intValue(); // Use marketId as symbolId
-		ApiPlaceOrder placeOrderCmd = OrderCommandConverter.toApiPlaceOrder(order, symbolId);
-		CommandResultCode resultCode = exchangeApi.submitCommandAsync(placeOrderCmd).join();
-
-		if (resultCode != CommandResultCode.SUCCESS) {
-			log.error("Failed to submit order to matching engine: orderId={}, resultCode={}", orderId, resultCode);
-			throw new IllegalStateException("Matching engine rejected order: " + resultCode);
-		}
-
-		// 9. Transition to MATCHING status after successful submission to matching engine
-		order.setStatus(OrderStatus.MATCHING);
-		orderMapper.updateById(order);
-
-		log.info(
-				"Order created and submitted to matching engine: orderId={}, marketId={}, side={}, price={}, quantity={}",
-				orderId, order.getMarketId(), order.getSide(), order.getPrice(), order.getQuantity());
+		log.info("Order created and persisted: orderId={}, marketId={}, side={}, price={}, quantity={}, status={}",
+				orderId, order.getMarketId(), order.getSide(), order.getPrice(), order.getQuantity(),
+				order.getStatus());
 
 		return buildCreateOrderResponse(order);
 	}
@@ -217,144 +195,21 @@ public class OrderServiceImpl implements OrderService {
 		order.setStatus(OrderStatus.CANCEL_REQUESTED);
 		orderMapper.updateById(order);
 
-		// 7. Emit OrderCancelRequestedEvent
+		// 7. Emit OrderCancelRequestedEvent for asynchronous processing
 		publishOrderCancelRequestedEvent(order, idempotencyKey);
 
-		// 8. Submit cancel to matching engine and wait for result
-		int symbolId = order.getMarketId().intValue(); // Use marketId as symbolId
-		ApiCancelOrder cancelOrderCmd = OrderCommandConverter.toApiCancelOrder(order.getOrderId(), order.getUserId(),
-				symbolId);
-		CommandResultCode resultCode = exchangeApi.submitCommandAsync(cancelOrderCmd).join();
-
-		if (resultCode != CommandResultCode.SUCCESS) {
-			log.error("Failed to submit cancel to matching engine: orderId={}, resultCode={}", order.getOrderId(),
-					resultCode);
-			throw new IllegalStateException("Matching engine rejected cancel: " + resultCode);
-		}
-
-		log.info("Order cancel requested: orderId={}, reason={}", order.getOrderId(), orderCancel.getReason());
+		log.info("Order cancel requested: orderId={}, reason={}, status={}", order.getOrderId(),
+				orderCancel.getReason(), order.getStatus());
 
 		return buildCancelOrderResponse(order);
-	}
-
-	@Override
-	@Transactional(rollbackFor = Exception.class)
-	public CommitMatchResponse commitMatch(CommitMatchRequest request) {
-		// 1. Validate idempotency key must be provided
-		String idempotencyKey = request.getIdempotencyKey();
-		if (StrUtil.isBlank(idempotencyKey)) {
-			throw new IllegalArgumentException("Idempotency key is required");
-		}
-
-		// 2. Check idempotency - if fills with this matchId exist, return existing
-		// result
-		long existingFillCount = orderFillMapper
-			.selectCount(Wrappers.<OrderFill>lambdaQuery().eq(OrderFill::getMatchId, request.getMatchId()));
-
-		if (existingFillCount > 0) {
-			log.info("Match already committed for matchId: {}, returning existing state", request.getMatchId());
-			return buildCommitMatchResponse(request);
-		}
-
-		// 3. Get taker order
-		Order takerOrder = orderMapper.selectById(request.getTakerOrderId());
-		if (takerOrder == null) {
-			throw new IllegalArgumentException("Taker order not found: " + request.getTakerOrderId());
-		}
-
-		// 4. Process each fill
-		Map<Long, OrderStateDTO> orderStates = new HashMap<>();
-		BigDecimal totalTakerFilled = BigDecimal.ZERO;
-
-		for (FillDTO fillDTO : request.getFills()) {
-			// 4.1 Get maker order
-			Order makerOrder = orderMapper.selectById(fillDTO.getMakerOrderId());
-			if (makerOrder == null) {
-				throw new IllegalArgumentException("Maker order not found: " + fillDTO.getMakerOrderId());
-			}
-
-			// 4.2 Insert fill record
-			OrderFill fill = new OrderFill();
-			fill.setTradeId(IdUtil.getSnowflake(nodeId, DATACENTER_ID).nextId());
-			fill.setMatchId(request.getMatchId());
-			fill.setTakerOrderId(request.getTakerOrderId());
-			fill.setMakerOrderId(fillDTO.getMakerOrderId());
-			fill.setPrice(fillDTO.getPrice());
-			fill.setQuantity(fillDTO.getQuantity());
-			fill.setFee(fillDTO.getFee());
-			orderFillMapper.insert(fill);
-
-			// 4.3 Update maker order
-			BigDecimal newMakerRemaining = makerOrder.getRemainingQuantity().subtract(fillDTO.getQuantity());
-
-			// Validate remaining quantity: must not be negative
-			if (newMakerRemaining.compareTo(BigDecimal.ZERO) < 0) {
-				throw new IllegalStateException("Maker order remaining quantity cannot be negative: orderId="
-						+ makerOrder.getOrderId() + ", remaining=" + makerOrder.getRemainingQuantity() + ", filled="
-						+ fillDTO.getQuantity());
-			}
-
-			makerOrder.setRemainingQuantity(newMakerRemaining);
-			if (newMakerRemaining.compareTo(BigDecimal.ZERO) == 0) {
-				// Exactly 0: FILLED
-				makerOrder.setStatus(OrderStatus.FILLED);
-			}
-			else {
-				// Greater than 0: PARTIALLY_FILLED
-				makerOrder.setStatus(OrderStatus.PARTIALLY_FILLED);
-			}
-			orderMapper.updateById(makerOrder);
-
-			// Track maker order state
-			orderStates.put(makerOrder.getOrderId(), buildOrderStateDTO(makerOrder));
-
-			// Accumulate taker filled quantity
-			totalTakerFilled = totalTakerFilled.add(fillDTO.getQuantity());
-		}
-
-		// 5. Update taker order
-		BigDecimal newTakerRemaining = takerOrder.getRemainingQuantity().subtract(totalTakerFilled);
-
-		// Validate remaining quantity: must not be negative
-		if (newTakerRemaining.compareTo(BigDecimal.ZERO) < 0) {
-			throw new IllegalStateException(
-					"Taker order remaining quantity cannot be negative: orderId=" + takerOrder.getOrderId()
-							+ ", remaining=" + takerOrder.getRemainingQuantity() + ", filled=" + totalTakerFilled);
-		}
-
-		takerOrder.setRemainingQuantity(newTakerRemaining);
-		if (newTakerRemaining.compareTo(BigDecimal.ZERO) == 0) {
-			// Exactly 0: FILLED
-			takerOrder.setStatus(OrderStatus.FILLED);
-		}
-		else {
-			// Greater than 0: PARTIALLY_FILLED
-			takerOrder.setStatus(OrderStatus.PARTIALLY_FILLED);
-		}
-		orderMapper.updateById(takerOrder);
-
-		// Track taker order state
-		orderStates.put(takerOrder.getOrderId(), buildOrderStateDTO(takerOrder));
-
-		// 6. Emit MatchCommittedEvent
-		publishMatchCommittedEvent(request, orderStates);
-
-		log.info("Match committed: matchId={}, takerOrderId={}, fillCount={}, takerFilled={}", request.getMatchId(),
-				request.getTakerOrderId(), request.getFills().size(), totalTakerFilled);
-
-		// 7. Build response
-		CommitMatchResponse response = new CommitMatchResponse();
-		response.setMatchId(request.getMatchId());
-		response.setOrderStates(orderStates);
-		response.setSettlementRequired(true);
-
-		return response;
 	}
 
 	/**
 	 * Validate create order request
 	 */
 	private void validateCreateOrderRequest(CreateOrderRequest request) {
+		marketService.assertMarketActive(request.getMarketId());
+
 		// Validate LIMIT order must have price
 		if (request.getType() == OrderType.LIMIT && request.getPrice() == null) {
 			throw new IllegalArgumentException("LIMIT order must have price");
@@ -421,121 +276,50 @@ public class OrderServiceImpl implements OrderService {
 	}
 
 	/**
-	 * Build OrderStateDTO from Order
-	 */
-	private OrderStateDTO buildOrderStateDTO(Order order) {
-		OrderStateDTO dto = new OrderStateDTO();
-		dto.setOrderId(order.getOrderId());
-		dto.setStatus(order.getStatus());
-		dto.setRemainingQuantity(order.getRemainingQuantity());
-		return dto;
-	}
-
-	/**
-	 * Build CommitMatchResponse (for idempotent replay)
-	 */
-	private CommitMatchResponse buildCommitMatchResponse(CommitMatchRequest request) {
-		// Rebuild response from existing data
-		Map<Long, OrderStateDTO> orderStates = new HashMap<>();
-
-		Order takerOrder = orderMapper.selectById(request.getTakerOrderId());
-		if (takerOrder != null) {
-			orderStates.put(takerOrder.getOrderId(), buildOrderStateDTO(takerOrder));
-		}
-
-		for (FillDTO fill : request.getFills()) {
-			Order makerOrder = orderMapper.selectById(fill.getMakerOrderId());
-			if (makerOrder != null) {
-				orderStates.put(makerOrder.getOrderId(), buildOrderStateDTO(makerOrder));
-			}
-		}
-
-		CommitMatchResponse response = new CommitMatchResponse();
-		response.setMatchId(request.getMatchId());
-		response.setOrderStates(orderStates);
-		response.setSettlementRequired(true);
-
-		return response;
-	}
-
-	/**
-	 * Publish OrderCreatedEvent to Outbox
+	 * Publish OrderCreatedEvent via DomainEventPublisher
 	 */
 	private void publishOrderCreatedEvent(Order order) {
-		OutboxEvent event = new OutboxEvent();
-		event.setEventId(IdUtil.randomUUID());
-		event.setDomain(DOMAIN_ORDER);
-		event.setAggregateType(AGG_TYPE_ORDER);
-		event.setAggregateId(String.valueOf(order.getOrderId()));
-		event.setEventType("OrderCreated");
-
 		Map<String, Object> payload = new HashMap<>();
 		payload.put("orderId", order.getOrderId());
 		payload.put("userId", order.getUserId());
 		payload.put("marketId", order.getMarketId());
-		payload.put("status", order.getStatus());
-		event.setPayloadJson(JSONUtil.toJsonStr(payload));
+		payload.put("status", order.getStatus().name());
 
-		event.setPartitionKey(String.valueOf(order.getOrderId()));
-		event.setStatus(OutboxStatus.PENDING);
-		event.setAttempts(0);
-		event.setCreatedAt(Instant.now());
-		event.setUpdatedAt(Instant.now());
+		DomainEventEnvelope event = new DomainEventEnvelope(IdUtil.randomUUID(), // eventId
+				DOMAIN_ORDER, // domain
+				AGG_TYPE_ORDER, // aggregateType
+				String.valueOf(order.getOrderId()), // aggregateId
+				"OrderCreated", // eventType
+				Instant.now(), // occurredAt
+				null, // headers
+				JSONUtil.toJsonStr(payload) // payloadJson
+		);
 
-		outboxEventService.save(event);
+		domainEventPublisher.publish(event);
 	}
 
 	/**
-	 * Publish OrderCancelRequestedEvent to Outbox
+	 * Publish OrderCancelRequestedEvent via DomainEventPublisher
 	 */
 	private void publishOrderCancelRequestedEvent(Order order, String idempotencyKey) {
-		OutboxEvent event = new OutboxEvent();
-		event.setEventId(IdUtil.randomUUID());
-		event.setDomain(DOMAIN_ORDER);
-		event.setAggregateType(AGG_TYPE_ORDER);
-		event.setAggregateId(String.valueOf(order.getOrderId()));
-		event.setEventType("OrderCancelRequested");
-
 		Map<String, Object> payload = new HashMap<>();
 		payload.put("orderId", order.getOrderId());
-		payload.put("status", order.getStatus());
+		payload.put("userId", order.getUserId());
+		payload.put("marketId", order.getMarketId());
+		payload.put("status", order.getStatus().name());
 		payload.put("idempotencyKey", idempotencyKey);
-		event.setPayloadJson(JSONUtil.toJsonStr(payload));
 
-		event.setPartitionKey(String.valueOf(order.getOrderId()));
-		event.setStatus(OutboxStatus.PENDING);
-		event.setAttempts(0);
-		event.setCreatedAt(Instant.now());
-		event.setUpdatedAt(Instant.now());
+		DomainEventEnvelope event = new DomainEventEnvelope(IdUtil.randomUUID(), // eventId
+				DOMAIN_ORDER, // domain
+				AGG_TYPE_ORDER, // aggregateType
+				String.valueOf(order.getOrderId()), // aggregateId
+				"OrderCancelRequested", // eventType
+				Instant.now(), // occurredAt
+				null, // headers
+				JSONUtil.toJsonStr(payload) // payloadJson
+		);
 
-		outboxEventService.save(event);
-	}
-
-	/**
-	 * Publish MatchCommittedEvent to Outbox
-	 */
-	private void publishMatchCommittedEvent(CommitMatchRequest request, Map<Long, OrderStateDTO> orderStates) {
-		OutboxEvent event = new OutboxEvent();
-		event.setEventId(IdUtil.randomUUID());
-		event.setDomain(DOMAIN_ORDER);
-		event.setAggregateType("Match");
-		event.setAggregateId(request.getMatchId());
-		event.setEventType("MatchCommitted");
-
-		Map<String, Object> payload = new HashMap<>();
-		payload.put("matchId", request.getMatchId());
-		payload.put("takerOrderId", request.getTakerOrderId());
-		payload.put("fills", request.getFills());
-		payload.put("orderStates", orderStates);
-		event.setPayloadJson(JSONUtil.toJsonStr(payload));
-
-		event.setPartitionKey(request.getMatchId());
-		event.setStatus(OutboxStatus.PENDING);
-		event.setAttempts(0);
-		event.setCreatedAt(Instant.now());
-		event.setUpdatedAt(Instant.now());
-
-		outboxEventService.save(event);
+		domainEventPublisher.publish(event);
 	}
 
 }

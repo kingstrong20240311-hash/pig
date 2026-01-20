@@ -32,6 +32,8 @@ import exchange.core2.core.common.api.ApiPlaceOrder;
  */
 public class OrderCommandConverter {
 
+	private static final long SYSTEM_UID = 0L;
+
 	/**
 	 * Convert domain Order to ApiPlaceOrder command
 	 * @param order domain order
@@ -47,7 +49,7 @@ public class OrderCommandConverter {
 
 		return ApiPlaceOrder.builder()
 			.orderId(order.getOrderId())
-			.uid(order.getUserId())
+			.uid(SYSTEM_UID)
 			.symbol(symbolId)
 			.price(price)
 			.size(convertSizeToLong(order.getQuantity()))
@@ -66,7 +68,7 @@ public class OrderCommandConverter {
 	 * @return ApiCancelOrder command
 	 */
 	public static ApiCancelOrder toApiCancelOrder(Long orderId, Long userId, int symbolId) {
-		return ApiCancelOrder.builder().orderId(orderId).uid(userId).symbol(symbolId).build();
+		return ApiCancelOrder.builder().orderId(orderId).uid(SYSTEM_UID).symbol(symbolId).build();
 	}
 
 	/**

@@ -19,6 +19,9 @@ package com.pig4cloud.pig.order.match;
 import lombok.Data;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
+import java.util.HashMap;
+import java.util.Map;
+
 /**
  * Matching Engine Configuration Properties
  *
@@ -36,8 +39,22 @@ public class MatchingEngineProperties {
 	private int defaultAsset = 1;
 
 	/**
+	 * Asset ID to symbol name mapping Example: 1 -> USDC, 2 -> USDT, etc.
+	 */
+	private Map<Integer, String> assetSymbols = new HashMap<>();
+
+	/**
 	 * Whether to enable state recovery from order table on startup Default: true
 	 */
 	private boolean enableStateRecovery = true;
+
+	/**
+	 * Get asset symbol name by ID
+	 * @param assetId asset ID
+	 * @return symbol name, or "ASSET_{id}" if not found
+	 */
+	public String getAssetSymbol(int assetId) {
+		return assetSymbols.getOrDefault(assetId, "ASSET_" + assetId);
+	}
 
 }

@@ -17,12 +17,14 @@
 
 package com.pig4cloud.pig.order;
 
-import com.pig4cloud.pig.common.feign.annotation.EnablePigFeignClients;
 import com.pig4cloud.pig.common.security.annotation.EnablePigResourceServer;
 import com.pig4cloud.pig.common.swagger.annotation.EnablePigDoc;
+import org.mybatis.spring.annotation.MapperScan;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.cloud.client.discovery.EnableDiscoveryClient;
+import org.springframework.context.annotation.ComponentScan;
+import org.springframework.scheduling.annotation.EnableScheduling;
 
 /**
  * Order 订单管理服务
@@ -31,9 +33,11 @@ import org.springframework.cloud.client.discovery.EnableDiscoveryClient;
  * @date 2025-01-17
  */
 @EnablePigDoc(value = "order")
-@EnablePigFeignClients
 @EnablePigResourceServer
 @EnableDiscoveryClient
+@MapperScan(basePackages = { "com.pig4cloud.pig.order.mapper", "com.pig4cloud.pig.outbox.mapper" })
+@ComponentScan(basePackages = { "com.pig4cloud.pig.order", "com.pig4cloud.pig.outbox" })
+@EnableScheduling
 @SpringBootApplication
 public class PigOrderApplication {
 

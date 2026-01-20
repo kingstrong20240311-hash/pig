@@ -22,7 +22,10 @@ node-id: ${NODE_ID:0}
 
 # Matching Engine Configuration
 matching-engine:
-  # Default asset symbol ID (1 = USDC)
+  # Default asset symbol ID
   default-asset: 1
+  # Asset ID to symbol mapping
+  asset-symbols:
+    1: USDC
   # Enable state recovery from order table on startup
   enable-state-recovery: true

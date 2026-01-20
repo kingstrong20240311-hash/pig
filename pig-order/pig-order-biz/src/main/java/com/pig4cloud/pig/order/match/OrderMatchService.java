@@ -17,6 +17,8 @@
 package com.pig4cloud.pig.order.match;
 
 import exchange.core2.core.IEventsHandler;
+import com.pig4cloud.pig.order.api.dto.CommitMatchRequest;
+import com.pig4cloud.pig.order.api.dto.CommitMatchResponse;
 
 /**
  * Order Match Service for processing matching engine callbacks
@@ -49,5 +51,12 @@ public interface OrderMatchService {
 	 * @param result command result
 	 */
 	void handleCommandResult(IEventsHandler.ApiCommandResult result);
+
+	/**
+	 * Commit match results from matching engine (idempotent)
+	 * @param request commit match request
+	 * @return commit match response
+	 */
+	CommitMatchResponse commitMatch(CommitMatchRequest request);
 
 }
