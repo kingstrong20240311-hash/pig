@@ -17,6 +17,7 @@
 
 package com.pig4cloud.pig.order;
 
+import com.pig4cloud.pig.common.feign.annotation.EnablePigFeignClients;
 import com.pig4cloud.pig.common.security.annotation.EnablePigResourceServer;
 import com.pig4cloud.pig.common.swagger.annotation.EnablePigDoc;
 import org.mybatis.spring.annotation.MapperScan;
@@ -34,6 +35,7 @@ import org.springframework.scheduling.annotation.EnableScheduling;
  */
 @EnablePigDoc(value = "order")
 @EnablePigResourceServer
+@EnablePigFeignClients
 @EnableDiscoveryClient
 @MapperScan(basePackages = { "com.pig4cloud.pig.order.mapper", "com.pig4cloud.pig.outbox.mapper" })
 @ComponentScan(basePackages = { "com.pig4cloud.pig.order", "com.pig4cloud.pig.outbox" })

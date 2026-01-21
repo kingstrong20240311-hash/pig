@@ -16,8 +16,6 @@
 
 package com.pig4cloud.pig.common.error.config;
 
-import com.baomidou.mybatisplus.extension.plugins.MybatisPlusInterceptor;
-import com.baomidou.mybatisplus.extension.plugins.inner.PaginationInnerInterceptor;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
 import org.mybatis.spring.annotation.MapperScan;
@@ -46,18 +44,6 @@ public class ErrorRecordAutoConfiguration {
 	@ConditionalOnMissingBean
 	public ObjectMapper objectMapper() {
 		return new ObjectMapper();
-	}
-
-	/**
-	 * MyBatis Plus 分页插件
-	 * @return MybatisPlusInterceptor
-	 */
-	@Bean
-	@ConditionalOnMissingBean
-	public MybatisPlusInterceptor mybatisPlusInterceptor() {
-		MybatisPlusInterceptor interceptor = new MybatisPlusInterceptor();
-		interceptor.addInnerInterceptor(new PaginationInnerInterceptor());
-		return interceptor;
 	}
 
 	public ErrorRecordAutoConfiguration() {

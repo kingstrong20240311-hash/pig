@@ -7,4 +7,3 @@ security:
 logging:
   level:
     root: INFO
-    com.pig4cloud.pig: DEBUG
