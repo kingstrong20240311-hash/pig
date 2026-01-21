@@ -43,5 +43,6 @@
         <module>pig-common-websocket</module>
         <module>pig-common-xss</module>
         <module>pig-common-excel</module>
+        <module>pig-common-error</module>
     </modules>
 </project>
