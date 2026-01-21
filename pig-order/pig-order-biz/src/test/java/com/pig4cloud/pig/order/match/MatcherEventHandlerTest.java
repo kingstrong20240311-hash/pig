@@ -697,6 +697,327 @@ class MatcherEventHandlerTest {
 		verify(orderMapper, times(2)).updateById(any(Order.class));
 	}
 
+	@Test
+	void testCommitMatch_TakerOrderWithCancelRequestedStatus() {
+		// Given - CANCEL_REQUESTED orders should still be matchable
+		Long takerOrderId = 1001L;
+		Long makerOrderId = 1002L;
+		String matchId = "match-123";
+
+		FillDTO fillDTO = new FillDTO();
+		fillDTO.setMakerOrderId(makerOrderId);
+		fillDTO.setPrice(BigDecimal.valueOf(100));
+		fillDTO.setQuantity(BigDecimal.valueOf(5));
+		fillDTO.setFee(BigDecimal.ZERO);
+
+		List<FillDTO> fills = new ArrayList<>();
+		fills.add(fillDTO);
+
+		CommitMatchRequest request = new CommitMatchRequest();
+		request.setMatchId(matchId);
+		request.setTakerOrderId(takerOrderId);
+		request.setFills(fills);
+		request.setIdempotencyKey("idempotency-123");
+
+		Order takerOrder = createOrder(takerOrderId, OrderStatus.CANCEL_REQUESTED, BigDecimal.valueOf(100),
+				BigDecimal.valueOf(10));
+		Order makerOrder = createOrder(makerOrderId, OrderStatus.MATCHING, BigDecimal.valueOf(100),
+				BigDecimal.valueOf(10));
+
+		when(orderFillMapper.selectCount(any(LambdaQueryWrapper.class))).thenReturn(0L);
+		when(orderMapper.selectById(takerOrderId)).thenReturn(takerOrder);
+		when(orderMapper.selectById(makerOrderId)).thenReturn(makerOrder);
+		when(orderFillMapper.insert(any(OrderFill.class))).thenReturn(1);
+		when(orderMapper.updateById(any(Order.class))).thenReturn(1);
+
+		// When - Should proceed without error
+		CommitMatchResponse response = matcherEventHandler.commitMatch(request);
+
+		// Then
+		assertThat(response).isNotNull();
+		verify(orderFillMapper).insert(any(OrderFill.class));
+		verify(orderMapper, times(2)).updateById(any(Order.class));
+	}
+
+	@Test
+	void testCommitMatch_MakerOrderWithCancelRequestedStatus() {
+		// Given - CANCEL_REQUESTED maker orders should still be matchable
+		Long takerOrderId = 1001L;
+		Long makerOrderId = 1002L;
+		String matchId = "match-123";
+
+		FillDTO fillDTO = new FillDTO();
+		fillDTO.setMakerOrderId(makerOrderId);
+		fillDTO.setPrice(BigDecimal.valueOf(100));
+		fillDTO.setQuantity(BigDecimal.valueOf(5));
+		fillDTO.setFee(BigDecimal.ZERO);
+
+		List<FillDTO> fills = new ArrayList<>();
+		fills.add(fillDTO);
+
+		CommitMatchRequest request = new CommitMatchRequest();
+		request.setMatchId(matchId);
+		request.setTakerOrderId(takerOrderId);
+		request.setFills(fills);
+		request.setIdempotencyKey("idempotency-123");
+
+		Order takerOrder = createOrder(takerOrderId, OrderStatus.MATCHING, BigDecimal.valueOf(100),
+				BigDecimal.valueOf(10));
+		Order makerOrder = createOrder(makerOrderId, OrderStatus.CANCEL_REQUESTED, BigDecimal.valueOf(100),
+				BigDecimal.valueOf(10));
+
+		when(orderFillMapper.selectCount(any(LambdaQueryWrapper.class))).thenReturn(0L);
+		when(orderMapper.selectById(takerOrderId)).thenReturn(takerOrder);
+		when(orderMapper.selectById(makerOrderId)).thenReturn(makerOrder);
+		when(orderFillMapper.insert(any(OrderFill.class))).thenReturn(1);
+		when(orderMapper.updateById(any(Order.class))).thenReturn(1);
+
+		// When - Should proceed without error
+		CommitMatchResponse response = matcherEventHandler.commitMatch(request);
+
+		// Then
+		assertThat(response).isNotNull();
+		verify(orderFillMapper).insert(any(OrderFill.class));
+		verify(orderMapper, times(2)).updateById(any(Order.class));
+	}
+
+	@Test
+	void testCommitMatch_TakerOrderWithFilledStatus() {
+		// Given - FILLED orders should NOT be matchable
+		Long takerOrderId = 1001L;
+		String matchId = "match-123";
+
+		FillDTO fillDTO = new FillDTO();
+		fillDTO.setMakerOrderId(1002L);
+		fillDTO.setPrice(BigDecimal.valueOf(100));
+		fillDTO.setQuantity(BigDecimal.valueOf(5));
+		fillDTO.setFee(BigDecimal.ZERO);
+
+		List<FillDTO> fills = new ArrayList<>();
+		fills.add(fillDTO);
+
+		CommitMatchRequest request = new CommitMatchRequest();
+		request.setMatchId(matchId);
+		request.setTakerOrderId(takerOrderId);
+		request.setFills(fills);
+		request.setIdempotencyKey("idempotency-123");
+
+		Order takerOrder = createOrder(takerOrderId, OrderStatus.FILLED, BigDecimal.valueOf(100), BigDecimal.ZERO);
+
+		when(orderFillMapper.selectCount(any(LambdaQueryWrapper.class))).thenReturn(0L);
+		when(orderMapper.selectById(takerOrderId)).thenReturn(takerOrder);
+
+		// When & Then
+		assertThatThrownBy(() -> matcherEventHandler.commitMatch(request)).isInstanceOf(IllegalStateException.class)
+			.hasMessageContaining("Taker order cannot be matched in current state")
+			.hasMessageContaining("FILLED");
+	}
+
+	@Test
+	void testCommitMatch_TakerOrderWithCancelledStatus() {
+		// Given - CANCELLED orders should NOT be matchable
+		Long takerOrderId = 1001L;
+		String matchId = "match-123";
+
+		FillDTO fillDTO = new FillDTO();
+		fillDTO.setMakerOrderId(1002L);
+		fillDTO.setPrice(BigDecimal.valueOf(100));
+		fillDTO.setQuantity(BigDecimal.valueOf(5));
+		fillDTO.setFee(BigDecimal.ZERO);
+
+		List<FillDTO> fills = new ArrayList<>();
+		fills.add(fillDTO);
+
+		CommitMatchRequest request = new CommitMatchRequest();
+		request.setMatchId(matchId);
+		request.setTakerOrderId(takerOrderId);
+		request.setFills(fills);
+		request.setIdempotencyKey("idempotency-123");
+
+		Order takerOrder = createOrder(takerOrderId, OrderStatus.CANCELLED, BigDecimal.valueOf(100),
+				BigDecimal.valueOf(5));
+
+		when(orderFillMapper.selectCount(any(LambdaQueryWrapper.class))).thenReturn(0L);
+		when(orderMapper.selectById(takerOrderId)).thenReturn(takerOrder);
+
+		// When & Then
+		assertThatThrownBy(() -> matcherEventHandler.commitMatch(request)).isInstanceOf(IllegalStateException.class)
+			.hasMessageContaining("Taker order cannot be matched in current state")
+			.hasMessageContaining("CANCELLED");
+	}
+
+	@Test
+	void testCommitMatch_TakerOrderWithExpiredStatus() {
+		// Given - EXPIRED orders should NOT be matchable
+		Long takerOrderId = 1001L;
+		String matchId = "match-123";
+
+		FillDTO fillDTO = new FillDTO();
+		fillDTO.setMakerOrderId(1002L);
+		fillDTO.setPrice(BigDecimal.valueOf(100));
+		fillDTO.setQuantity(BigDecimal.valueOf(5));
+		fillDTO.setFee(BigDecimal.ZERO);
+
+		List<FillDTO> fills = new ArrayList<>();
+		fills.add(fillDTO);
+
+		CommitMatchRequest request = new CommitMatchRequest();
+		request.setMatchId(matchId);
+		request.setTakerOrderId(takerOrderId);
+		request.setFills(fills);
+		request.setIdempotencyKey("idempotency-123");
+
+		Order takerOrder = createOrder(takerOrderId, OrderStatus.EXPIRED, BigDecimal.valueOf(100),
+				BigDecimal.valueOf(5));
+
+		when(orderFillMapper.selectCount(any(LambdaQueryWrapper.class))).thenReturn(0L);
+		when(orderMapper.selectById(takerOrderId)).thenReturn(takerOrder);
+
+		// When & Then
+		assertThatThrownBy(() -> matcherEventHandler.commitMatch(request)).isInstanceOf(IllegalStateException.class)
+			.hasMessageContaining("Taker order cannot be matched in current state")
+			.hasMessageContaining("EXPIRED");
+	}
+
+	@Test
+	void testCommitMatch_TakerOrderWithRejectedStatus() {
+		// Given - REJECTED orders should NOT be matchable
+		Long takerOrderId = 1001L;
+		String matchId = "match-123";
+
+		FillDTO fillDTO = new FillDTO();
+		fillDTO.setMakerOrderId(1002L);
+		fillDTO.setPrice(BigDecimal.valueOf(100));
+		fillDTO.setQuantity(BigDecimal.valueOf(5));
+		fillDTO.setFee(BigDecimal.ZERO);
+
+		List<FillDTO> fills = new ArrayList<>();
+		fills.add(fillDTO);
+
+		CommitMatchRequest request = new CommitMatchRequest();
+		request.setMatchId(matchId);
+		request.setTakerOrderId(takerOrderId);
+		request.setFills(fills);
+		request.setIdempotencyKey("idempotency-123");
+
+		Order takerOrder = createOrder(takerOrderId, OrderStatus.REJECTED, BigDecimal.valueOf(100),
+				BigDecimal.valueOf(5));
+
+		when(orderFillMapper.selectCount(any(LambdaQueryWrapper.class))).thenReturn(0L);
+		when(orderMapper.selectById(takerOrderId)).thenReturn(takerOrder);
+
+		// When & Then
+		assertThatThrownBy(() -> matcherEventHandler.commitMatch(request)).isInstanceOf(IllegalStateException.class)
+			.hasMessageContaining("Taker order cannot be matched in current state")
+			.hasMessageContaining("REJECTED");
+	}
+
+	@Test
+	void testCommitMatch_TakerOrderWithFailedStatus() {
+		// Given - FAILED orders should NOT be matchable
+		Long takerOrderId = 1001L;
+		String matchId = "match-123";
+
+		FillDTO fillDTO = new FillDTO();
+		fillDTO.setMakerOrderId(1002L);
+		fillDTO.setPrice(BigDecimal.valueOf(100));
+		fillDTO.setQuantity(BigDecimal.valueOf(5));
+		fillDTO.setFee(BigDecimal.ZERO);
+
+		List<FillDTO> fills = new ArrayList<>();
+		fills.add(fillDTO);
+
+		CommitMatchRequest request = new CommitMatchRequest();
+		request.setMatchId(matchId);
+		request.setTakerOrderId(takerOrderId);
+		request.setFills(fills);
+		request.setIdempotencyKey("idempotency-123");
+
+		Order takerOrder = createOrder(takerOrderId, OrderStatus.FAILED, BigDecimal.valueOf(100),
+				BigDecimal.valueOf(5));
+
+		when(orderFillMapper.selectCount(any(LambdaQueryWrapper.class))).thenReturn(0L);
+		when(orderMapper.selectById(takerOrderId)).thenReturn(takerOrder);
+
+		// When & Then
+		assertThatThrownBy(() -> matcherEventHandler.commitMatch(request)).isInstanceOf(IllegalStateException.class)
+			.hasMessageContaining("Taker order cannot be matched in current state")
+			.hasMessageContaining("FAILED");
+	}
+
+	@Test
+	void testCommitMatch_MakerOrderWithFilledStatus() {
+		// Given - FILLED maker orders should NOT be matchable
+		Long takerOrderId = 1001L;
+		Long makerOrderId = 1002L;
+		String matchId = "match-123";
+
+		FillDTO fillDTO = new FillDTO();
+		fillDTO.setMakerOrderId(makerOrderId);
+		fillDTO.setPrice(BigDecimal.valueOf(100));
+		fillDTO.setQuantity(BigDecimal.valueOf(5));
+		fillDTO.setFee(BigDecimal.ZERO);
+
+		List<FillDTO> fills = new ArrayList<>();
+		fills.add(fillDTO);
+
+		CommitMatchRequest request = new CommitMatchRequest();
+		request.setMatchId(matchId);
+		request.setTakerOrderId(takerOrderId);
+		request.setFills(fills);
+		request.setIdempotencyKey("idempotency-123");
+
+		Order takerOrder = createOrder(takerOrderId, OrderStatus.MATCHING, BigDecimal.valueOf(100),
+				BigDecimal.valueOf(10));
+		Order makerOrder = createOrder(makerOrderId, OrderStatus.FILLED, BigDecimal.valueOf(100), BigDecimal.ZERO);
+
+		when(orderFillMapper.selectCount(any(LambdaQueryWrapper.class))).thenReturn(0L);
+		when(orderMapper.selectById(takerOrderId)).thenReturn(takerOrder);
+		when(orderMapper.selectById(makerOrderId)).thenReturn(makerOrder);
+
+		// When & Then
+		assertThatThrownBy(() -> matcherEventHandler.commitMatch(request)).isInstanceOf(IllegalStateException.class)
+			.hasMessageContaining("Maker order cannot be matched in current state")
+			.hasMessageContaining("FILLED");
+	}
+
+	@Test
+	void testCommitMatch_MakerOrderWithCancelledStatus() {
+		// Given - CANCELLED maker orders should NOT be matchable
+		Long takerOrderId = 1001L;
+		Long makerOrderId = 1002L;
+		String matchId = "match-123";
+
+		FillDTO fillDTO = new FillDTO();
+		fillDTO.setMakerOrderId(makerOrderId);
+		fillDTO.setPrice(BigDecimal.valueOf(100));
+		fillDTO.setQuantity(BigDecimal.valueOf(5));
+		fillDTO.setFee(BigDecimal.ZERO);
+
+		List<FillDTO> fills = new ArrayList<>();
+		fills.add(fillDTO);
+
+		CommitMatchRequest request = new CommitMatchRequest();
+		request.setMatchId(matchId);
+		request.setTakerOrderId(takerOrderId);
+		request.setFills(fills);
+		request.setIdempotencyKey("idempotency-123");
+
+		Order takerOrder = createOrder(takerOrderId, OrderStatus.MATCHING, BigDecimal.valueOf(100),
+				BigDecimal.valueOf(10));
+		Order makerOrder = createOrder(makerOrderId, OrderStatus.CANCELLED, BigDecimal.valueOf(100),
+				BigDecimal.valueOf(5));
+
+		when(orderFillMapper.selectCount(any(LambdaQueryWrapper.class))).thenReturn(0L);
+		when(orderMapper.selectById(takerOrderId)).thenReturn(takerOrder);
+		when(orderMapper.selectById(makerOrderId)).thenReturn(makerOrder);
+
+		// When & Then
+		assertThatThrownBy(() -> matcherEventHandler.commitMatch(request)).isInstanceOf(IllegalStateException.class)
+			.hasMessageContaining("Maker order cannot be matched in current state")
+			.hasMessageContaining("CANCELLED");
+	}
+
 	// ========================================
 	// Helper Methods
 	// ========================================

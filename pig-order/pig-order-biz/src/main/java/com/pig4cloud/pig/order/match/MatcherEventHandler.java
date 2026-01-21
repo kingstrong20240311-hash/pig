@@ -216,7 +216,18 @@ public class MatcherEventHandler implements OrderMatchService {
 			throw new IllegalArgumentException("Taker order not found: " + request.getTakerOrderId());
 		}
 
-		// 3.1 Allow matching from OPEN status (callback may arrive before submission
+		// 3.1 Validate taker order status - only allow matchable states
+		if (!isValidMatchingStatus(takerOrder.getStatus())) {
+			// TODO: Implement retry mechanism or dead letter queue for orders in invalid
+			// states
+			log.error(
+					"Taker order in invalid state for matching: orderId={}, status={}, matchId={}, allowed states: OPEN, MATCHING, PARTIALLY_FILLED, CANCEL_REQUESTED",
+					takerOrder.getOrderId(), takerOrder.getStatus(), request.getMatchId());
+			throw new IllegalStateException("Taker order cannot be matched in current state: orderId="
+					+ takerOrder.getOrderId() + ", status=" + takerOrder.getStatus());
+		}
+
+		// 3.2 Allow matching from OPEN status (callback may arrive before submission
 		// completes)
 		// This handles eventual consistency - order may still be OPEN if callback arrives
 		// early
@@ -236,6 +247,17 @@ public class MatcherEventHandler implements OrderMatchService {
 			Order makerOrder = orderMapper.selectById(fillDTO.getMakerOrderId());
 			if (makerOrder == null) {
 				throw new IllegalArgumentException("Maker order not found: " + fillDTO.getMakerOrderId());
+			}
+
+			// 4.1.1 Validate maker order status - only allow matchable states
+			if (!isValidMatchingStatus(makerOrder.getStatus())) {
+				// TODO: Implement retry mechanism or dead letter queue for orders in invalid
+				// states
+				log.error(
+						"Maker order in invalid state for matching: orderId={}, status={}, matchId={}, allowed states: OPEN, MATCHING, PARTIALLY_FILLED, CANCEL_REQUESTED",
+						makerOrder.getOrderId(), makerOrder.getStatus(), request.getMatchId());
+				throw new IllegalStateException("Maker order cannot be matched in current state: orderId="
+						+ makerOrder.getOrderId() + ", status=" + makerOrder.getStatus());
 			}
 
 			// 4.2 Insert fill record
@@ -386,6 +408,17 @@ public class MatcherEventHandler implements OrderMatchService {
 	 */
 	private static BigDecimal convertLongToDecimal(long value) {
 		return BigDecimal.valueOf(value).divide(SCALE_FACTOR);
+	}
+
+	/**
+	 * Check if order status is valid for matching Only OPEN, MATCHING,
+	 * PARTIALLY_FILLED, and CANCEL_REQUESTED orders can be matched
+	 * @param status the order status to check
+	 * @return true if status allows matching, false otherwise
+	 */
+	private boolean isValidMatchingStatus(OrderStatus status) {
+		return status == OrderStatus.OPEN || status == OrderStatus.MATCHING
+				|| status == OrderStatus.PARTIALLY_FILLED || status == OrderStatus.CANCEL_REQUESTED;
 	}
 
 }
