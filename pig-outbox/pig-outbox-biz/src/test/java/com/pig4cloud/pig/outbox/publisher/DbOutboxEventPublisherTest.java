@@ -104,7 +104,7 @@ class DbOutboxEventPublisherTest {
 		verify(outboxEventService).save(captor.capture());
 		OutboxEvent saved = captor.getValue();
 
-		assertThat(saved.getStatus()).isEqualTo(OutboxStatus.NEW);
+		assertThat(saved.getStatus()).isEqualTo(OutboxStatus.PENDING);
 		assertThat(saved.getAttempts()).isEqualTo(0);
 		assertThat(saved.getCreatedAt()).isNotNull();
 		assertThat(saved.getUpdatedAt()).isNotNull();

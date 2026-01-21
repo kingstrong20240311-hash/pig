@@ -32,7 +32,7 @@ public enum OutboxStatus {
 	/**
 	 * 新建
 	 */
-	NEW(0, "新建"),
+	PENDING(0, "新建"),
 
 	/**
 	 * 发送中

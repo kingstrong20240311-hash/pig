@@ -17,7 +17,15 @@ spring:
       - nacos:application-@profiles.active@.yml
       - nacos:${spring.application.name}-@profiles.active@.yml
 
-# Snowflake ID generator configuration
-snowflake:
-  worker-id: ${SNOWFLAKE_WORKER_ID:0}
-  datacenter-id: ${SNOWFLAKE_DATACENTER_ID:0}
+# Shared node identifier (used for sharding and Snowflake worker ID)
+node-id: ${NODE_ID:0}
+
+# Matching Engine Configuration
+matching-engine:
+  # Default asset symbol ID
+  default-asset: 1
+  # Asset ID to symbol mapping
+  asset-symbols:
+    1: USDC
+  # Enable state recovery from order table on startup
+  enable-state-recovery: true

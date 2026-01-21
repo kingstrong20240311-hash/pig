@@ -16,6 +16,7 @@
 
 package com.pig4cloud.pig.common.core.util;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.pig4cloud.pig.common.core.constant.CommonConstants;
 import lombok.*;
 import lombok.experimental.Accessors;
@@ -84,6 +85,15 @@ public class R<T> implements Serializable {
 		apiResult.setData(data);
 		apiResult.setMsg(msg);
 		return apiResult;
+	}
+
+	/**
+	 * Check if the response is successful
+	 * @return true if code equals SUCCESS (0), false otherwise
+	 */
+	@JsonIgnore
+	public boolean isSuccess() {
+		return CommonConstants.SUCCESS.equals(this.code);
 	}
 
 }

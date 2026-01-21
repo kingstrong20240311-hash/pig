@@ -73,7 +73,7 @@ class OutboxEventMapperIT {
 	@DisplayName("MAP-001: selectPending 仅返回待处理状态")
 	void selectPending_only_status_0_3() {
 		// Given
-		insertEvent("evt-1", OutboxStatus.NEW); // 0 - 应返回
+		insertEvent("evt-1", OutboxStatus.PENDING); // 0 - 应返回
 		insertEvent("evt-2", OutboxStatus.RETRY); // 3 - 应返回
 
 		// SENDING 但锁未超时 - 不应返回
@@ -122,15 +122,15 @@ class OutboxEventMapperIT {
 		// Given
 		Instant now = Instant.now();
 
-		OutboxEvent evt1 = createEvent("evt-1", OutboxStatus.NEW);
+		OutboxEvent evt1 = createEvent("evt-1", OutboxStatus.PENDING);
 		evt1.setLockedAt(now.minusSeconds(30)); // 锁未过期（60s超时）
 		mapper.insert(evt1);
 
-		OutboxEvent evt2 = createEvent("evt-2", OutboxStatus.NEW);
+		OutboxEvent evt2 = createEvent("evt-2", OutboxStatus.PENDING);
 		evt2.setLockedAt(now.minusSeconds(120)); // 锁已过期
 		mapper.insert(evt2);
 
-		OutboxEvent evt3 = createEvent("evt-3", OutboxStatus.NEW);
+		OutboxEvent evt3 = createEvent("evt-3", OutboxStatus.PENDING);
 		// 无锁
 		mapper.insert(evt3);
 
@@ -146,17 +146,17 @@ class OutboxEventMapperIT {
 	@DisplayName("MAP-004: selectPending 每个 aggregate 仅取一条")
 	void selectPending_one_per_aggregate() {
 		// Given - 同一 aggregate 的多条事件
-		OutboxEvent evt1 = createEvent("evt-1", OutboxStatus.NEW);
+		OutboxEvent evt1 = createEvent("evt-1", OutboxStatus.PENDING);
 		evt1.setAggregateType("Order");
 		evt1.setAggregateId("order-123");
 		mapper.insert(evt1);
 
-		OutboxEvent evt2 = createEvent("evt-2", OutboxStatus.NEW);
+		OutboxEvent evt2 = createEvent("evt-2", OutboxStatus.PENDING);
 		evt2.setAggregateType("Order");
 		evt2.setAggregateId("order-123");
 		mapper.insert(evt2);
 
-		OutboxEvent evt3 = createEvent("evt-3", OutboxStatus.NEW);
+		OutboxEvent evt3 = createEvent("evt-3", OutboxStatus.PENDING);
 		evt3.setAggregateType("Order");
 		evt3.setAggregateId("order-456"); // 不同 aggregate
 		mapper.insert(evt3);
@@ -175,7 +175,7 @@ class OutboxEventMapperIT {
 	void selectPending_orders_by_id_and_limit() {
 		// Given
 		for (int i = 1; i <= 5; i++) {
-			insertEvent("evt-" + i, OutboxStatus.NEW);
+			insertEvent("evt-" + i, OutboxStatus.PENDING);
 		}
 
 		// When
@@ -191,13 +191,13 @@ class OutboxEventMapperIT {
 	@DisplayName("MAP-006: claimEvents 仅更新符合条件的")
 	void claimEvents_only_when_eligible() {
 		// Given
-		OutboxEvent evt1 = createEvent("evt-1", OutboxStatus.NEW);
+		OutboxEvent evt1 = createEvent("evt-1", OutboxStatus.PENDING);
 		mapper.insert(evt1);
 
 		OutboxEvent evt2 = createEvent("evt-2", OutboxStatus.SENT); // 已发送，不应更新
 		mapper.insert(evt2);
 
-		OutboxEvent evt3 = createEvent("evt-3", OutboxStatus.NEW);
+		OutboxEvent evt3 = createEvent("evt-3", OutboxStatus.PENDING);
 		evt3.setLockedAt(Instant.now().minusSeconds(30)); // 锁未过期，不应更新
 		mapper.insert(evt3);
 
@@ -212,7 +212,7 @@ class OutboxEventMapperIT {
 	@DisplayName("MAP-007: claimEvents 更新字段")
 	void claimEvents_updates_fields() {
 		// Given
-		OutboxEvent evt = createEvent("evt-1", OutboxStatus.NEW);
+		OutboxEvent evt = createEvent("evt-1", OutboxStatus.PENDING);
 		mapper.insert(evt);
 
 		Instant lockTime = Instant.now();
@@ -233,10 +233,10 @@ class OutboxEventMapperIT {
 	@DisplayName("MAP-008: claimEvents 返回更新数量")
 	void claimEvents_returns_count() {
 		// Given
-		OutboxEvent evt1 = createEvent("evt-1", OutboxStatus.NEW);
+		OutboxEvent evt1 = createEvent("evt-1", OutboxStatus.PENDING);
 		mapper.insert(evt1);
 
-		OutboxEvent evt2 = createEvent("evt-2", OutboxStatus.NEW);
+		OutboxEvent evt2 = createEvent("evt-2", OutboxStatus.PENDING);
 		mapper.insert(evt2);
 
 		OutboxEvent evt3 = createEvent("evt-3", OutboxStatus.SENT);
@@ -253,10 +253,10 @@ class OutboxEventMapperIT {
 	@DisplayName("MAP-009: 唯一 event_id 约束")
 	void unique_event_id_constraint() {
 		// Given
-		insertEvent("evt-duplicate", OutboxStatus.NEW);
+		insertEvent("evt-duplicate", OutboxStatus.PENDING);
 
 		// When & Then
-		assertThatThrownBy(() -> insertEvent("evt-duplicate", OutboxStatus.NEW))
+		assertThatThrownBy(() -> insertEvent("evt-duplicate", OutboxStatus.PENDING))
 			.isInstanceOf(DuplicateKeyException.class);
 	}
 

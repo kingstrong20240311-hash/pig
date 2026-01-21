@@ -87,6 +87,8 @@ class VaultControllerTest {
 
 	private static final Long ASSET_ID = 1L;
 
+	private static final String SYMBOL = "USDC";
+
 	private static final BigDecimal INITIAL_AVAILABLE = new BigDecimal("100.000000");
 
 	@BeforeEach
@@ -107,7 +109,7 @@ class VaultControllerTest {
 	void testCreateFreezeSuccess() throws Exception {
 		CreateFreezeRequest request = new CreateFreezeRequest();
 		request.setAccountId(ACCOUNT_ID);
-		request.setAssetId(ASSET_ID);
+		request.setSymbol(SYMBOL);
 		request.setAmount(new BigDecimal("10.000000"));
 		request.setRefType(RefType.ORDER);
 		request.setRefId("ORD-001");
@@ -153,7 +155,7 @@ class VaultControllerTest {
 		// First request
 		CreateFreezeRequest request = new CreateFreezeRequest();
 		request.setAccountId(ACCOUNT_ID);
-		request.setAssetId(ASSET_ID);
+		request.setSymbol(SYMBOL);
 		request.setAmount(new BigDecimal("15.000000"));
 		request.setRefType(RefType.ORDER);
 		request.setRefId("ORD-002");
@@ -201,7 +203,7 @@ class VaultControllerTest {
 	void testCreateFreezeInsufficientBalance() throws Exception {
 		CreateFreezeRequest request = new CreateFreezeRequest();
 		request.setAccountId(ACCOUNT_ID);
-		request.setAssetId(ASSET_ID);
+		request.setSymbol(SYMBOL);
 		request.setAmount(new BigDecimal("200.000000")); // More than available
 		request.setRefType(RefType.ORDER);
 		request.setRefId("ORD-003");
@@ -236,7 +238,7 @@ class VaultControllerTest {
 	void testCreateFreezeValidationErrors() throws Exception {
 		// Missing accountId
 		CreateFreezeRequest request1 = new CreateFreezeRequest();
-		request1.setAssetId(ASSET_ID);
+		request1.setSymbol(SYMBOL);
 		request1.setAmount(new BigDecimal("10.000000"));
 		request1.setRefType(RefType.ORDER);
 		request1.setRefId("ORD-004");
@@ -250,7 +252,7 @@ class VaultControllerTest {
 		// Negative amount
 		CreateFreezeRequest request2 = new CreateFreezeRequest();
 		request2.setAccountId(ACCOUNT_ID);
-		request2.setAssetId(ASSET_ID);
+		request2.setSymbol(SYMBOL);
 		request2.setAmount(new BigDecimal("-10.000000"));
 		request2.setRefType(RefType.ORDER);
 		request2.setRefId("ORD-005");
@@ -274,7 +276,7 @@ class VaultControllerTest {
 		// First create a freeze
 		CreateFreezeRequest createRequest = new CreateFreezeRequest();
 		createRequest.setAccountId(ACCOUNT_ID);
-		createRequest.setAssetId(ASSET_ID);
+		createRequest.setSymbol(SYMBOL);
 		createRequest.setAmount(new BigDecimal("20.000000"));
 		createRequest.setRefType(RefType.ORDER);
 		createRequest.setRefId("ORD-006");
@@ -322,7 +324,7 @@ class VaultControllerTest {
 		// Create a freeze
 		CreateFreezeRequest createRequest = new CreateFreezeRequest();
 		createRequest.setAccountId(ACCOUNT_ID);
-		createRequest.setAssetId(ASSET_ID);
+		createRequest.setSymbol(SYMBOL);
 		createRequest.setAmount(new BigDecimal("25.000000"));
 		createRequest.setRefType(RefType.ORDER);
 		createRequest.setRefId("ORD-007");
@@ -375,7 +377,7 @@ class VaultControllerTest {
 		// Create a freeze
 		CreateFreezeRequest createRequest = new CreateFreezeRequest();
 		createRequest.setAccountId(ACCOUNT_ID);
-		createRequest.setAssetId(ASSET_ID);
+		createRequest.setSymbol(SYMBOL);
 		createRequest.setAmount(new BigDecimal("30.000000"));
 		createRequest.setRefType(RefType.SETTLEMENT);
 		createRequest.setRefId("SETTLE-001");
@@ -425,7 +427,7 @@ class VaultControllerTest {
 		// Create and release a freeze
 		CreateFreezeRequest createRequest = new CreateFreezeRequest();
 		createRequest.setAccountId(ACCOUNT_ID);
-		createRequest.setAssetId(ASSET_ID);
+		createRequest.setSymbol(SYMBOL);
 		createRequest.setAmount(new BigDecimal("35.000000"));
 		createRequest.setRefType(RefType.SETTLEMENT);
 		createRequest.setRefId("SETTLE-002");
@@ -475,7 +477,7 @@ class VaultControllerTest {
 		// Create a freeze
 		CreateFreezeRequest createRequest = new CreateFreezeRequest();
 		createRequest.setAccountId(ACCOUNT_ID);
-		createRequest.setAssetId(ASSET_ID);
+		createRequest.setSymbol(SYMBOL);
 		createRequest.setAmount(new BigDecimal("40.000000"));
 		createRequest.setRefType(RefType.ORDER);
 		createRequest.setRefId("ORD-008");
@@ -518,7 +520,7 @@ class VaultControllerTest {
 		// Create a freeze
 		CreateFreezeRequest createRequest = new CreateFreezeRequest();
 		createRequest.setAccountId(ACCOUNT_ID);
-		createRequest.setAssetId(ASSET_ID);
+		createRequest.setSymbol(SYMBOL);
 		createRequest.setAmount(new BigDecimal("50.000000"));
 		createRequest.setRefType(RefType.SETTLEMENT);
 		createRequest.setRefId("SETTLE-003");
@@ -568,12 +570,12 @@ class VaultControllerTest {
 	void testGetBalanceSuccess() throws Exception {
 		mockMvc
 			.perform(get("/vault/balance").param("accountId", ACCOUNT_ID.toString())
-				.param("assetId", ASSET_ID.toString()))
+				.param("symbol", SYMBOL))
 			.andDo(print())
 			.andExpect(status().isOk())
 			.andExpect(jsonPath("$.code").value(0))
 			.andExpect(jsonPath("$.data.accountId").value(ACCOUNT_ID))
-			.andExpect(jsonPath("$.data.assetId").value(ASSET_ID))
+			.andExpect(jsonPath("$.data.symbol").value(SYMBOL))
 			.andExpect(jsonPath("$.data.available").exists())
 			.andExpect(jsonPath("$.data.frozen").exists());
 	}

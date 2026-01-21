@@ -20,6 +20,26 @@
 -- ----------------------------
 
 -- ----------------------------
+-- Table structure for ord_market (Prediction Markets)
+-- ----------------------------
+DROP TABLE IF EXISTS `ord_market`;
+CREATE TABLE `ord_market` (
+  `market_id`   BIGINT NOT NULL COMMENT '市场ID',
+  `name`        VARCHAR(128) NOT NULL COMMENT '市场名称',
+  `status`      TINYINT NOT NULL COMMENT '状态: 0=INACTIVE, 1=ACTIVE, 2=EXPIRED',
+  `expire_at`   TIMESTAMP NULL COMMENT '市场过期时间',
+
+  `create_time` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+  `update_time` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+  `create_by`   VARCHAR(64) NULL COMMENT '创建人',
+  `update_by`   VARCHAR(64) NULL COMMENT '更新人',
+  `del_flag`    CHAR(1) NOT NULL DEFAULT '0' COMMENT '删除标志: 0=正常, 1=删除',
+
+  PRIMARY KEY (`market_id`),
+  KEY `idx_market_status_expire` (`status`, `expire_at`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='预测市场表';
+
+-- ----------------------------
 -- Table structure for ord_order (Order Aggregate Root)
 -- ----------------------------
 DROP TABLE IF EXISTS `ord_order`;
@@ -34,7 +54,7 @@ CREATE TABLE `ord_order` (
   `quantity`           DECIMAL(36,18) NOT NULL COMMENT '原始数量',
   `remaining_quantity` DECIMAL(36,18) NOT NULL COMMENT '剩余可成交数量',
 
-  `status`             TINYINT NOT NULL COMMENT '状态: 1=CREATED, 2=OPEN, 3=MATCHING, 4=PARTIALLY_FILLED, 5=FILLED, 6=CANCEL_REQUESTED, 7=CANCELLED, 8=EXPIRED, 9=REJECTED',
+  `status`             TINYINT NOT NULL COMMENT '状态: 1=OPEN, 2=MATCHING, 3=PARTIALLY_FILLED, 4=FILLED, 5=CANCEL_REQUESTED, 6=CANCELLED, 7=EXPIRED, 8=REJECTED, 9=FAILED',
   `time_in_force`      TINYINT NOT NULL DEFAULT 1 COMMENT '有效期: 1=GTC, 2=IOC, 3=FOK, 4=GTD',
   `expire_at`          TIMESTAMP NULL COMMENT '过期时间 (GTD订单使用)',
 

@@ -18,8 +18,6 @@ package com.pig4cloud.pig.order.service;
 
 import com.pig4cloud.pig.order.api.dto.CancelOrderRequest;
 import com.pig4cloud.pig.order.api.dto.CancelOrderResponse;
-import com.pig4cloud.pig.order.api.dto.CommitMatchRequest;
-import com.pig4cloud.pig.order.api.dto.CommitMatchResponse;
 import com.pig4cloud.pig.order.api.dto.CreateOrderRequest;
 import com.pig4cloud.pig.order.api.dto.CreateOrderResponse;
 
@@ -45,12 +43,5 @@ public interface OrderService {
 	 * @return cancel order response
 	 */
 	CancelOrderResponse cancelOrder(CancelOrderRequest request);
-
-	/**
-	 * Commit match results from matching engine (idempotent)
-	 * @param request commit match request
-	 * @return commit match response
-	 */
-	CommitMatchResponse commitMatch(CommitMatchRequest request);
 
 }

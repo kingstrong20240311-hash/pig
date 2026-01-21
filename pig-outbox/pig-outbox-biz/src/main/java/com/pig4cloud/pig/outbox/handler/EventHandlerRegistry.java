@@ -60,19 +60,22 @@ public class EventHandlerRegistry {
 	 * 获取事件处理器
 	 * @param domain 领域
 	 * @param eventType 事件类型
-	 * @return 处理器方法列表
+	 * @return 处理器方法列表（副本）
 	 */
 	public List<HandlerMethod> getHandlers(String domain, String eventType) {
 		String key = buildKey(domain, eventType);
-		return handlers.getOrDefault(key, new ArrayList<>());
+		List<HandlerMethod> list = handlers.get(key);
+		return list == null ? new ArrayList<>() : new ArrayList<>(list);
 	}
 
 	/**
 	 * 获取所有已注册的处理器
-	 * @return 所有处理器
+	 * @return 所有处理器（副本）
 	 */
 	public Map<String, List<HandlerMethod>> getAllHandlers() {
-		return new ConcurrentHashMap<>(handlers);
+		Map<String, List<HandlerMethod>> copy = new ConcurrentHashMap<>();
+		handlers.forEach((key, value) -> copy.put(key, new ArrayList<>(value)));
+		return copy;
 	}
 
 	private String buildKey(String domain, String eventType) {

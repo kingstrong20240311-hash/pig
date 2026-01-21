@@ -42,7 +42,7 @@ target/
 .vscode
 
 ### logs ###
-/logs/
+**/logs/
 *.log
 
 ### temp ignore ###

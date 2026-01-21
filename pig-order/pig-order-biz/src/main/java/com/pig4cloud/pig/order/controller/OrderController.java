@@ -19,6 +19,7 @@ package com.pig4cloud.pig.order.controller;
 import com.pig4cloud.pig.common.core.util.R;
 import com.pig4cloud.pig.common.log.annotation.SysLog;
 import com.pig4cloud.pig.order.api.dto.*;
+import com.pig4cloud.pig.order.match.OrderMatchService;
 import com.pig4cloud.pig.order.service.OrderService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
@@ -47,6 +48,8 @@ import jakarta.validation.Valid;
 public class OrderController {
 
 	private final OrderService orderService;
+
+	private final OrderMatchService orderMatchService;
 
 	/**
 	 * Create a new order
@@ -86,7 +89,7 @@ public class OrderController {
 	@PreAuthorize("@pms.hasPermission('order_match_commit')")
 	@Operation(summary = "提交撮合结果", description = "撮合引擎提交成交明细")
 	public R<CommitMatchResponse> commitMatch(@Valid @RequestBody CommitMatchRequest request) {
-		CommitMatchResponse response = orderService.commitMatch(request);
+		CommitMatchResponse response = orderMatchService.commitMatch(request);
 		return R.ok(response);
 	}
 

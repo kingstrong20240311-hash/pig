@@ -1,0 +1,22 @@
+# Test configuration for pig-order integration tests
+
+spring:
+  application:
+    name: pig-order-test
+server:
+  servlet:
+    context-path: /
+
+# Shared node identifier
+node-id: 0
+
+# Matching Engine Configuration
+matching-engine:
+  default-asset: 1
+  asset-symbols:
+    1: USDC
+  enable-state-recovery: true
+
+pig:
+  outbox:
+    mode: monolithic

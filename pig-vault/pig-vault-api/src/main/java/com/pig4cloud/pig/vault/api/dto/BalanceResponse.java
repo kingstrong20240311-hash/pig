@@ -54,6 +54,12 @@ public class BalanceResponse {
 	private Long assetId;
 
 	/**
+	 * Asset symbol
+	 */
+	@Schema(description = "Asset symbol")
+	private String symbol;
+
+	/**
 	 * Available balance
 	 */
 	@Schema(description = "Available balance")

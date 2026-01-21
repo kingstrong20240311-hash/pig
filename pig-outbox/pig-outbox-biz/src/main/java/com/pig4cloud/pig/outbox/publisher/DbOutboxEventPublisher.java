@@ -66,7 +66,7 @@ public class DbOutboxEventPublisher implements DomainEventPublisher {
 			}
 		}
 
-		outboxEvent.setStatus(OutboxStatus.NEW);
+		outboxEvent.setStatus(OutboxStatus.PENDING);
 		outboxEvent.setAttempts(0);
 		outboxEvent.setCreatedAt(Instant.now());
 		outboxEvent.setUpdatedAt(Instant.now());

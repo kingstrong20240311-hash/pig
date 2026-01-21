@@ -23,6 +23,7 @@ import com.pig4cloud.pig.vault.api.enums.RefType;
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Data;
 
+import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
 import java.math.BigDecimal;
@@ -45,11 +46,11 @@ public class CreateFreezeRequest {
 	private Long accountId;
 
 	/**
-	 * Asset ID
+	 * Asset symbol
 	 */
-	@NotNull(message = "Asset ID cannot be null")
-	@Schema(description = "Asset ID", requiredMode = Schema.RequiredMode.REQUIRED)
-	private Long assetId;
+	@NotBlank(message = "Asset symbol cannot be blank")
+	@Schema(description = "Asset symbol", requiredMode = Schema.RequiredMode.REQUIRED)
+	private String symbol;
 
 	/**
 	 * Amount to freeze

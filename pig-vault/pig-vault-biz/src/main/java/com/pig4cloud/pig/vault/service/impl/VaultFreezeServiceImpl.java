@@ -27,12 +27,14 @@ import com.pig4cloud.pig.vault.api.dto.FreezeResponse;
 import com.pig4cloud.pig.vault.api.entity.Balance;
 import com.pig4cloud.pig.vault.api.entity.Freeze;
 import com.pig4cloud.pig.vault.api.entity.LedgerEntry;
+import com.pig4cloud.pig.vault.api.entity.VaultAsset;
 import com.pig4cloud.pig.vault.api.enums.Direction;
 import com.pig4cloud.pig.vault.api.enums.FreezeStatus;
 import com.pig4cloud.pig.vault.api.enums.LedgerType;
 import com.pig4cloud.pig.vault.mapper.BalanceMapper;
 import com.pig4cloud.pig.vault.mapper.FreezeMapper;
 import com.pig4cloud.pig.vault.mapper.LedgerEntryMapper;
+import com.pig4cloud.pig.vault.mapper.VaultAssetMapper;
 import com.pig4cloud.pig.vault.service.VaultFreezeService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -60,13 +62,18 @@ public class VaultFreezeServiceImpl implements VaultFreezeService {
 
 	private final LedgerEntryMapper ledgerEntryMapper;
 
+	private final VaultAssetMapper vaultAssetMapper;
+
 	@Override
 	@Transactional(rollbackFor = Exception.class)
 	public FreezeResponse createFreeze(CreateFreezeRequest request) {
+		// 0) Convert symbol to assetId
+		Long assetId = getAssetIdBySymbol(request.getSymbol());
+
 		// 1) Idempotency: try insert freeze (unique constraint on refType + refId)
 		Freeze freeze = new Freeze();
 		freeze.setAccountId(request.getAccountId());
-		freeze.setAssetId(request.getAssetId());
+		freeze.setAssetId(assetId);
 		freeze.setAmount(request.getAmount());
 		freeze.setStatus(FreezeStatus.HELD);
 		freeze.setRefType(request.getRefType());
@@ -86,12 +93,12 @@ public class VaultFreezeServiceImpl implements VaultFreezeService {
 		// 2) Get balance with FOR UPDATE semantics (pessimistic lock)
 		Balance balance = balanceMapper.selectOne(Wrappers.<Balance>lambdaQuery()
 			.eq(Balance::getAccountId, request.getAccountId())
-			.eq(Balance::getAssetId, request.getAssetId())
+			.eq(Balance::getAssetId, assetId)
 			.last("FOR UPDATE"));
 
 		if (balance == null) {
 			throw new IllegalStateException(
-					"Balance not found for accountId=" + request.getAccountId() + ", assetId=" + request.getAssetId());
+					"Balance not found for accountId=" + request.getAccountId() + ", symbol=" + request.getSymbol());
 		}
 
 		// Check available >= amount
@@ -100,7 +107,7 @@ public class VaultFreezeServiceImpl implements VaultFreezeService {
 		}
 
 		// 3) Update balance (optimistic lock with version)
-		int rows = balanceMapper.freezeBalance(request.getAccountId(), request.getAssetId(), request.getAmount(),
+		int rows = balanceMapper.freezeBalance(request.getAccountId(), assetId, request.getAmount(),
 				balance.getVersion());
 
 		if (rows != 1) {
@@ -110,7 +117,7 @@ public class VaultFreezeServiceImpl implements VaultFreezeService {
 		// 4) Write ledger entry
 		LedgerEntry ledger = new LedgerEntry();
 		ledger.setAccountId(request.getAccountId());
-		ledger.setAssetId(request.getAssetId());
+		ledger.setAssetId(assetId);
 		ledger.setEntryType(LedgerType.FREEZE);
 		ledger.setDirection(Direction.DEBIT);
 		ledger.setAmount(request.getAmount());
@@ -356,6 +363,21 @@ public class VaultFreezeServiceImpl implements VaultFreezeService {
 		response.setAmount(freeze.getAmount());
 		response.setClaimTime(freeze.getClaimTime());
 		return response;
+	}
+
+	/**
+	 * Get asset ID by symbol
+	 */
+	private Long getAssetIdBySymbol(String symbol) {
+		VaultAsset asset = vaultAssetMapper.selectOne(Wrappers.<VaultAsset>lambdaQuery()
+			.eq(VaultAsset::getSymbol, symbol)
+			.eq(VaultAsset::getIsActive, true));
+
+		if (asset == null) {
+			throw new IllegalArgumentException("Asset not found or inactive for symbol: " + symbol);
+		}
+
+		return asset.getAssetId();
 	}
 
 }
