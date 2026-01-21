@@ -1,0 +1,19 @@
+mybatis-plus:
+  mapper-locations: classpath*:mapper/**/*.xml
+  type-aliases-package: com.pig4cloud.pig.common.error.entity
+  configuration:
+    map-underscore-to-camel-case: true
+    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
+
+pig:
+  error:
+    max-attempts: 3
+    retry-delay-seconds: 10
+    stack-trace-max-length: 1000
+    use-exponential-backoff: true
+    exponential-backoff-multiplier: 2.0
+
+logging:
+  level:
+    com.pig4cloud.pig.common.error: DEBUG
+    org.testcontainers: INFO
