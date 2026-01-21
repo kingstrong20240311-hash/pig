@@ -63,6 +63,11 @@
 			<groupId>com.pig4cloud</groupId>
 			<artifactId>pig-common-log</artifactId>
 		</dependency>
+		<!-- 错误记录与补偿 -->
+		<dependency>
+			<groupId>com.pig4cloud</groupId>
+			<artifactId>pig-common-error</artifactId>
+		</dependency>
 		<!-- 接口文档 -->
 		<dependency>
 			<groupId>com.pig4cloud</groupId>

@@ -20,6 +20,7 @@ import cn.hutool.core.util.IdUtil;
 import cn.hutool.core.util.StrUtil;
 import cn.hutool.json.JSONUtil;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
+import com.pig4cloud.pig.common.error.service.ErrorRecordService;
 import com.pig4cloud.pig.order.api.dto.CommitMatchRequest;
 import com.pig4cloud.pig.order.api.dto.CommitMatchResponse;
 import com.pig4cloud.pig.order.api.dto.FillDTO;
@@ -29,6 +30,9 @@ import com.pig4cloud.pig.order.api.entity.OrderFill;
 import com.pig4cloud.pig.order.api.enums.OrderStatus;
 import com.pig4cloud.pig.order.mapper.OrderFillMapper;
 import com.pig4cloud.pig.order.mapper.OrderMapper;
+import com.pig4cloud.pig.order.match.dto.FailedReduceEventDTO;
+import com.pig4cloud.pig.order.match.dto.FailedRejectEventDTO;
+import com.pig4cloud.pig.order.match.dto.FailedTradeEventDTO;
 import com.pig4cloud.pig.outbox.api.model.DomainEventEnvelope;
 import com.pig4cloud.pig.outbox.api.publisher.DomainEventPublisher;
 import exchange.core2.core.IEventsHandler;
@@ -70,6 +74,8 @@ public class MatcherEventHandler implements OrderMatchService {
 
 	private final DomainEventPublisher domainEventPublisher;
 
+	private final ErrorRecordService errorRecordService;
+
 	@Value("${node-id:0}")
 	private long nodeId;
 
@@ -82,32 +88,32 @@ public class MatcherEventHandler implements OrderMatchService {
 		log.info("Handling trade event: takerOrderId={}, totalVolume={}, tradesCount={}", tradeEvent.takerOrderId,
 				tradeEvent.totalVolume, tradeEvent.trades.size());
 
+		// Generate a unique matchId using timestamp and takerOrderId
+		String matchId = String.format("%d-%d", tradeEvent.takerOrderId, tradeEvent.timestamp);
+
+		// Use matchId as idempotency key
+		String idempotencyKey = matchId;
+
+		// Convert trades to FillDTOs
+		List<FillDTO> fills = new ArrayList<>();
+		for (IEventsHandler.Trade trade : tradeEvent.trades) {
+			FillDTO fillDTO = new FillDTO();
+			fillDTO.setMakerOrderId(trade.makerOrderId);
+			// Convert from exchange-core long format to BigDecimal (scaled by 100)
+			fillDTO.setPrice(convertLongToDecimal(trade.price));
+			fillDTO.setQuantity(convertLongToDecimal(trade.volume));
+			fillDTO.setFee(BigDecimal.ZERO); // TODO: Calculate fees if needed
+			fills.add(fillDTO);
+		}
+
+		// Create commit match request
+		CommitMatchRequest request = new CommitMatchRequest();
+		request.setMatchId(matchId);
+		request.setTakerOrderId(tradeEvent.takerOrderId);
+		request.setFills(fills);
+		request.setIdempotencyKey(idempotencyKey);
+
 		try {
-			// Generate a unique matchId using timestamp and takerOrderId
-			String matchId = String.format("%d-%d", tradeEvent.takerOrderId, tradeEvent.timestamp);
-
-			// Use matchId as idempotency key
-			String idempotencyKey = matchId;
-
-			// Convert trades to FillDTOs
-			List<FillDTO> fills = new ArrayList<>();
-			for (IEventsHandler.Trade trade : tradeEvent.trades) {
-				FillDTO fillDTO = new FillDTO();
-				fillDTO.setMakerOrderId(trade.makerOrderId);
-				// Convert from exchange-core long format to BigDecimal (scaled by 100)
-				fillDTO.setPrice(convertLongToDecimal(trade.price));
-				fillDTO.setQuantity(convertLongToDecimal(trade.volume));
-				fillDTO.setFee(BigDecimal.ZERO); // TODO: Calculate fees if needed
-				fills.add(fillDTO);
-			}
-
-			// Create commit match request
-			CommitMatchRequest request = new CommitMatchRequest();
-			request.setMatchId(matchId);
-			request.setTakerOrderId(tradeEvent.takerOrderId);
-			request.setFills(fills);
-			request.setIdempotencyKey(idempotencyKey);
-
 			// Commit match directly (avoid OrderService dependency)
 			commitMatch(request);
 
@@ -115,9 +121,24 @@ public class MatcherEventHandler implements OrderMatchService {
 					tradeEvent.takerOrderId);
 		}
 		catch (Exception e) {
-			log.error("Failed to handle trade event: takerOrderId={}", tradeEvent.takerOrderId, e);
-			// TODO: Implement retry mechanism or dead letter queue for failed trade
-			// events
+			log.error("Failed to handle trade event: takerOrderId={}, matchId={}", tradeEvent.takerOrderId, matchId, e);
+
+			// Record error for later compensation/retry using pig-common-error
+			FailedTradeEventDTO failedEvent = new FailedTradeEventDTO();
+			failedEvent.setMatchId(matchId);
+			failedEvent.setTakerOrderId(tradeEvent.takerOrderId);
+			failedEvent.setTotalVolume(tradeEvent.totalVolume);
+			failedEvent.setTimestamp(tradeEvent.timestamp);
+			failedEvent.setFills(fills);
+			failedEvent.setIdempotencyKey(idempotencyKey);
+
+			errorRecordService.record("order", // domain
+					"order:handleTradeEvent", // handler key
+					failedEvent, // failed event data
+					e // exception
+			);
+
+			log.info("Trade event error recorded for compensation: matchId={}, errorRecorded=true", matchId);
 		}
 	}
 
@@ -131,7 +152,16 @@ public class MatcherEventHandler implements OrderMatchService {
 			Order order = orderMapper.selectById(reduceEvent.orderId);
 			if (order == null) {
 				log.warn("Order not found for reduce event: orderId={}", reduceEvent.orderId);
-				// TODO: Handle missing order - may need to investigate data inconsistency
+				// Record error for missing order - may need to investigate data
+				// inconsistency
+				FailedReduceEventDTO failedEvent = new FailedReduceEventDTO();
+				failedEvent.setOrderId(reduceEvent.orderId);
+				failedEvent.setReducedVolume(reduceEvent.reducedVolume);
+				failedEvent.setOrderCompleted(reduceEvent.orderCompleted);
+				failedEvent.setTimestamp(reduceEvent.timestamp);
+
+				errorRecordService.record("order", "order:handleReduceEvent", failedEvent,
+						new IllegalStateException("Order not found: " + reduceEvent.orderId));
 				return;
 			}
 
@@ -153,7 +183,18 @@ public class MatcherEventHandler implements OrderMatchService {
 		}
 		catch (Exception e) {
 			log.error("Failed to handle reduce event: orderId={}", reduceEvent.orderId, e);
-			// TODO: Implement retry mechanism for failed reduce events
+
+			// Record error for later compensation/retry using pig-common-error
+			FailedReduceEventDTO failedEvent = new FailedReduceEventDTO();
+			failedEvent.setOrderId(reduceEvent.orderId);
+			failedEvent.setReducedVolume(reduceEvent.reducedVolume);
+			failedEvent.setOrderCompleted(reduceEvent.orderCompleted);
+			failedEvent.setTimestamp(reduceEvent.timestamp);
+
+			errorRecordService.record("order", "order:handleReduceEvent", failedEvent, e);
+
+			log.info("Reduce event error recorded for compensation: orderId={}, errorRecorded=true",
+					reduceEvent.orderId);
 		}
 	}
 
@@ -167,7 +208,15 @@ public class MatcherEventHandler implements OrderMatchService {
 			Order order = orderMapper.selectById(rejectEvent.orderId);
 			if (order == null) {
 				log.warn("Order not found for reject event: orderId={}", rejectEvent.orderId);
-				// TODO: Handle missing order - may need to investigate data inconsistency
+				// Record error for missing order - may need to investigate data
+				// inconsistency
+				FailedRejectEventDTO failedEvent = new FailedRejectEventDTO();
+				failedEvent.setOrderId(rejectEvent.orderId);
+				failedEvent.setRejectedVolume(rejectEvent.rejectedVolume);
+				failedEvent.setTimestamp(rejectEvent.timestamp);
+
+				errorRecordService.record("order", "order:handleRejectEvent", failedEvent,
+						new IllegalStateException("Order not found: " + rejectEvent.orderId));
 				return;
 			}
 
@@ -180,7 +229,17 @@ public class MatcherEventHandler implements OrderMatchService {
 		}
 		catch (Exception e) {
 			log.error("Failed to handle reject event: orderId={}", rejectEvent.orderId, e);
-			// TODO: Implement retry mechanism for failed reject events
+
+			// Record error for later compensation/retry using pig-common-error
+			FailedRejectEventDTO failedEvent = new FailedRejectEventDTO();
+			failedEvent.setOrderId(rejectEvent.orderId);
+			failedEvent.setRejectedVolume(rejectEvent.rejectedVolume);
+			failedEvent.setTimestamp(rejectEvent.timestamp);
+
+			errorRecordService.record("order", "order:handleRejectEvent", failedEvent, e);
+
+			log.info("Reject event error recorded for compensation: orderId={}, errorRecorded=true",
+					rejectEvent.orderId);
 		}
 	}
 
@@ -218,8 +277,7 @@ public class MatcherEventHandler implements OrderMatchService {
 
 		// 3.1 Validate taker order status - only allow matchable states
 		if (!isValidMatchingStatus(takerOrder.getStatus())) {
-			// TODO: Implement retry mechanism or dead letter queue for orders in invalid
-			// states
+			// invalid states
 			log.error(
 					"Taker order in invalid state for matching: orderId={}, status={}, matchId={}, allowed states: OPEN, MATCHING, PARTIALLY_FILLED, CANCEL_REQUESTED",
 					takerOrder.getOrderId(), takerOrder.getStatus(), request.getMatchId());
@@ -251,8 +309,7 @@ public class MatcherEventHandler implements OrderMatchService {
 
 			// 4.1.1 Validate maker order status - only allow matchable states
 			if (!isValidMatchingStatus(makerOrder.getStatus())) {
-				// TODO: Implement retry mechanism or dead letter queue for orders in invalid
-				// states
+				// invalid states
 				log.error(
 						"Maker order in invalid state for matching: orderId={}, status={}, matchId={}, allowed states: OPEN, MATCHING, PARTIALLY_FILLED, CANCEL_REQUESTED",
 						makerOrder.getOrderId(), makerOrder.getStatus(), request.getMatchId());
@@ -411,14 +468,14 @@ public class MatcherEventHandler implements OrderMatchService {
 	}
 
 	/**
-	 * Check if order status is valid for matching Only OPEN, MATCHING,
-	 * PARTIALLY_FILLED, and CANCEL_REQUESTED orders can be matched
+	 * Check if order status is valid for matching Only OPEN, MATCHING, PARTIALLY_FILLED,
+	 * and CANCEL_REQUESTED orders can be matched
 	 * @param status the order status to check
 	 * @return true if status allows matching, false otherwise
 	 */
 	private boolean isValidMatchingStatus(OrderStatus status) {
-		return status == OrderStatus.OPEN || status == OrderStatus.MATCHING
-				|| status == OrderStatus.PARTIALLY_FILLED || status == OrderStatus.CANCEL_REQUESTED;
+		return status == OrderStatus.OPEN || status == OrderStatus.MATCHING || status == OrderStatus.PARTIALLY_FILLED
+				|| status == OrderStatus.CANCEL_REQUESTED;
 	}
 
 }
