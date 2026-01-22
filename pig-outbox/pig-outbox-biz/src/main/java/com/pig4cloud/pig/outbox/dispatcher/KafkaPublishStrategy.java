@@ -17,9 +17,18 @@
 
 package com.pig4cloud.pig.outbox.dispatcher;
 
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.pig4cloud.pig.outbox.api.model.DomainEventEnvelope;
+import com.pig4cloud.pig.outbox.config.OutboxKafkaProperties;
 import com.pig4cloud.pig.outbox.entity.OutboxEvent;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.kafka.core.KafkaTemplate;
+import org.springframework.kafka.support.SendResult;
+
+import java.util.Map;
+import java.util.concurrent.TimeUnit;
 
 /**
  * Kafka事件发布策略（微服务模式）
@@ -33,21 +42,57 @@ import lombok.extern.slf4j.Slf4j;
 @RequiredArgsConstructor
 public class KafkaPublishStrategy implements EventPublishStrategy {
 
-	// TODO: 注入KafkaTemplate或其他Kafka客户端
+	private final KafkaTemplate<String, String> kafkaTemplate;
+
+	private final ObjectMapper objectMapper;
+
+	private final OutboxKafkaProperties kafkaProperties;
 
 	@Override
 	public void publish(OutboxEvent event) {
-		// TODO: 实现Kafka发送逻辑
-		// 示例：
-		// String topic = "domain." + event.getDomain() + "." + event.getEventType();
-		// kafkaTemplate.send(topic, event.getPartitionKey(), event.getPayloadJson());
+		try {
+			// 1. 构建 DomainEventEnvelope
+			DomainEventEnvelope envelope = buildEnvelope(event);
 
-		log.debug("Publishing event to Kafka: eventId={}, domain={}, eventType={}", event.getEventId(),
-				event.getDomain(), event.getEventType());
+			// 2. 计算 topic: "domain." + domain
+			String topic = "domain." + event.getDomain();
 
-		// 临时实现：仅记录日志
-		log.warn("KafkaPublishStrategy not fully implemented yet, event will be marked as sent: eventId={}",
-				event.getEventId());
+			// 3. 序列化 envelope 为 JSON
+			String messageValue = objectMapper.writeValueAsString(envelope);
+
+			// 4. 同步发送到 Kafka (使用 partition_key 作为 Kafka key 保证同一聚合有序)
+			SendResult<String, String> result = kafkaTemplate.send(topic, event.getPartitionKey(), messageValue)
+				.get(kafkaProperties.getSendTimeoutSeconds(), TimeUnit.SECONDS);
+
+			log.debug("Event published to Kafka: topic={}, partition={}, offset={}, eventId={}", topic,
+					result.getRecordMetadata().partition(), result.getRecordMetadata().offset(), event.getEventId());
+		}
+		catch (Exception e) {
+			log.error("Failed to publish event to Kafka: eventId={}, domain={}, eventType={}", event.getEventId(),
+					event.getDomain(), event.getEventType(), e);
+			// 抛出异常以触发 OutboxEventDispatcher 的重试逻辑
+			throw new RuntimeException("Kafka publish failed", e);
+		}
+	}
+
+	/**
+	 * 从 OutboxEvent 构建 DomainEventEnvelope
+	 */
+	private DomainEventEnvelope buildEnvelope(OutboxEvent event) {
+		// 解析 headers JSON（如果存在）
+		Map<String, String> headers = null;
+		if (event.getHeadersJson() != null && !event.getHeadersJson().isEmpty()) {
+			try {
+				headers = objectMapper.readValue(event.getHeadersJson(), new TypeReference<Map<String, String>>() {
+				});
+			}
+			catch (Exception e) {
+				log.warn("Failed to deserialize event headers: eventId={}", event.getEventId(), e);
+			}
+		}
+
+		return new DomainEventEnvelope(event.getEventId(), event.getDomain(), event.getAggregateType(),
+				event.getAggregateId(), event.getEventType(), event.getCreatedAt(), headers, event.getPayloadJson());
 	}
 
 }

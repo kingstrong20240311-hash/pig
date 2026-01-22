@@ -15,11 +15,10 @@
  * Author: lengleng (wangiegie@gmail.com)
  */
 
-package com.pig4cloud.pig.outbox.handler;
+package com.pig4cloud.pig.outbox.api.handler;
 
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.stereotype.Component;
 
 import java.lang.reflect.Method;
 import java.util.ArrayList;
@@ -36,7 +35,6 @@ import java.util.concurrent.ConcurrentHashMap;
  * @date 2025-01-15
  */
 @Slf4j
-@Component
 public class EventHandlerRegistry {
 
 	private final Map<String, List<HandlerMethod>> handlers = new ConcurrentHashMap<>();
@@ -50,6 +48,9 @@ public class EventHandlerRegistry {
 	 * @param groupId Kafka消费者组ID
 	 */
 	public void register(String domain, String eventType, Object bean, Method method, String groupId) {
+		// 设置可访问性以支持内部类和非公共方法
+		method.setAccessible(true);
+		
 		String key = buildKey(domain, eventType);
 		handlers.computeIfAbsent(key, k -> new ArrayList<>()).add(new HandlerMethod(bean, method, groupId));
 		log.info("Registered event handler: domain={}, eventType={}, method={}.{}", domain, eventType,

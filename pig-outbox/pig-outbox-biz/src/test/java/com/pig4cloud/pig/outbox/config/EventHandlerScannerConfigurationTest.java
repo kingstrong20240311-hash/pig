@@ -18,8 +18,9 @@
 package com.pig4cloud.pig.outbox.config;
 
 import com.pig4cloud.pig.outbox.api.annotation.DomainEventHandler;
+import com.pig4cloud.pig.outbox.api.config.EventHandlerScannerConfiguration;
+import com.pig4cloud.pig.outbox.api.handler.EventHandlerRegistry;
 import com.pig4cloud.pig.outbox.api.model.DomainEventEnvelope;
-import com.pig4cloud.pig.outbox.handler.EventHandlerRegistry;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;

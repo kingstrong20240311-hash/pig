@@ -15,10 +15,10 @@
  * Author: lengleng (wangiegie@gmail.com)
  */
 
-package com.pig4cloud.pig.outbox.config;
+package com.pig4cloud.pig.outbox.api.config;
 
 import com.pig4cloud.pig.outbox.api.annotation.DomainEventHandler;
-import com.pig4cloud.pig.outbox.handler.EventHandlerRegistry;
+import com.pig4cloud.pig.outbox.api.handler.EventHandlerRegistry;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.BeansException;

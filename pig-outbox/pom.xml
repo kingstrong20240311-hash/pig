@@ -34,5 +34,6 @@
 	<modules>
 		<module>pig-outbox-api</module>
 		<module>pig-outbox-biz</module>
+		<module>pig-outbox-consumer</module>
 	</modules>
 </project>

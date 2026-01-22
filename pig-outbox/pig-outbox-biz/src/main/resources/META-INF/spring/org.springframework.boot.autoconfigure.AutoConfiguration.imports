@@ -1,2 +1,1 @@
 com.pig4cloud.pig.outbox.config.OutboxAutoConfiguration
-com.pig4cloud.pig.outbox.config.EventHandlerScannerConfiguration
