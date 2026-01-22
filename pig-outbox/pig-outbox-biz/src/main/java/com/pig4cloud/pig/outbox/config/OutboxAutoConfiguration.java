@@ -19,19 +19,27 @@ package com.pig4cloud.pig.outbox.config;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.pig4cloud.pig.outbox.api.publisher.DomainEventPublisher;
+import com.pig4cloud.pig.outbox.api.handler.EventHandlerRegistry;
 import com.pig4cloud.pig.outbox.dispatcher.*;
-import com.pig4cloud.pig.outbox.handler.EventHandlerRegistry;
 import com.pig4cloud.pig.outbox.mapper.OutboxEventMapper;
 import com.pig4cloud.pig.outbox.publisher.DbOutboxEventPublisher;
 import com.pig4cloud.pig.outbox.publisher.InProcessEventPublisher;
 import com.pig4cloud.pig.outbox.service.OutboxEventService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.kafka.clients.producer.ProducerConfig;
+import org.apache.kafka.common.serialization.StringSerializer;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Primary;
+import org.springframework.kafka.core.DefaultKafkaProducerFactory;
+import org.springframework.kafka.core.KafkaTemplate;
+import org.springframework.kafka.core.ProducerFactory;
+
+import java.util.HashMap;
+import java.util.Map;
 
 /**
  * Outbox自动配置
@@ -44,7 +52,8 @@ import org.springframework.context.annotation.Primary;
 @Slf4j
 @Configuration
 @RequiredArgsConstructor
-@EnableConfigurationProperties({ OutboxProperties.class, OutboxDispatcherProperties.class })
+@EnableConfigurationProperties({ OutboxProperties.class, OutboxDispatcherProperties.class,
+		OutboxKafkaProperties.class })
 public class OutboxAutoConfiguration {
 
 	private final OutboxProperties outboxProperties;
@@ -85,13 +94,46 @@ public class OutboxAutoConfiguration {
 	}
 
 	/**
+	 * 微服务模式：Kafka 生产者工厂
+	 */
+	@Bean
+	@ConditionalOnProperty(prefix = "pig.outbox", name = "mode", havingValue = "microservice", matchIfMissing = true)
+	public ProducerFactory<String, String> outboxProducerFactory(OutboxKafkaProperties kafkaProperties) {
+		Map<String, Object> config = new HashMap<>();
+		config.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, kafkaProperties.getBootstrapServers());
+		config.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, StringSerializer.class);
+		config.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, StringSerializer.class);
+		config.put(ProducerConfig.ACKS_CONFIG, kafkaProperties.getAcks());
+		config.put(ProducerConfig.RETRIES_CONFIG, kafkaProperties.getRetries());
+		config.put(ProducerConfig.ENABLE_IDEMPOTENCE_CONFIG, kafkaProperties.isEnableIdempotence());
+		config.put(ProducerConfig.MAX_IN_FLIGHT_REQUESTS_PER_CONNECTION,
+				kafkaProperties.getMaxInFlightRequestsPerConnection());
+
+		log.info("Kafka producer configured: bootstrap-servers={}, acks={}, idempotence={}",
+				kafkaProperties.getBootstrapServers(), kafkaProperties.getAcks(),
+				kafkaProperties.isEnableIdempotence());
+
+		return new DefaultKafkaProducerFactory<>(config);
+	}
+
+	/**
+	 * 微服务模式：KafkaTemplate
+	 */
+	@Bean
+	@ConditionalOnProperty(prefix = "pig.outbox", name = "mode", havingValue = "microservice", matchIfMissing = true)
+	public KafkaTemplate<String, String> outboxKafkaTemplate(ProducerFactory<String, String> producerFactory) {
+		return new KafkaTemplate<>(producerFactory);
+	}
+
+	/**
 	 * 微服务模式：Kafka事件发布策略
 	 */
 	@Bean
 	@ConditionalOnProperty(prefix = "pig.outbox", name = "mode", havingValue = "microservice", matchIfMissing = true)
-	public EventPublishStrategy kafkaPublishStrategy() {
+	public EventPublishStrategy kafkaPublishStrategy(KafkaTemplate<String, String> kafkaTemplate,
+			ObjectMapper objectMapper, OutboxKafkaProperties kafkaProperties) {
 		log.info("Configuring KafkaPublishStrategy for event dispatching");
-		return new KafkaPublishStrategy();
+		return new KafkaPublishStrategy(kafkaTemplate, objectMapper, kafkaProperties);
 	}
 
 	/**

@@ -1,0 +1,23 @@
+# Outbox Consumer Test Configuration
+pig:
+  outbox:
+    consumer:
+      enabled: true
+      bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+      domains:
+        - order
+        - vault
+      group-id-prefix: test-consumer
+      concurrency: 1
+      auto-offset-reset: earliest
+      enable-auto-commit: false
+
+spring:
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+
+logging:
+  level:
+    com.pig4cloud.pig.outbox: DEBUG
+    org.springframework.kafka: DEBUG
+    org.springframework.kafka.listener: DEBUG

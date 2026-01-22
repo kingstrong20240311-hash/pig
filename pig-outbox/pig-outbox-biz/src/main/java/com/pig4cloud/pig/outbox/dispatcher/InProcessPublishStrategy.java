@@ -19,9 +19,9 @@ package com.pig4cloud.pig.outbox.dispatcher;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.pig4cloud.pig.outbox.api.handler.EventHandlerRegistry;
 import com.pig4cloud.pig.outbox.api.model.DomainEventEnvelope;
 import com.pig4cloud.pig.outbox.entity.OutboxEvent;
-import com.pig4cloud.pig.outbox.handler.EventHandlerRegistry;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
