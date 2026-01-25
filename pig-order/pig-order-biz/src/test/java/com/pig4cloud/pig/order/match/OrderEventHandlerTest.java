@@ -19,7 +19,10 @@ package com.pig4cloud.pig.order.match;
 import com.pig4cloud.pig.order.api.entity.Order;
 import com.pig4cloud.pig.order.api.enums.OrderStatus;
 import com.pig4cloud.pig.order.mapper.OrderMapper;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.pig4cloud.pig.outbox.api.model.DomainEventEnvelope;
+import com.pig4cloud.pig.outbox.api.payload.order.OrderCancelRequestedPayload;
+import com.pig4cloud.pig.outbox.api.payload.order.OrderCreatedPayload;
 import com.pig4cloud.pig.outbox.api.publisher.DomainEventPublisher;
 import exchange.core2.core.ExchangeApi;
 import exchange.core2.core.common.cmd.CommandResultCode;
@@ -60,6 +63,9 @@ class OrderEventHandlerTest {
 	@Mock
 	private DomainEventPublisher domainEventPublisher;
 
+	@Mock
+	private ObjectMapper objectMapper;
+
 	@InjectMocks
 	private OrderEventHandler orderEventHandler;
 
@@ -76,10 +82,9 @@ class OrderEventHandlerTest {
 		Long orderId = 1001L;
 		String eventId = "event-1";
 		String aggregateId = "order-1001";
-		String payloadJson = "{\"orderId\": 1001}";
-
-		DomainEventEnvelope event = new DomainEventEnvelope(eventId, "order", "Order", aggregateId, "OrderCreated",
-				System.currentTimeMillis(), null, payloadJson);
+		OrderCreatedPayload payload = new OrderCreatedPayload(orderId, 123L, 1L, "OPEN");
+		DomainEventEnvelope<OrderCreatedPayload> event = new DomainEventEnvelope<>(eventId, "order", "Order",
+				aggregateId, "OrderCreated", System.currentTimeMillis(), null, payload);
 
 		Order order = createOrder(orderId, OrderStatus.OPEN, BigDecimal.valueOf(100), BigDecimal.valueOf(10));
 
@@ -101,12 +106,40 @@ class OrderEventHandlerTest {
 	}
 
 	@Test
+	void testHandleOrderCreated_BackwardCompatiblePayloadJson() throws Exception {
+		// Given
+		Long orderId = 1003L;
+		String eventId = "event-compat";
+		String aggregateId = "order-1003";
+		String payloadJson = "{\"orderId\":1003}";
+
+		DomainEventEnvelope<OrderCreatedPayload> event = new DomainEventEnvelope<>(eventId, "order", "Order",
+				aggregateId, "OrderCreated", System.currentTimeMillis(), null, payloadJson);
+
+		OrderCreatedPayload payload = new OrderCreatedPayload(orderId, 123L, 1L, "OPEN");
+		when(objectMapper.readValue(payloadJson, OrderCreatedPayload.class)).thenReturn(payload);
+
+		Order order = createOrder(orderId, OrderStatus.OPEN, BigDecimal.valueOf(100), BigDecimal.valueOf(10));
+		when(orderMapper.selectById(orderId)).thenReturn(order);
+		when(exchangeApi.submitCommandAsync(any()))
+			.thenReturn(CompletableFuture.completedFuture(CommandResultCode.SUCCESS));
+		when(orderMapper.updateById(any(Order.class))).thenReturn(1);
+
+		// When
+		orderEventHandler.handleOrderCreated(event);
+
+		// Then
+		verify(exchangeApi).submitCommandAsync(any());
+		verify(orderMapper).updateById(orderCaptor.capture());
+	}
+
+	@Test
 	void testHandleOrderCreated_MarketOrderSuccess_NoMatchingTransition() {
 		// Given
 		Long orderId = 1002L;
-		String payloadJson = "{\"orderId\": 1002}";
-		DomainEventEnvelope event = new DomainEventEnvelope("event-2", "order", "Order", "order-1002", "OrderCreated",
-				System.currentTimeMillis(), null, payloadJson);
+		OrderCreatedPayload payload = new OrderCreatedPayload(orderId, 123L, 1L, "OPEN");
+		DomainEventEnvelope<OrderCreatedPayload> event = new DomainEventEnvelope<>("event-2", "order", "Order",
+				"order-1002", "OrderCreated", System.currentTimeMillis(), null, payload);
 
 		Order order = createOrder(orderId, OrderStatus.OPEN, BigDecimal.valueOf(100), BigDecimal.valueOf(10));
 		order.setOrderType(com.pig4cloud.pig.order.api.enums.OrderType.MARKET);
@@ -127,9 +160,9 @@ class OrderEventHandlerTest {
 	void testHandleOrderCreated_OrderRejectedByEngine() {
 		// Given
 		Long orderId = 1001L;
-		String payloadJson = "{\"orderId\": 1001}";
-		DomainEventEnvelope event = new DomainEventEnvelope("event-1", "order", "Order", "order-1001", "OrderCreated",
-				System.currentTimeMillis(), null, payloadJson);
+		OrderCreatedPayload payload = new OrderCreatedPayload(orderId, 123L, 1L, "OPEN");
+		DomainEventEnvelope<OrderCreatedPayload> event = new DomainEventEnvelope<>("event-1", "order", "Order",
+				"order-1001", "OrderCreated", System.currentTimeMillis(), null, payload);
 
 		Order order = createOrder(orderId, OrderStatus.OPEN, BigDecimal.valueOf(100), BigDecimal.valueOf(10));
 
@@ -151,9 +184,9 @@ class OrderEventHandlerTest {
 	@Test
 	void testHandleOrderCreated_OrderNotFound() {
 		// Given
-		String payloadJson = "{\"orderId\": 9999}";
-		DomainEventEnvelope event = new DomainEventEnvelope("event-1", "order", "Order", "order-9999", "OrderCreated",
-				System.currentTimeMillis(), null, payloadJson);
+		OrderCreatedPayload payload = new OrderCreatedPayload(9999L, 123L, 1L, "OPEN");
+		DomainEventEnvelope<OrderCreatedPayload> event = new DomainEventEnvelope<>("event-1", "order", "Order",
+				"order-9999", "OrderCreated", System.currentTimeMillis(), null, payload);
 
 		when(orderMapper.selectById(9999L)).thenReturn(null);
 
@@ -166,9 +199,9 @@ class OrderEventHandlerTest {
 	void testHandleOrderCreated_OrderNotInOpenState() {
 		// Given
 		Long orderId = 1001L;
-		String payloadJson = "{\"orderId\": 1001}";
-		DomainEventEnvelope event = new DomainEventEnvelope("event-1", "order", "Order", "order-1001", "OrderCreated",
-				System.currentTimeMillis(), null, payloadJson);
+		OrderCreatedPayload payload = new OrderCreatedPayload(orderId, 123L, 1L, "OPEN");
+		DomainEventEnvelope<OrderCreatedPayload> event = new DomainEventEnvelope<>("event-1", "order", "Order",
+				"order-1001", "OrderCreated", System.currentTimeMillis(), null, payload);
 
 		Order order = createOrder(orderId, OrderStatus.MATCHING, BigDecimal.valueOf(100), BigDecimal.valueOf(10));
 
@@ -185,9 +218,9 @@ class OrderEventHandlerTest {
 	@Test
 	void testHandleOrderCreated_InvalidPayload() {
 		// Given
-		String payloadJson = "{\"invalidKey\": \"value\"}";
-		DomainEventEnvelope event = new DomainEventEnvelope("event-1", "order", "Order", "order-1001", "OrderCreated",
-				System.currentTimeMillis(), null, payloadJson);
+		OrderCreatedPayload payload = new OrderCreatedPayload(null, 123L, 1L, "OPEN");
+		DomainEventEnvelope<OrderCreatedPayload> event = new DomainEventEnvelope<>("event-1", "order", "Order",
+				"order-1001", "OrderCreated", System.currentTimeMillis(), null, payload);
 
 		// When & Then
 		assertThatThrownBy(() -> orderEventHandler.handleOrderCreated(event)).isInstanceOf(RuntimeException.class)
@@ -203,9 +236,10 @@ class OrderEventHandlerTest {
 		// Given
 		Long orderId = 1001L;
 		Long marketId = 1L;
-		String payloadJson = "{\"orderId\": 1001, \"userId\": 123, \"marketId\": 1}";
-		DomainEventEnvelope event = new DomainEventEnvelope("event-1", "order", "Order", "order-1001",
-				"OrderCancelRequested", System.currentTimeMillis(), null, payloadJson);
+		OrderCancelRequestedPayload payload = new OrderCancelRequestedPayload(orderId, 123L, marketId, "CANCEL_REQUESTED",
+				"idem-1");
+		DomainEventEnvelope<OrderCancelRequestedPayload> event = new DomainEventEnvelope<>("event-1", "order", "Order",
+				"order-1001", "OrderCancelRequested", System.currentTimeMillis(), null, payload);
 
 		Order order = createOrder(orderId, OrderStatus.CANCEL_REQUESTED, BigDecimal.valueOf(100),
 				BigDecimal.valueOf(10));
@@ -226,9 +260,9 @@ class OrderEventHandlerTest {
 	void testHandleOrderCancelRequested_OrderNotInCancelRequestedState() {
 		// Given
 		Long orderId = 1001L;
-		String payloadJson = "{\"orderId\": 1001, \"userId\": 123, \"marketId\": 1}";
-		DomainEventEnvelope event = new DomainEventEnvelope("event-1", "order", "Order", "order-1001",
-				"OrderCancelRequested", System.currentTimeMillis(), null, payloadJson);
+		OrderCancelRequestedPayload payload = new OrderCancelRequestedPayload(orderId, 123L, 1L, "FILLED", "idem-2");
+		DomainEventEnvelope<OrderCancelRequestedPayload> event = new DomainEventEnvelope<>("event-1", "order", "Order",
+				"order-1001", "OrderCancelRequested", System.currentTimeMillis(), null, payload);
 
 		Order order = createOrder(orderId, OrderStatus.FILLED, BigDecimal.valueOf(100), BigDecimal.ZERO);
 
@@ -244,9 +278,10 @@ class OrderEventHandlerTest {
 	@Test
 	void testHandleOrderCancelRequested_InvalidPayload() {
 		// Given
-		String payloadJson = "{\"orderId\": 1001}"; // Missing userId and marketId
-		DomainEventEnvelope event = new DomainEventEnvelope("event-1", "order", "Order", "order-1001",
-				"OrderCancelRequested", System.currentTimeMillis(), null, payloadJson);
+		Long orderId = 1001L;
+		OrderCancelRequestedPayload payload = new OrderCancelRequestedPayload(orderId, null, null, null, "idem-3");
+		DomainEventEnvelope<OrderCancelRequestedPayload> event = new DomainEventEnvelope<>("event-1", "order", "Order",
+				"order-1001", "OrderCancelRequested", System.currentTimeMillis(), null, payload);
 
 		// When & Then
 		assertThatThrownBy(() -> orderEventHandler.handleOrderCancelRequested(event))
@@ -257,9 +292,9 @@ class OrderEventHandlerTest {
 	@Test
 	void testHandleOrderCancelRequested_OrderNotFound() {
 		// Given
-		String payloadJson = "{\"orderId\": 9999, \"userId\": 123, \"marketId\": 1}";
-		DomainEventEnvelope event = new DomainEventEnvelope("event-1", "order", "Order", "order-9999",
-				"OrderCancelRequested", System.currentTimeMillis(), null, payloadJson);
+		OrderCancelRequestedPayload payload = new OrderCancelRequestedPayload(9999L, 123L, 1L, "CANCEL_REQUESTED", "idem-4");
+		DomainEventEnvelope<OrderCancelRequestedPayload> event = new DomainEventEnvelope<>("event-1", "order", "Order",
+				"order-9999", "OrderCancelRequested", System.currentTimeMillis(), null, payload);
 
 		when(orderMapper.selectById(9999L)).thenReturn(null);
 

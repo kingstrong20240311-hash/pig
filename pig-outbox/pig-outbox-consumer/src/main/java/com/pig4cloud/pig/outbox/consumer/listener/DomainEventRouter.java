@@ -49,7 +49,8 @@ public class DomainEventRouter {
 	public void route(String messageValue) {
 		try {
 			// 1. 反序列化为 DomainEventEnvelope
-			DomainEventEnvelope envelope = objectMapper.readValue(messageValue, DomainEventEnvelope.class);
+			DomainEventEnvelope<?> envelope = objectMapper.readValue(messageValue, DomainEventEnvelope.class);
+			validateEnvelope(envelope);
 
 			// 2. 查找已注册的处理器
 			List<HandlerMethod> handlers = eventHandlerRegistry.getHandlers(envelope.domain(), envelope.eventType());
@@ -74,7 +75,7 @@ public class DomainEventRouter {
 	/**
 	 * 调用单个事件处理器
 	 */
-	private void invokeHandler(HandlerMethod handler, DomainEventEnvelope envelope) {
+	private void invokeHandler(HandlerMethod handler, DomainEventEnvelope<?> envelope) {
 		try {
 			// 设置可访问性以支持内部类和非公共方法
 			handler.getMethod().setAccessible(true);
@@ -87,6 +88,13 @@ public class DomainEventRouter {
 			log.error("Handler invocation failed: eventId={}, handler={}.{}", envelope.eventId(),
 					handler.getBean().getClass().getSimpleName(), handler.getMethod().getName(), e);
 			throw new RuntimeException("Handler failed", e);
+		}
+	}
+
+	private void validateEnvelope(DomainEventEnvelope<?> envelope) {
+		if (envelope.domain() == null || envelope.domain().isBlank() || envelope.eventType() == null
+				|| envelope.eventType().isBlank() || envelope.aggregateId() == null || envelope.aggregateId().isBlank()) {
+			throw new IllegalArgumentException("Missing required event metadata: domain/eventType/aggregateId");
 		}
 	}
 
