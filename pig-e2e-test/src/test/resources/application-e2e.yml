@@ -1,0 +1,41 @@
+# E2E 测试配置文件
+# 此文件仅包含测试相关的配置，服务地址等通过环境变量传入
+
+# Nacos 服务发现配置（用于E2E测试环境）
+spring:
+  cloud:
+    nacos:
+      discovery:
+        server-addr: ${NACOS_HOST:127.0.0.1}:${NACOS_PORT:18849}
+      config:
+        server-addr: ${NACOS_HOST:127.0.0.1}:${NACOS_PORT:18849}
+
+logging:
+  level:
+    root: INFO
+    com.pig4cloud: DEBUG
+    io.restassured: DEBUG
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n"
+
+# HTTP 客户端配置
+http:
+  client:
+    connection-timeout: 30000  # 连接超时 30 秒
+    read-timeout: 60000        # 读取超时 60 秒
+    max-retries: 3             # 最大重试次数
+
+# 测试配置
+test:
+  # 轮询配置
+  polling:
+    max-wait-seconds: 30       # 最大等待时间 30 秒
+    poll-interval-millis: 500  # 轮询间隔 500 毫秒
+
+  # OAuth2 认证配置（可通过环境变量覆盖）
+  auth:
+    client-id: "test"          # OAuth2 客户端 ID
+    client-secret: "test"      # OAuth2 客户端密钥
+    username: "admin"          # 默认测试用户名
+    password: "123456"         # 默认测试密码
+    encode-key: "thanks,pig4cloud"  # AES 加密密钥

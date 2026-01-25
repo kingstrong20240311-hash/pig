@@ -30,7 +30,6 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-import java.time.Instant;
 import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -60,7 +59,8 @@ class InProcessEventPublisherTest {
 	void setUp() {
 		objectMapper = new ObjectMapper();
 		publisher = new InProcessEventPublisher(outboxEventService, objectMapper);
-		testEvent = new DomainEventEnvelope("evt-001", "order", "Order", "order-123", "OrderMatched", Instant.now(),
+		testEvent = new DomainEventEnvelope("evt-001", "order", "Order", "order-123", "OrderMatched",
+				System.currentTimeMillis(),
 				Map.of("userId", "user-1"), "{\"amount\":100}");
 	}
 
@@ -109,7 +109,7 @@ class InProcessEventPublisherTest {
 	void publish_handles_null_headers() {
 		// Given
 		DomainEventEnvelope eventWithoutHeaders = new DomainEventEnvelope("evt-002", "order", "Order", "order-123",
-				"OrderMatched", Instant.now(), null, "{\"amount\":100}");
+				"OrderMatched", System.currentTimeMillis(), null, "{\"amount\":100}");
 
 		// When
 		publisher.publish(eventWithoutHeaders);

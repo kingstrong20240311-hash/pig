@@ -43,7 +43,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
-import java.time.Instant;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -67,6 +66,10 @@ public class MatcherEventHandler implements OrderMatchService {
 	private static final String DOMAIN_ORDER = "order";
 
 	private static final String AGG_TYPE_MATCH = "Match";
+
+	private static final String AGG_TYPE_ORDER = "Order";
+
+	private static final String EVENT_ORDER_CANCEL = "OrderCancel";
 
 	private final OrderMapper orderMapper;
 
@@ -165,6 +168,8 @@ public class MatcherEventHandler implements OrderMatchService {
 				return;
 			}
 
+			// note: No need to check previous status, 
+			// because it has been checked before requesting cancel to matching engine 
 			// Update order status based on whether it's completed
 			if (reduceEvent.orderCompleted) {
 				order.setStatus(OrderStatus.CANCELLED);
@@ -178,6 +183,9 @@ public class MatcherEventHandler implements OrderMatchService {
 			}
 
 			orderMapper.updateById(order);
+			if (reduceEvent.orderCompleted) {
+				publishOrderCancelEvent(order, "Order cancelled");
+			}
 			log.info("Reduce event processed successfully: orderId={}, newStatus={}", reduceEvent.orderId,
 					order.getStatus());
 		}
@@ -225,6 +233,7 @@ public class MatcherEventHandler implements OrderMatchService {
 			order.setRejectReason("IOC order could not be filled at specified price");
 
 			orderMapper.updateById(order);
+			publishOrderCancelEvent(order, order.getRejectReason());
 			log.info("Reject event processed successfully: orderId={}", rejectEvent.orderId);
 		}
 		catch (Exception e) {
@@ -452,7 +461,33 @@ public class MatcherEventHandler implements OrderMatchService {
 				AGG_TYPE_MATCH, // aggregateType
 				request.getMatchId(), // aggregateId
 				"MatchCommitted", // eventType
-				Instant.now(), // occurredAt
+				System.currentTimeMillis(), // occurredAt
+				null, // headers
+				JSONUtil.toJsonStr(payload) // payloadJson
+		);
+
+		domainEventPublisher.publish(event);
+	}
+
+	/**
+	 * Publish OrderCancel event via DomainEventPublisher
+	 */
+	private void publishOrderCancelEvent(Order order, String reason) {
+		Map<String, Object> payload = new HashMap<>();
+		payload.put("orderId", order.getOrderId());
+		payload.put("userId", order.getUserId());
+		payload.put("marketId", order.getMarketId());
+		payload.put("status", order.getStatus().name());
+		if (reason != null) {
+			payload.put("reason", reason);
+		}
+
+		DomainEventEnvelope event = new DomainEventEnvelope(IdUtil.randomUUID(), // eventId
+				DOMAIN_ORDER, // domain
+				AGG_TYPE_ORDER, // aggregateType
+				String.valueOf(order.getOrderId()), // aggregateId
+				EVENT_ORDER_CANCEL, // eventType
+				System.currentTimeMillis(), // occurredAt
 				null, // headers
 				JSONUtil.toJsonStr(payload) // payloadJson
 		);

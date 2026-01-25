@@ -27,7 +27,6 @@ import jakarta.validation.constraints.Positive;
 import java.io.Serial;
 import java.io.Serializable;
 import java.math.BigDecimal;
-import java.time.Instant;
 
 /**
  * Create Order Request DTO
@@ -43,10 +42,9 @@ public class CreateOrderRequest implements Serializable {
 	private static final long serialVersionUID = 1L;
 
 	/**
-	 * User ID
+	 * User ID (由后端从认证上下文自动填充，客户端无需传递)
 	 */
-	@NotNull(message = "用户ID不能为空")
-	@Schema(description = "用户ID")
+	@Schema(description = "用户ID", hidden = true)
 	private Long userId;
 
 	/**
@@ -93,8 +91,8 @@ public class CreateOrderRequest implements Serializable {
 	/**
 	 * Expiration time (for GTD orders)
 	 */
-	@Schema(description = "过期时间 (GTD订单使用)")
-	private Instant expireAt;
+	@Schema(description = "过期时间（Unix时间戳，毫秒，GTD订单使用）")
+	private Long expireAt;
 
 	/**
 	 * Idempotency key for deduplication

@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration>
+	<!-- 控制台输出 -->
+	<appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+		<encoder>
+			<pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n</pattern>
+			<charset>UTF-8</charset>
+		</encoder>
+	</appender>
+
+	<!-- 文件输出（可选） -->
+	<appender name="FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+		<file>target/logs/e2e-test.log</file>
+		<encoder>
+			<pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n</pattern>
+			<charset>UTF-8</charset>
+		</encoder>
+		<rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+			<fileNamePattern>target/logs/e2e-test.%d{yyyy-MM-dd}.log</fileNamePattern>
+			<maxHistory>7</maxHistory>
+		</rollingPolicy>
+	</appender>
+
+	<!-- REST Assured 日志 -->
+	<logger name="io.restassured" level="DEBUG" additivity="false">
+		<appender-ref ref="CONSOLE"/>
+		<appender-ref ref="FILE"/>
+	</logger>
+
+	<!-- 项目日志 -->
+	<logger name="com.pig4cloud" level="DEBUG" additivity="false">
+		<appender-ref ref="CONSOLE"/>
+		<appender-ref ref="FILE"/>
+	</logger>
+
+	<!-- Root Logger -->
+	<root level="INFO">
+		<appender-ref ref="CONSOLE"/>
+		<appender-ref ref="FILE"/>
+	</root>
+</configuration>

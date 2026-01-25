@@ -300,6 +300,10 @@
                                 -Dnet.openhft.chronicle.core.disable.jit.unsafe=true
                                 -Dchronicle.check.thread.safety=false
                             </argLine>
+                            <excludes>
+                                <exclude>**/perf/**</exclude>
+                                <exclude>**/*Throughput*</exclude>
+                            </excludes>
                         </configuration>
                     </plugin>
 

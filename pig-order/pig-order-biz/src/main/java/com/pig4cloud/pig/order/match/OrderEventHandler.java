@@ -16,12 +16,14 @@
 
 package com.pig4cloud.pig.order.match;
 
+import cn.hutool.core.util.IdUtil;
 import cn.hutool.json.JSONUtil;
 import com.pig4cloud.pig.order.api.entity.Order;
 import com.pig4cloud.pig.order.api.enums.OrderStatus;
 import com.pig4cloud.pig.order.mapper.OrderMapper;
 import com.pig4cloud.pig.outbox.api.annotation.DomainEventHandler;
 import com.pig4cloud.pig.outbox.api.model.DomainEventEnvelope;
+import com.pig4cloud.pig.outbox.api.publisher.DomainEventPublisher;
 import exchange.core2.core.ExchangeApi;
 import exchange.core2.core.common.api.ApiCancelOrder;
 import exchange.core2.core.common.api.ApiPlaceOrder;
@@ -31,6 +33,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.HashMap;
 import java.util.Map;
 
 /**
@@ -49,6 +52,14 @@ public class OrderEventHandler {
 	private final ExchangeApi exchangeApi;
 
 	private final MatchingEngineSymbolService matchingEngineSymbolService;
+
+	private final DomainEventPublisher domainEventPublisher;
+
+	private static final String DOMAIN_ORDER = "order";
+
+	private static final String AGG_TYPE_ORDER = "Order";
+
+	private static final String EVENT_ORDER_CANCEL = "OrderCancel";
 
 	/**
 	 * Handle OrderCreated event - Submit order to matching engine asynchronously
@@ -87,18 +98,31 @@ public class OrderEventHandler {
 			CommandResultCode resultCode = exchangeApi.submitCommandAsync(placeOrderCmd).join();
 
 			if (resultCode == CommandResultCode.SUCCESS) {
-				// 5. Update order status to MATCHING
-				order.setStatus(OrderStatus.MATCHING);
-				orderMapper.updateById(order);
-
-				log.info("Order submitted to matching engine successfully: orderId={}, eventId={}", orderId,
-						event.eventId());
+				// 5. For LIMIT orders, update status to MATCHING if still OPEN
+				if (order.getOrderType() == com.pig4cloud.pig.order.api.enums.OrderType.LIMIT) {
+					if (order.getStatus() == OrderStatus.OPEN) {
+						order.setStatus(OrderStatus.MATCHING);
+						orderMapper.updateById(order);
+						log.info("Order submitted to matching engine successfully: orderId={}, eventId={}", orderId,
+								event.eventId());
+					}
+					else {
+						log.info(
+								"Order status changed before MATCHING transition: orderId={}, status={}, eventId={}",
+								orderId, order.getStatus(), event.eventId());
+					}
+				}
+				else {
+					log.info("Market order submitted to matching engine: orderId={}, eventId={}, status stays {}",
+							orderId, event.eventId(), order.getStatus());
+				}
 			}
 			else {
 				// Matching engine rejected - mark order as REJECTED
 				order.setStatus(OrderStatus.REJECTED);
 				order.setRejectReason("Matching engine rejected: " + resultCode);
 				orderMapper.updateById(order);
+				publishOrderCancelEvent(order);
 
 				log.warn("Order rejected by matching engine: orderId={}, resultCode={}", orderId, resultCode);
 			}
@@ -191,6 +215,27 @@ public class OrderEventHandler {
 			log.error("Failed to parse payload: key={}", key, e);
 			return null;
 		}
+	}
+
+	private void publishOrderCancelEvent(Order order) {
+		Map<String, Object> payload = new HashMap<>();
+		payload.put("orderId", order.getOrderId());
+		payload.put("userId", order.getUserId());
+		payload.put("marketId", order.getMarketId());
+		payload.put("status", order.getStatus().name());
+		payload.put("reason", order.getRejectReason());
+
+		DomainEventEnvelope event = new DomainEventEnvelope(IdUtil.randomUUID(), // eventId
+				DOMAIN_ORDER, // domain
+				AGG_TYPE_ORDER, // aggregateType
+				String.valueOf(order.getOrderId()), // aggregateId
+				EVENT_ORDER_CANCEL, // eventType
+				System.currentTimeMillis(), // occurredAt
+				null, // headers
+				JSONUtil.toJsonStr(payload) // payloadJson
+		);
+
+		domainEventPublisher.publish(event);
 	}
 
 }

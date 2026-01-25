@@ -41,7 +41,7 @@ public interface VaultService {
 	 * @param request freeze request
 	 * @return freeze response
 	 */
-	@PostMapping("/vault/freeze/create")
+	@PostMapping("/freeze/create")
 	R<FreezeResponse> createFreeze(@Valid @RequestBody CreateFreezeRequest request);
 
 	/**
@@ -49,7 +49,7 @@ public interface VaultService {
 	 * @param request freeze lookup request
 	 * @return freeze response
 	 */
-	@PostMapping("/vault/freeze/release")
+	@PostMapping("/freeze/release")
 	R<FreezeResponse> releaseFreeze(@Valid @RequestBody FreezeLookupRequest request);
 
 	/**
@@ -57,7 +57,7 @@ public interface VaultService {
 	 * @param request freeze lookup request
 	 * @return freeze response
 	 */
-	@PostMapping("/vault/freeze/claim")
+	@PostMapping("/freeze/claim")
 	R<FreezeResponse> claimFreeze(@Valid @RequestBody FreezeLookupRequest request);
 
 	/**
@@ -65,16 +65,24 @@ public interface VaultService {
 	 * @param request freeze lookup request
 	 * @return freeze response
 	 */
-	@PostMapping("/vault/freeze/consume")
+	@PostMapping("/freeze/consume")
 	R<FreezeResponse> consumeFreeze(@Valid @RequestBody FreezeLookupRequest request);
 
 	/**
 	 * Get balance for an account and asset
 	 * @param accountId account ID
-	 * @param assetId asset ID
+	 * @param symbol asset symbol
 	 * @return balance response
 	 */
-	@GetMapping("/vault/balance")
-	R<BalanceResponse> getBalance(@RequestParam("accountId") Long accountId, @RequestParam("assetId") Long assetId);
+	@GetMapping("/balance")
+	R<BalanceResponse> getBalance(@RequestParam("accountId") Long accountId, @RequestParam("symbol") String symbol);
+
+	/**
+	 * Deposit funds to an account (increase available balance)
+	 * @param request deposit request
+	 * @return balance response
+	 */
+	@PostMapping("/deposit")
+	R<BalanceResponse> deposit(@Valid @RequestBody DepositRequest request);
 
 }

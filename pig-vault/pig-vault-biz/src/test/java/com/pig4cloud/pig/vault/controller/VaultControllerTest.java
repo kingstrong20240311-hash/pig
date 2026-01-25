@@ -27,43 +27,77 @@ import com.pig4cloud.pig.vault.api.dto.FreezeLookupRequest;
 import com.pig4cloud.pig.vault.api.entity.Balance;
 import com.pig4cloud.pig.vault.api.entity.Freeze;
 import com.pig4cloud.pig.vault.api.entity.LedgerEntry;
+import com.pig4cloud.pig.vault.api.entity.VaultAccount;
+import com.pig4cloud.pig.vault.api.entity.VaultAsset;
+import com.pig4cloud.pig.vault.api.enums.AccountStatus;
+import com.pig4cloud.pig.vault.api.enums.AccountType;
 import com.pig4cloud.pig.vault.api.enums.FreezeStatus;
 import com.pig4cloud.pig.vault.api.enums.RefType;
 import com.pig4cloud.pig.vault.mapper.BalanceMapper;
 import com.pig4cloud.pig.vault.mapper.FreezeMapper;
 import com.pig4cloud.pig.vault.mapper.LedgerEntryMapper;
+import com.pig4cloud.pig.vault.mapper.VaultAccountMapper;
+import com.pig4cloud.pig.vault.mapper.VaultAssetMapper;
+import com.pig4cloud.pig.common.security.service.PigUser;
 import org.junit.jupiter.api.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.core.io.ClassPathResource;
+import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
-import org.springframework.jdbc.datasource.init.ScriptUtils;
+import org.springframework.security.oauth2.server.resource.introspection.OpaqueTokenIntrospector;
 import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.context.ActiveProfiles;
+import org.springframework.test.context.DynamicPropertyRegistry;
+import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
+import org.testcontainers.containers.MySQLContainer;
+import org.testcontainers.junit.jupiter.Container;
+import org.testcontainers.junit.jupiter.Testcontainers;
+import org.testcontainers.utility.DockerImageName;
 
-import javax.sql.DataSource;
 import java.math.BigDecimal;
-import java.sql.Connection;
+import java.time.Instant;
+
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultHandlers.print;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 /**
- * Vault Controller Integration Test
+ * Vault Controller Integration Test with TestContainers
  *
  * @author luka
  * @date 2025-01-15
  */
 @SpringBootTest(classes = PigVaultApplication.class)
 @AutoConfigureMockMvc
-@TestMethodOrder(MethodOrderer.OrderAnnotation.class)
 @ActiveProfiles("test")
+@Testcontainers
+@TestMethodOrder(MethodOrderer.OrderAnnotation.class)
 class VaultControllerTest {
+
+	@Container
+	static MySQLContainer<?> mysql = new MySQLContainer<>(DockerImageName.parse("mysql:8.0"))
+		.withDatabaseName("pig-test")
+		.withUsername("test")
+		.withPassword("test123456")
+		.withInitScript("db/vault_schema_test.sql");
+
+	@DynamicPropertySource
+	static void configureProperties(DynamicPropertyRegistry registry) {
+		registry.add("spring.datasource.url", mysql::getJdbcUrl);
+		registry.add("spring.datasource.username", mysql::getUsername);
+		registry.add("spring.datasource.password", mysql::getPassword);
+		registry.add("spring.datasource.driver-class-name", () -> "com.mysql.cj.jdbc.Driver");
+		registry.add("security.log.enabled", () -> "false");
+	}
 
 	@Autowired
 	private MockMvc mockMvc;
@@ -81,7 +115,15 @@ class VaultControllerTest {
 	private LedgerEntryMapper ledgerEntryMapper;
 
 	@Autowired
-	private DataSource dataSource;
+	private VaultAccountMapper vaultAccountMapper;
+
+	@Autowired
+	private VaultAssetMapper vaultAssetMapper;
+
+	@MockBean
+	private OpaqueTokenIntrospector opaqueTokenIntrospector;
+
+	private static final Long USER_ID = 10001L;
 
 	private static final Long ACCOUNT_ID = 1001L;
 
@@ -91,12 +133,53 @@ class VaultControllerTest {
 
 	private static final BigDecimal INITIAL_AVAILABLE = new BigDecimal("100.000000");
 
+	private static final String TEST_TOKEN = "test-token";
+
 	@BeforeEach
-	void setUp() throws Exception {
-		// Execute test data initialization script
-		try (Connection conn = dataSource.getConnection()) {
-			ScriptUtils.executeSqlScript(conn, new ClassPathResource("test-data.sql"));
-		}
+	void setUp() {
+		when(opaqueTokenIntrospector.introspect(anyString())).thenReturn(testPigUser());
+
+		// Clean up existing test data
+		freezeMapper.delete(Wrappers.<Freeze>lambdaQuery().eq(Freeze::getAccountId, ACCOUNT_ID));
+		ledgerEntryMapper.delete(Wrappers.<LedgerEntry>lambdaQuery().eq(LedgerEntry::getAccountId, ACCOUNT_ID));
+		balanceMapper.delete(Wrappers.<Balance>lambdaQuery().eq(Balance::getAccountId, ACCOUNT_ID));
+		vaultAccountMapper.delete(Wrappers.<VaultAccount>lambdaQuery().eq(VaultAccount::getAccountId, ACCOUNT_ID));
+		vaultAssetMapper.delete(Wrappers.<VaultAsset>lambdaQuery().eq(VaultAsset::getAssetId, ASSET_ID));
+
+		// Insert test account
+		VaultAccount account = new VaultAccount();
+		account.setAccountId(ACCOUNT_ID);
+		account.setUserId(USER_ID);
+		account.setAccountType(AccountType.USER);
+		account.setStatus(AccountStatus.ACTIVE);
+		account.setCreateTime(Instant.now());
+		account.setUpdateTime(Instant.now());
+		vaultAccountMapper.insert(account);
+
+		// Insert test asset (USDC)
+		VaultAsset asset = new VaultAsset();
+		asset.setAssetId(ASSET_ID);
+		asset.setSymbol(SYMBOL);
+		asset.setDecimals(6);
+		asset.setIsActive(true);
+		asset.setCreateTime(Instant.now());
+		vaultAssetMapper.insert(asset);
+
+		// Insert test balance (100 USDC available, 0 frozen)
+		Balance balance = new Balance();
+		balance.setBalanceId(1L);
+		balance.setAccountId(ACCOUNT_ID);
+		balance.setAssetId(ASSET_ID);
+		balance.setAvailable(INITIAL_AVAILABLE);
+		balance.setFrozen(BigDecimal.ZERO);
+		balance.setVersion(0L);
+		balance.setUpdateTime(Instant.now());
+		balanceMapper.insert(balance);
+	}
+
+	private PigUser testPigUser() {
+		return new PigUser(USER_ID, 1L, "testuser", "password", "13800138000", true, true, true, true,
+				java.util.Collections.singletonList(new SimpleGrantedAuthority("ROLE_USER")));
 	}
 
 	/**
@@ -104,8 +187,9 @@ class VaultControllerTest {
 	 */
 	@Test
 	@Order(1)
-	@WithMockUser(username = "test", roles = "USER")
+	@WithMockUser(username = "testuser", roles = "USER")
 	@DisplayName("1. Create freeze successfully")
+	@Transactional
 	void testCreateFreezeSuccess() throws Exception {
 		CreateFreezeRequest request = new CreateFreezeRequest();
 		request.setAccountId(ACCOUNT_ID);
@@ -115,7 +199,8 @@ class VaultControllerTest {
 		request.setRefId("ORD-001");
 
 		mockMvc
-			.perform(post("/vault/freeze/create").contentType(MediaType.APPLICATION_JSON)
+			.perform(post("/freeze/create").header(HttpHeaders.AUTHORIZATION, "Bearer " + TEST_TOKEN)
+				.contentType(MediaType.APPLICATION_JSON)
 				.content(objectMapper.writeValueAsString(request)))
 			.andDo(print())
 			.andExpect(status().isOk())
@@ -149,8 +234,9 @@ class VaultControllerTest {
 	 */
 	@Test
 	@Order(2)
-	@WithMockUser(username = "test", roles = "USER")
+	@WithMockUser(username = "testuser", roles = "USER")
 	@DisplayName("2. Create freeze idempotency")
+	@Transactional
 	void testCreateFreezeIdempotency() throws Exception {
 		// First request
 		CreateFreezeRequest request = new CreateFreezeRequest();
@@ -161,7 +247,8 @@ class VaultControllerTest {
 		request.setRefId("ORD-002");
 
 		mockMvc
-			.perform(post("/vault/freeze/create").contentType(MediaType.APPLICATION_JSON)
+			.perform(post("/freeze/create").header(HttpHeaders.AUTHORIZATION, "Bearer " + TEST_TOKEN)
+				.contentType(MediaType.APPLICATION_JSON)
 				.content(objectMapper.writeValueAsString(request)))
 			.andDo(print())
 			.andExpect(status().isOk())
@@ -176,7 +263,8 @@ class VaultControllerTest {
 
 		// Second request with same refType+refId should return same freeze
 		mockMvc
-			.perform(post("/vault/freeze/create").contentType(MediaType.APPLICATION_JSON)
+			.perform(post("/freeze/create").header(HttpHeaders.AUTHORIZATION, "Bearer " + TEST_TOKEN)
+				.contentType(MediaType.APPLICATION_JSON)
 				.content(objectMapper.writeValueAsString(request)))
 			.andDo(print())
 			.andExpect(status().isOk())
@@ -198,7 +286,7 @@ class VaultControllerTest {
 	 */
 	@Test
 	@Order(3)
-	@WithMockUser(username = "test", roles = "USER")
+	@WithMockUser(username = "testuser", roles = "USER")
 	@DisplayName("3. Create freeze with insufficient balance")
 	void testCreateFreezeInsufficientBalance() throws Exception {
 		CreateFreezeRequest request = new CreateFreezeRequest();
@@ -209,7 +297,8 @@ class VaultControllerTest {
 		request.setRefId("ORD-003");
 
 		mockMvc
-			.perform(post("/vault/freeze/create").contentType(MediaType.APPLICATION_JSON)
+			.perform(post("/freeze/create").header(HttpHeaders.AUTHORIZATION, "Bearer " + TEST_TOKEN)
+				.contentType(MediaType.APPLICATION_JSON)
 				.content(objectMapper.writeValueAsString(request)))
 			.andDo(print())
 			.andExpect(status().isOk())
@@ -233,7 +322,7 @@ class VaultControllerTest {
 	 */
 	@Test
 	@Order(4)
-	@WithMockUser(username = "test", roles = "USER")
+	@WithMockUser(username = "testuser", roles = "USER")
 	@DisplayName("4. Create freeze with validation errors")
 	void testCreateFreezeValidationErrors() throws Exception {
 		// Missing accountId
@@ -244,7 +333,8 @@ class VaultControllerTest {
 		request1.setRefId("ORD-004");
 
 		mockMvc
-			.perform(post("/vault/freeze/create").contentType(MediaType.APPLICATION_JSON)
+			.perform(post("/freeze/create").header(HttpHeaders.AUTHORIZATION, "Bearer " + TEST_TOKEN)
+				.contentType(MediaType.APPLICATION_JSON)
 				.content(objectMapper.writeValueAsString(request1)))
 			.andDo(print())
 			.andExpect(status().is4xxClientError());
@@ -258,7 +348,8 @@ class VaultControllerTest {
 		request2.setRefId("ORD-005");
 
 		mockMvc
-			.perform(post("/vault/freeze/create").contentType(MediaType.APPLICATION_JSON)
+			.perform(post("/freeze/create").header(HttpHeaders.AUTHORIZATION, "Bearer " + TEST_TOKEN)
+				.contentType(MediaType.APPLICATION_JSON)
 				.content(objectMapper.writeValueAsString(request2)))
 			.andDo(print())
 			.andExpect(status().is4xxClientError());
@@ -269,7 +360,7 @@ class VaultControllerTest {
 	 */
 	@Test
 	@Order(5)
-	@WithMockUser(username = "test", roles = "USER")
+	@WithMockUser(username = "testuser", roles = "USER")
 	@DisplayName("5. Release freeze successfully")
 	@Transactional
 	void testReleaseFreezeSuccess() throws Exception {
@@ -282,7 +373,8 @@ class VaultControllerTest {
 		createRequest.setRefId("ORD-006");
 
 		mockMvc
-			.perform(post("/vault/freeze/create").contentType(MediaType.APPLICATION_JSON)
+			.perform(post("/freeze/create").header(HttpHeaders.AUTHORIZATION, "Bearer " + TEST_TOKEN)
+				.contentType(MediaType.APPLICATION_JSON)
 				.content(objectMapper.writeValueAsString(createRequest)))
 			.andExpect(status().isOk());
 
@@ -292,7 +384,8 @@ class VaultControllerTest {
 		releaseRequest.setRefId("ORD-006");
 
 		mockMvc
-			.perform(post("/vault/freeze/release").contentType(MediaType.APPLICATION_JSON)
+			.perform(post("/freeze/release").header(HttpHeaders.AUTHORIZATION, "Bearer " + TEST_TOKEN)
+				.contentType(MediaType.APPLICATION_JSON)
 				.content(objectMapper.writeValueAsString(releaseRequest)))
 			.andDo(print())
 			.andExpect(status().isOk())
@@ -317,7 +410,7 @@ class VaultControllerTest {
 	 */
 	@Test
 	@Order(6)
-	@WithMockUser(username = "test", roles = "USER")
+	@WithMockUser(username = "testuser", roles = "USER")
 	@DisplayName("6. Release freeze idempotency")
 	@Transactional
 	void testReleaseFreezeIdempotency() throws Exception {
@@ -330,7 +423,8 @@ class VaultControllerTest {
 		createRequest.setRefId("ORD-007");
 
 		mockMvc
-			.perform(post("/vault/freeze/create").contentType(MediaType.APPLICATION_JSON)
+			.perform(post("/freeze/create").header(HttpHeaders.AUTHORIZATION, "Bearer " + TEST_TOKEN)
+				.contentType(MediaType.APPLICATION_JSON)
 				.content(objectMapper.writeValueAsString(createRequest)))
 			.andExpect(status().isOk());
 
@@ -340,7 +434,8 @@ class VaultControllerTest {
 		releaseRequest.setRefId("ORD-007");
 
 		mockMvc
-			.perform(post("/vault/freeze/release").contentType(MediaType.APPLICATION_JSON)
+			.perform(post("/freeze/release").header(HttpHeaders.AUTHORIZATION, "Bearer " + TEST_TOKEN)
+				.contentType(MediaType.APPLICATION_JSON)
 				.content(objectMapper.writeValueAsString(releaseRequest)))
 			.andExpect(status().isOk())
 			.andExpect(jsonPath("$.data.status").value("RELEASED"));
@@ -352,7 +447,8 @@ class VaultControllerTest {
 
 		// Release second time (idempotent)
 		mockMvc
-			.perform(post("/vault/freeze/release").contentType(MediaType.APPLICATION_JSON)
+			.perform(post("/freeze/release").header(HttpHeaders.AUTHORIZATION, "Bearer " + TEST_TOKEN)
+				.contentType(MediaType.APPLICATION_JSON)
 				.content(objectMapper.writeValueAsString(releaseRequest)))
 			.andExpect(status().isOk())
 			.andExpect(jsonPath("$.data.status").value("RELEASED"));
@@ -370,7 +466,7 @@ class VaultControllerTest {
 	 */
 	@Test
 	@Order(7)
-	@WithMockUser(username = "test", roles = "USER")
+	@WithMockUser(username = "testuser", roles = "USER")
 	@DisplayName("7. Claim freeze successfully")
 	@Transactional
 	void testClaimFreezeSuccess() throws Exception {
@@ -383,7 +479,8 @@ class VaultControllerTest {
 		createRequest.setRefId("SETTLE-001");
 
 		mockMvc
-			.perform(post("/vault/freeze/create").contentType(MediaType.APPLICATION_JSON)
+			.perform(post("/freeze/create").header(HttpHeaders.AUTHORIZATION, "Bearer " + TEST_TOKEN)
+				.contentType(MediaType.APPLICATION_JSON)
 				.content(objectMapper.writeValueAsString(createRequest)))
 			.andExpect(status().isOk());
 
@@ -393,7 +490,8 @@ class VaultControllerTest {
 		claimRequest.setRefId("SETTLE-001");
 
 		mockMvc
-			.perform(post("/vault/freeze/claim").contentType(MediaType.APPLICATION_JSON)
+			.perform(post("/freeze/claim").header(HttpHeaders.AUTHORIZATION, "Bearer " + TEST_TOKEN)
+				.contentType(MediaType.APPLICATION_JSON)
 				.content(objectMapper.writeValueAsString(claimRequest)))
 			.andDo(print())
 			.andExpect(status().isOk())
@@ -420,7 +518,7 @@ class VaultControllerTest {
 	 */
 	@Test
 	@Order(8)
-	@WithMockUser(username = "test", roles = "USER")
+	@WithMockUser(username = "testuser", roles = "USER")
 	@DisplayName("8. Claim freeze with invalid status")
 	@Transactional
 	void testClaimFreezeInvalidStatus() throws Exception {
@@ -433,7 +531,8 @@ class VaultControllerTest {
 		createRequest.setRefId("SETTLE-002");
 
 		mockMvc
-			.perform(post("/vault/freeze/create").contentType(MediaType.APPLICATION_JSON)
+			.perform(post("/freeze/create").header(HttpHeaders.AUTHORIZATION, "Bearer " + TEST_TOKEN)
+				.contentType(MediaType.APPLICATION_JSON)
 				.content(objectMapper.writeValueAsString(createRequest)))
 			.andExpect(status().isOk());
 
@@ -442,7 +541,8 @@ class VaultControllerTest {
 		releaseRequest.setRefId("SETTLE-002");
 
 		mockMvc
-			.perform(post("/vault/freeze/release").contentType(MediaType.APPLICATION_JSON)
+			.perform(post("/freeze/release").header(HttpHeaders.AUTHORIZATION, "Bearer " + TEST_TOKEN)
+				.contentType(MediaType.APPLICATION_JSON)
 				.content(objectMapper.writeValueAsString(releaseRequest)))
 			.andExpect(status().isOk());
 
@@ -452,7 +552,8 @@ class VaultControllerTest {
 		claimRequest.setRefId("SETTLE-002");
 
 		mockMvc
-			.perform(post("/vault/freeze/claim").contentType(MediaType.APPLICATION_JSON)
+			.perform(post("/freeze/claim").header(HttpHeaders.AUTHORIZATION, "Bearer " + TEST_TOKEN)
+				.contentType(MediaType.APPLICATION_JSON)
 				.content(objectMapper.writeValueAsString(claimRequest)))
 			.andDo(print())
 			.andExpect(status().isOk())
@@ -470,7 +571,7 @@ class VaultControllerTest {
 	 */
 	@Test
 	@Order(9)
-	@WithMockUser(username = "test", roles = "USER")
+	@WithMockUser(username = "testuser", roles = "USER")
 	@DisplayName("9. Consume freeze successfully from HELD")
 	@Transactional
 	void testConsumeFreezeFromHeld() throws Exception {
@@ -483,7 +584,8 @@ class VaultControllerTest {
 		createRequest.setRefId("ORD-008");
 
 		mockMvc
-			.perform(post("/vault/freeze/create").contentType(MediaType.APPLICATION_JSON)
+			.perform(post("/freeze/create").header(HttpHeaders.AUTHORIZATION, "Bearer " + TEST_TOKEN)
+				.contentType(MediaType.APPLICATION_JSON)
 				.content(objectMapper.writeValueAsString(createRequest)))
 			.andExpect(status().isOk());
 
@@ -493,7 +595,8 @@ class VaultControllerTest {
 		consumeRequest.setRefId("ORD-008");
 
 		mockMvc
-			.perform(post("/vault/freeze/consume").contentType(MediaType.APPLICATION_JSON)
+			.perform(post("/freeze/consume").header(HttpHeaders.AUTHORIZATION, "Bearer " + TEST_TOKEN)
+				.contentType(MediaType.APPLICATION_JSON)
 				.content(objectMapper.writeValueAsString(consumeRequest)))
 			.andDo(print())
 			.andExpect(status().isOk())
@@ -513,7 +616,7 @@ class VaultControllerTest {
 	 */
 	@Test
 	@Order(10)
-	@WithMockUser(username = "test", roles = "USER")
+	@WithMockUser(username = "testuser", roles = "USER")
 	@DisplayName("10. Consume freeze successfully from CLAIMED")
 	@Transactional
 	void testConsumeFreezeFromClaimed() throws Exception {
@@ -526,7 +629,8 @@ class VaultControllerTest {
 		createRequest.setRefId("SETTLE-003");
 
 		mockMvc
-			.perform(post("/vault/freeze/create").contentType(MediaType.APPLICATION_JSON)
+			.perform(post("/freeze/create").header(HttpHeaders.AUTHORIZATION, "Bearer " + TEST_TOKEN)
+				.contentType(MediaType.APPLICATION_JSON)
 				.content(objectMapper.writeValueAsString(createRequest)))
 			.andExpect(status().isOk());
 
@@ -536,7 +640,8 @@ class VaultControllerTest {
 		claimRequest.setRefId("SETTLE-003");
 
 		mockMvc
-			.perform(post("/vault/freeze/claim").contentType(MediaType.APPLICATION_JSON)
+			.perform(post("/freeze/claim").header(HttpHeaders.AUTHORIZATION, "Bearer " + TEST_TOKEN)
+				.contentType(MediaType.APPLICATION_JSON)
 				.content(objectMapper.writeValueAsString(claimRequest)))
 			.andExpect(status().isOk());
 
@@ -546,7 +651,8 @@ class VaultControllerTest {
 		consumeRequest.setRefId("SETTLE-003");
 
 		mockMvc
-			.perform(post("/vault/freeze/consume").contentType(MediaType.APPLICATION_JSON)
+			.perform(post("/freeze/consume").header(HttpHeaders.AUTHORIZATION, "Bearer " + TEST_TOKEN)
+				.contentType(MediaType.APPLICATION_JSON)
 				.content(objectMapper.writeValueAsString(consumeRequest)))
 			.andDo(print())
 			.andExpect(status().isOk())
@@ -565,11 +671,12 @@ class VaultControllerTest {
 	 */
 	@Test
 	@Order(11)
-	@WithMockUser(username = "test", roles = "USER")
-	@DisplayName("Get balance successfully")
+	@WithMockUser(username = "testuser", roles = "USER")
+	@DisplayName("11. Get balance successfully")
 	void testGetBalanceSuccess() throws Exception {
 		mockMvc
-			.perform(get("/vault/balance").param("accountId", ACCOUNT_ID.toString())
+			.perform(get("/balance").header(HttpHeaders.AUTHORIZATION, "Bearer " + TEST_TOKEN)
+				.param("accountId", ACCOUNT_ID.toString())
 				.param("symbol", SYMBOL))
 			.andDo(print())
 			.andExpect(status().isOk())
@@ -578,6 +685,23 @@ class VaultControllerTest {
 			.andExpect(jsonPath("$.data.symbol").value(SYMBOL))
 			.andExpect(jsonPath("$.data.available").exists())
 			.andExpect(jsonPath("$.data.frozen").exists());
+	}
+
+	/**
+	 * Test Case 12: Get balance with invalid symbol
+	 */
+	@Test
+	@Order(12)
+	@WithMockUser(username = "testuser", roles = "USER")
+	@DisplayName("12. Get balance with invalid symbol")
+	void testGetBalanceInvalidSymbol() throws Exception {
+		mockMvc.perform(get("/balance").header(HttpHeaders.AUTHORIZATION, "Bearer " + TEST_TOKEN)
+			.param("accountId", ACCOUNT_ID.toString())
+			.param("symbol", "INVALID"))
+			.andDo(print())
+			.andExpect(status().isOk())
+			.andExpect(jsonPath("$.code").value(1))
+			.andExpect(jsonPath("$.msg").value("Asset not found or inactive for symbol: INVALID"));
 	}
 
 }

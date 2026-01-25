@@ -103,6 +103,9 @@ public class VaultFreezeServiceImpl implements VaultFreezeService {
 
 		// Check available >= amount
 		if (balance.getAvailable().compareTo(request.getAmount()) < 0) {
+			log.error("Insufficient balance: aval={} symbol={}, request={}",
+					balance.getAvailable(), request.getSymbol(), request.getAmount()
+			);
 			throw new IllegalStateException("Insufficient available balance");
 		}
 
@@ -361,7 +364,7 @@ public class VaultFreezeServiceImpl implements VaultFreezeService {
 		response.setFreezeId(freeze.getFreezeId());
 		response.setStatus(freeze.getStatus());
 		response.setAmount(freeze.getAmount());
-		response.setClaimTime(freeze.getClaimTime());
+		response.setClaimTime(freeze.getClaimTime() != null ? freeze.getClaimTime().toEpochMilli() : null);
 		return response;
 	}
 

@@ -37,6 +37,15 @@
 			<groupId>com.pig4cloud</groupId>
 			<artifactId>pig-vault-api</artifactId>
 		</dependency>
+		<!-- outbox event handler annotations -->
+		<dependency>
+			<groupId>com.pig4cloud</groupId>
+			<artifactId>pig-outbox-api</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>com.pig4cloud</groupId>
+			<artifactId>pig-outbox-consumer</artifactId>
+		</dependency>
 		<!-- 安全模块 -->
 		<dependency>
 			<groupId>com.pig4cloud</groupId>
@@ -85,6 +94,22 @@
 		<dependency>
 			<groupId>org.springframework.security</groupId>
 			<artifactId>spring-security-test</artifactId>
+			<scope>test</scope>
+		</dependency>
+		<!-- TestContainers for MySQL -->
+		<dependency>
+			<groupId>org.testcontainers</groupId>
+			<artifactId>testcontainers</artifactId>
+			<scope>test</scope>
+		</dependency>
+		<dependency>
+			<groupId>org.testcontainers</groupId>
+			<artifactId>mysql</artifactId>
+			<scope>test</scope>
+		</dependency>
+		<dependency>
+			<groupId>org.testcontainers</groupId>
+			<artifactId>junit-jupiter</artifactId>
 			<scope>test</scope>
 		</dependency>
 	</dependencies>

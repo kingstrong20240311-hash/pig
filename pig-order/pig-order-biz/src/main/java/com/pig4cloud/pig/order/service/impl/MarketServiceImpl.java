@@ -19,6 +19,7 @@ package com.pig4cloud.pig.order.service.impl;
 import cn.hutool.core.util.IdUtil;
 import cn.hutool.json.JSONUtil;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
+import com.pig4cloud.pig.order.api.dto.CreateMarketRequest;
 import com.pig4cloud.pig.order.api.entity.Market;
 import com.pig4cloud.pig.order.api.entity.Order;
 import com.pig4cloud.pig.order.api.enums.MarketStatus;
@@ -26,6 +27,8 @@ import com.pig4cloud.pig.order.api.enums.OrderStatus;
 import com.pig4cloud.pig.order.mapper.MarketMapper;
 import com.pig4cloud.pig.order.mapper.OrderMapper;
 import com.pig4cloud.pig.order.service.MarketService;
+import com.pig4cloud.pig.outbox.api.model.DomainEventEnvelope;
+import com.pig4cloud.pig.outbox.api.publisher.DomainEventPublisher;
 import com.pig4cloud.pig.outbox.entity.OutboxEvent;
 import com.pig4cloud.pig.outbox.enums.OutboxStatus;
 import com.pig4cloud.pig.outbox.service.OutboxEventService;
@@ -54,11 +57,19 @@ public class MarketServiceImpl implements MarketService {
 
 	private static final String AGG_TYPE_MARKET = "Market";
 
+	private static final String DOMAIN_ORDER = "order";
+
+	private static final String AGG_TYPE_ORDER = "Order";
+
+	private static final String EVENT_ORDER_CANCEL = "OrderCancel";
+
 	private final MarketMapper marketMapper;
 
 	private final OrderMapper orderMapper;
 
 	private final OutboxEventService outboxEventService;
+
+	private final DomainEventPublisher domainEventPublisher;
 
 	@Override
 	public Market getMarket(Long marketId) {
@@ -117,12 +128,16 @@ public class MarketServiceImpl implements MarketService {
 	}
 
 	private void expireOrdersForMarket(Long marketId) {
-		orderMapper.update(null,
-				Wrappers.<Order>lambdaUpdate()
-					.eq(Order::getMarketId, marketId)
-					.in(Order::getStatus, OrderStatus.OPEN, OrderStatus.MATCHING, OrderStatus.PARTIALLY_FILLED,
-							OrderStatus.CANCEL_REQUESTED)
-					.set(Order::getStatus, OrderStatus.EXPIRED));
+		List<Order> expiringOrders = orderMapper.selectList(Wrappers.<Order>lambdaQuery()
+			.eq(Order::getMarketId, marketId)
+			.in(Order::getStatus, OrderStatus.OPEN, OrderStatus.MATCHING, OrderStatus.PARTIALLY_FILLED,
+					OrderStatus.CANCEL_REQUESTED));
+
+		for (Order order : expiringOrders) {
+			order.setStatus(OrderStatus.EXPIRED);
+			orderMapper.updateById(order);
+			publishOrderCancelEvent(order, "Market expired");
+		}
 	}
 
 	private void publishMarketClosedEvent(Market market) {
@@ -146,6 +161,75 @@ public class MarketServiceImpl implements MarketService {
 		event.setUpdatedAt(Instant.now());
 
 		outboxEventService.save(event);
+	}
+
+	private void publishOrderCancelEvent(Order order, String reason) {
+		Map<String, Object> payload = new HashMap<>();
+		payload.put("orderId", order.getOrderId());
+		payload.put("userId", order.getUserId());
+		payload.put("marketId", order.getMarketId());
+		payload.put("status", order.getStatus().name());
+		if (reason != null) {
+			payload.put("reason", reason);
+		}
+
+		DomainEventEnvelope event = new DomainEventEnvelope(IdUtil.randomUUID(), // eventId
+				DOMAIN_ORDER, // domain
+				AGG_TYPE_ORDER, // aggregateType
+				String.valueOf(order.getOrderId()), // aggregateId
+				EVENT_ORDER_CANCEL, // eventType
+				System.currentTimeMillis(), // occurredAt
+				null, // headers
+				JSONUtil.toJsonStr(payload) // payloadJson
+		);
+
+		domainEventPublisher.publish(event);
+	}
+
+	@Override
+	public Long createMarket(CreateMarketRequest request) {
+		Market market = new Market();
+		market.setName(request.getName());
+		market.setStatus(request.getStatus());
+		// Convert Long timestamp (milliseconds) to Instant
+		if (request.getExpireAt() != null) {
+			market.setExpireAt(Instant.ofEpochMilli(request.getExpireAt()));
+		}
+		market.setCreateTime(Instant.now());
+		market.setUpdateTime(Instant.now());
+
+		marketMapper.insert(market);
+		log.info("Created market: {}", market.getMarketId());
+
+		return market.getMarketId();
+	}
+
+	@Override
+	public void updateMarketStatus(Long marketId, MarketStatus status) {
+		Market market = marketMapper.selectById(marketId);
+		if (market == null) {
+			throw new IllegalArgumentException("Market not found: " + marketId);
+		}
+
+		market.setStatus(status);
+		market.setUpdateTime(Instant.now());
+		marketMapper.updateById(market);
+
+		log.info("Updated market {} status to {}", marketId, status);
+	}
+
+	@Override
+	public void deleteMarket(Long marketId) {
+		Market market = marketMapper.selectById(marketId);
+		if (market == null) {
+			throw new IllegalArgumentException("Market not found: " + marketId);
+		}
+
+		market.setDelFlag("1");
+		market.setUpdateTime(Instant.now());
+		marketMapper.updateById(market);
+
+		log.info("Deleted market: {}", marketId);
 	}
 
 }

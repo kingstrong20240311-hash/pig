@@ -16,6 +16,8 @@
 
 package com.pig4cloud.pig.order.match;
 
+import cn.hutool.core.util.IdUtil;
+import cn.hutool.json.JSONUtil;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.pig4cloud.pig.order.api.entity.Order;
 import com.pig4cloud.pig.order.api.entity.Market;
@@ -23,6 +25,8 @@ import com.pig4cloud.pig.order.api.enums.MarketStatus;
 import com.pig4cloud.pig.order.api.enums.OrderStatus;
 import com.pig4cloud.pig.order.mapper.OrderMapper;
 import com.pig4cloud.pig.order.service.MarketService;
+import com.pig4cloud.pig.outbox.api.model.DomainEventEnvelope;
+import com.pig4cloud.pig.outbox.api.publisher.DomainEventPublisher;
 import exchange.core2.core.ExchangeApi;
 import exchange.core2.core.common.api.ApiPlaceOrder;
 import exchange.core2.core.common.cmd.CommandResultCode;
@@ -37,7 +41,9 @@ import org.springframework.stereotype.Service;
 
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import com.pig4cloud.pig.order.match.event.ExchangeCoreInitedEvent;
 
@@ -64,6 +70,14 @@ public class OrderStateRecoveryService {
 	private final MatchingEngineSymbolService matchingEngineSymbolService;
 
 	private final ApplicationEventPublisher eventPublisher;
+
+	private final DomainEventPublisher domainEventPublisher;
+
+	private static final String DOMAIN_ORDER = "order";
+
+	private static final String AGG_TYPE_ORDER = "Order";
+
+	private static final String EVENT_ORDER_CANCEL = "OrderCancel";
 
 	@EventListener(ApplicationReadyEvent.class)
 	@org.springframework.core.annotation.Order(org.springframework.core.Ordered.HIGHEST_PRECEDENCE)
@@ -154,6 +168,7 @@ public class OrderStateRecoveryService {
 				|| (market.getExpireAt() != null && !market.getExpireAt().isAfter(Instant.now()))) {
 			order.setStatus(OrderStatus.EXPIRED);
 			orderMapper.updateById(order);
+			publishOrderCancelEvent(order, "Market expired");
 			log.info("Skipping recovery for expired market order: orderId={}, marketId={}", order.getOrderId(),
 					order.getMarketId());
 			return;
@@ -194,6 +209,29 @@ public class OrderStateRecoveryService {
 		}
 
 		log.debug("Order recovered successfully: orderId={}", order.getOrderId());
+	}
+
+	private void publishOrderCancelEvent(Order order, String reason) {
+		Map<String, Object> payload = new HashMap<>();
+		payload.put("orderId", order.getOrderId());
+		payload.put("userId", order.getUserId());
+		payload.put("marketId", order.getMarketId());
+		payload.put("status", order.getStatus().name());
+		if (reason != null) {
+			payload.put("reason", reason);
+		}
+
+		DomainEventEnvelope event = new DomainEventEnvelope(IdUtil.randomUUID(), // eventId
+				DOMAIN_ORDER, // domain
+				AGG_TYPE_ORDER, // aggregateType
+				String.valueOf(order.getOrderId()), // aggregateId
+				EVENT_ORDER_CANCEL, // eventType
+				System.currentTimeMillis(), // occurredAt
+				null, // headers
+				JSONUtil.toJsonStr(payload) // payloadJson
+		);
+
+		domainEventPublisher.publish(event);
 	}
 
 }

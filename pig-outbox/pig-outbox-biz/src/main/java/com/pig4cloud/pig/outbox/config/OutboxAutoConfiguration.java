@@ -29,6 +29,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.common.serialization.StringSerializer;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
@@ -37,6 +38,8 @@ import org.springframework.context.annotation.Primary;
 import org.springframework.kafka.core.DefaultKafkaProducerFactory;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.kafka.core.ProducerFactory;
+import org.springframework.scheduling.annotation.EnableScheduling;
+import org.springframework.scheduling.concurrent.ThreadPoolTaskScheduler;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -52,6 +55,7 @@ import java.util.Map;
 @Slf4j
 @Configuration
 @RequiredArgsConstructor
+@EnableScheduling
 @EnableConfigurationProperties({ OutboxProperties.class, OutboxDispatcherProperties.class,
 		OutboxKafkaProperties.class })
 public class OutboxAutoConfiguration {
@@ -145,6 +149,19 @@ public class OutboxAutoConfiguration {
 		log.info("Configuring OutboxEventDispatcher with batchSize={}, enabled={}", dispatcherProperties.getBatchSize(),
 				dispatcherProperties.isEnabled());
 		return new OutboxEventDispatcher(outboxEventMapper, publishStrategy, dispatcherProperties);
+	}
+
+	/**
+	 * Outbox调度器线程池（单线程）
+	 */
+	@Bean(name = "outboxScheduler")
+	@ConditionalOnMissingBean(name = "outboxScheduler")
+	public ThreadPoolTaskScheduler outboxScheduler() {
+		ThreadPoolTaskScheduler scheduler = new ThreadPoolTaskScheduler();
+		scheduler.setPoolSize(1);
+		scheduler.setThreadNamePrefix("outbox-dispatcher-");
+		scheduler.setRemoveOnCancelPolicy(true);
+		return scheduler;
 	}
 
 }

@@ -18,7 +18,6 @@
 package com.pig4cloud.pig.outbox.api.model;
 
 import java.io.Serializable;
-import java.time.Instant;
 import java.util.Map;
 
 /**
@@ -32,6 +31,6 @@ public record DomainEventEnvelope(String eventId, // 全局唯一（UUID/ULID）
 		String aggregateType, // "Order" / "VaultAccount" / "SettlementIntent"
 		String aggregateId, // 业务主键（用于保序 & Kafka key）
 		String eventType, // "OrderMatched" ...
-		Instant occurredAt, Map<String, String> headers, String payloadJson // 事件负载JSON
+		Long occurredAt, Map<String, String> headers, String payloadJson // 事件负载JSON
 ) implements Serializable {
 }

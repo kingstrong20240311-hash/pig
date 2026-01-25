@@ -32,7 +32,6 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-import java.time.Instant;
 import java.util.Map;
 
 import static org.assertj.core.api.Assertions.*;
@@ -62,8 +61,8 @@ class DbOutboxEventPublisherTest {
 
 	@BeforeEach
 	void setUp() {
-		testEvent = new DomainEventEnvelope("evt-001", "order", "Order", "order-123", "OrderMatched", Instant.now(),
-				Map.of("userId", "user-1"), "{\"amount\":100}");
+		testEvent = new DomainEventEnvelope("evt-001", "order", "Order", "order-123", "OrderMatched",
+				System.currentTimeMillis(), Map.of("userId", "user-1"), "{\"amount\":100}");
 	}
 
 	@Test
@@ -93,7 +92,7 @@ class DbOutboxEventPublisherTest {
 	void publish_sets_defaults() {
 		// Given
 		DomainEventEnvelope eventWithoutHeaders = new DomainEventEnvelope("evt-002", "order", "Order", "order-456",
-				"OrderCreated", Instant.now(), null, "{}");
+				"OrderCreated", System.currentTimeMillis(), null, "{}");
 
 		ArgumentCaptor<OutboxEvent> captor = ArgumentCaptor.forClass(OutboxEvent.class);
 

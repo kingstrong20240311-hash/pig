@@ -79,4 +79,17 @@ public interface BalanceMapper extends BaseMapper<Balance> {
 	int consumeFreeze(@Param("accountId") Long accountId, @Param("assetId") Long assetId,
 			@Param("amount") BigDecimal amount, @Param("version") Long version);
 
+	/**
+	 * Update balance for deposit operation (increase available)
+	 * @param accountId account ID
+	 * @param assetId asset ID
+	 * @param amount amount to deposit
+	 * @param version current version
+	 * @return number of rows affected
+	 */
+	@Update("UPDATE vault_balance SET " + "available = available + #{amount}, " + "version = version + 1 "
+			+ "WHERE account_id = #{accountId} " + "AND asset_id = #{assetId} " + "AND version = #{version}")
+	int depositBalance(@Param("accountId") Long accountId, @Param("assetId") Long assetId,
+			@Param("amount") BigDecimal amount, @Param("version") Long version);
+
 }

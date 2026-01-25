@@ -49,7 +49,7 @@ public class PigOAuthRequestInterceptor implements RequestInterceptor {
 		}
 
 		// 非web 请求直接跳过
-		if (!WebUtils.getRequest().isPresent()) {
+		if (WebUtils.getRequest().isEmpty()) {
 			return;
 		}
 		HttpServletRequest request = WebUtils.getRequest().get();

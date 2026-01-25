@@ -136,7 +136,10 @@ public class OrderServiceImpl implements OrderService {
 		order.setRemainingQuantity(request.getQuantity());
 		order.setStatus(OrderStatus.OPEN);
 		order.setTimeInForce(request.getTimeInForce() != null ? request.getTimeInForce() : TimeInForce.GTC);
-		order.setExpireAt(request.getExpireAt());
+		// Convert Long timestamp (milliseconds) to Instant
+		if (request.getExpireAt() != null) {
+			order.setExpireAt(Instant.ofEpochMilli(request.getExpireAt()));
+		}
 		order.setIdempotencyKey(idempotencyKey);
 		order.setVersion(0);
 
@@ -290,7 +293,7 @@ public class OrderServiceImpl implements OrderService {
 				AGG_TYPE_ORDER, // aggregateType
 				String.valueOf(order.getOrderId()), // aggregateId
 				"OrderCreated", // eventType
-				Instant.now(), // occurredAt
+				System.currentTimeMillis(), // occurredAt
 				null, // headers
 				JSONUtil.toJsonStr(payload) // payloadJson
 		);
@@ -314,7 +317,7 @@ public class OrderServiceImpl implements OrderService {
 				AGG_TYPE_ORDER, // aggregateType
 				String.valueOf(order.getOrderId()), // aggregateId
 				"OrderCancelRequested", // eventType
-				Instant.now(), // occurredAt
+				System.currentTimeMillis(), // occurredAt
 				null, // headers
 				JSONUtil.toJsonStr(payload) // payloadJson
 		);

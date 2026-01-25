@@ -23,9 +23,11 @@ import com.pig4cloud.pig.admin.api.entity.SysLog;
 import com.pig4cloud.pig.common.core.constant.ServiceNameConstants;
 import com.pig4cloud.pig.common.core.util.R;
 import com.pig4cloud.pig.common.feign.annotation.NoToken;
+import feign.Headers;
 import org.springframework.cloud.openfeign.FeignClient;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import com.pig4cloud.pig.common.core.constant.SecurityConstants;
 
 /**
  * 远程日志服务接口

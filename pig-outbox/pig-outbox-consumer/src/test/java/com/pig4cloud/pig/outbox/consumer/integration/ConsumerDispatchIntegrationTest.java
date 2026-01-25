@@ -50,7 +50,6 @@ import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 import org.testcontainers.utility.DockerImageName;
 
-import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -115,7 +114,7 @@ class ConsumerDispatchIntegrationTest {
 		// Given - Create DomainEventEnvelope
 		Map<String, String> headers = Map.of("userId", "user-1", "traceId", "trace-123");
 		DomainEventEnvelope envelope = new DomainEventEnvelope("evt-001", "order", "Order", "order-123",
-				"OrderCreated", Instant.now(), headers, "{\"amount\":100}");
+				"OrderCreated", System.currentTimeMillis(), headers, "{\"amount\":100}");
 
 		// When - Produce message to Kafka
 		String topic = "domain.order";
@@ -141,11 +140,11 @@ class ConsumerDispatchIntegrationTest {
 	void consumer_routes_different_event_types_to_correct_handlers() throws Exception {
 		// Given - Create OrderCreated event
 		DomainEventEnvelope orderEvent = new DomainEventEnvelope("evt-order-1", "order", "Order", "order-123",
-				"OrderCreated", Instant.now(), null, "{\"amount\":100}");
+				"OrderCreated", System.currentTimeMillis(), null, "{\"amount\":100}");
 
 		// And - Create VaultCreated event
 		DomainEventEnvelope vaultEvent = new DomainEventEnvelope("evt-vault-1", "vault", "Vault", "vault-123",
-				"VaultCreated", Instant.now(), null, "{\"balance\":1000}");
+				"VaultCreated", System.currentTimeMillis(), null, "{\"balance\":1000}");
 
 		// When - Produce both messages
 		produceMessage("domain.order", "order-123", objectMapper.writeValueAsString(orderEvent));
@@ -183,7 +182,7 @@ class ConsumerDispatchIntegrationTest {
 		List<DomainEventEnvelope> events = new ArrayList<>();
 		for (int i = 1; i <= 3; i++) {
 			DomainEventEnvelope envelope = new DomainEventEnvelope("evt-00" + i, "order", "Order", "order-" + i,
-					"OrderCreated", Instant.now(), null, "{\"orderId\":" + i + "}");
+					"OrderCreated", System.currentTimeMillis(), null, "{\"orderId\":" + i + "}");
 			events.add(envelope);
 		}
 
@@ -210,7 +209,7 @@ class ConsumerDispatchIntegrationTest {
 		List<DomainEventEnvelope> events = new ArrayList<>();
 		for (int i = 1; i <= 5; i++) {
 			DomainEventEnvelope envelope = new DomainEventEnvelope("evt-seq-" + i, "order", "Order", aggregateId,
-					"OrderUpdated", Instant.now(), null, "{\"sequence\":" + i + "}");
+					"OrderUpdated", System.currentTimeMillis(), null, "{\"sequence\":" + i + "}");
 			events.add(envelope);
 		}
 
