@@ -17,10 +17,10 @@
 
 package com.pig4cloud.pig.vault.event;
 
-import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.pig4cloud.pig.outbox.api.annotation.DomainEventHandler;
 import com.pig4cloud.pig.outbox.api.model.DomainEventEnvelope;
+import com.pig4cloud.pig.outbox.api.payload.order.OrderCreatedPayload;
 import com.pig4cloud.pig.vault.api.dto.FreezeLookupRequest;
 import com.pig4cloud.pig.vault.api.enums.RefType;
 import com.pig4cloud.pig.vault.service.VaultFreezeService;
@@ -29,7 +29,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.Map;
 
 /**
  * Handle order lifecycle events for vault operations
@@ -51,7 +50,7 @@ public class OrderCreatedEventHandler {
 	 */
 	@DomainEventHandler(domain = "order", eventType = "OrderCreated")
 	@Transactional(rollbackFor = Exception.class)
-	public void handleOrderCreated(DomainEventEnvelope event) {
+	public void handleOrderCreated(DomainEventEnvelope<OrderCreatedPayload> event) {
 		log.info("Handling OrderCreated event in vault: eventId={}, aggregateId={}", event.eventId(),
 				event.aggregateId());
 
@@ -78,38 +77,12 @@ public class OrderCreatedEventHandler {
 		}
 	}
 
-	private String extractOrderId(DomainEventEnvelope event) {
-		String orderId = parseOrderIdFromPayload(event.payloadJson());
-		if (orderId != null && !orderId.isBlank()) {
-			return orderId;
+	private String extractOrderId(DomainEventEnvelope<OrderCreatedPayload> event) {
+		OrderCreatedPayload payload = event.payloadAs(objectMapper, OrderCreatedPayload.class);
+		if (payload != null && payload.getOrderId() != null) {
+			return String.valueOf(payload.getOrderId());
 		}
 		return event.aggregateId();
-	}
-
-	private String parseOrderIdFromPayload(String payloadJson) {
-		if (payloadJson == null || payloadJson.isBlank()) {
-			return null;
-		}
-		try {
-			Map<String, Object> payload = objectMapper.readValue(payloadJson,
-					new TypeReference<Map<String, Object>>() {
-					});
-			Object value = payload.get("orderId");
-			if (value == null) {
-				return null;
-			}
-			if (value instanceof Number) {
-				return String.valueOf(((Number) value).longValue());
-			}
-			if (value instanceof String) {
-				return (String) value;
-			}
-			return String.valueOf(value);
-		}
-		catch (Exception e) {
-			log.error("Failed to parse payload for orderId", e);
-			return null;
-		}
 	}
 
 }

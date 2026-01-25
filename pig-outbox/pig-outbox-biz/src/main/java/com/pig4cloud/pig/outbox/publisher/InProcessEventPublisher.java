@@ -48,14 +48,16 @@ public class InProcessEventPublisher implements DomainEventPublisher {
 
 	@Override
 	@Transactional(rollbackFor = Exception.class)
-	public void publish(DomainEventEnvelope event) {
+	public void publish(DomainEventEnvelope<?> event) {
+		String payloadJson = resolvePayloadJson(event);
+
 		OutboxEvent outboxEvent = new OutboxEvent();
 		outboxEvent.setEventId(event.eventId());
 		outboxEvent.setDomain(event.domain());
 		outboxEvent.setAggregateType(event.aggregateType());
 		outboxEvent.setAggregateId(event.aggregateId());
 		outboxEvent.setEventType(event.eventType());
-		outboxEvent.setPayloadJson(event.payloadJson());
+		outboxEvent.setPayloadJson(payloadJson);
 		outboxEvent.setPartitionKey(event.aggregateId());
 
 		// 序列化headers
@@ -76,6 +78,21 @@ public class InProcessEventPublisher implements DomainEventPublisher {
 		outboxEventService.save(outboxEvent);
 		log.debug("Published event to outbox: eventId={}, domain={}, eventType={}", event.eventId(), event.domain(),
 				event.eventType());
+	}
+
+	private String resolvePayloadJson(DomainEventEnvelope<?> event) {
+		if (event.payloadJson() != null && !event.payloadJson().isBlank()) {
+			return event.payloadJson();
+		}
+		if (event.payload() == null) {
+			return null;
+		}
+		try {
+			return objectMapper.writeValueAsString(event.payload());
+		}
+		catch (JsonProcessingException e) {
+			throw new RuntimeException("Failed to serialize event payload", e);
+		}
 	}
 
 }

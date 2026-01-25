@@ -17,12 +17,15 @@
 package com.pig4cloud.pig.order.match;
 
 import cn.hutool.core.util.IdUtil;
-import cn.hutool.json.JSONUtil;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.pig4cloud.pig.order.api.entity.Order;
 import com.pig4cloud.pig.order.api.enums.OrderStatus;
 import com.pig4cloud.pig.order.mapper.OrderMapper;
 import com.pig4cloud.pig.outbox.api.annotation.DomainEventHandler;
 import com.pig4cloud.pig.outbox.api.model.DomainEventEnvelope;
+import com.pig4cloud.pig.outbox.api.payload.order.OrderCancelPayload;
+import com.pig4cloud.pig.outbox.api.payload.order.OrderCancelRequestedPayload;
+import com.pig4cloud.pig.outbox.api.payload.order.OrderCreatedPayload;
 import com.pig4cloud.pig.outbox.api.publisher.DomainEventPublisher;
 import exchange.core2.core.ExchangeApi;
 import exchange.core2.core.common.api.ApiCancelOrder;
@@ -33,8 +36,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.HashMap;
-import java.util.Map;
 
 /**
  * Order Event Handler - Handles order lifecycle events from outbox
@@ -55,6 +56,8 @@ public class OrderEventHandler {
 
 	private final DomainEventPublisher domainEventPublisher;
 
+	private final ObjectMapper objectMapper;
+
 	private static final String DOMAIN_ORDER = "order";
 
 	private static final String AGG_TYPE_ORDER = "Order";
@@ -66,12 +69,13 @@ public class OrderEventHandler {
 	 */
 	@DomainEventHandler(domain = "order", eventType = "OrderCreated")
 	@Transactional(rollbackFor = Exception.class)
-	public void handleOrderCreated(DomainEventEnvelope event) {
+	public void handleOrderCreated(DomainEventEnvelope<OrderCreatedPayload> event) {
 		log.info("Handling OrderCreated event: eventId={}, aggregateId={}", event.eventId(), event.aggregateId());
 
 		try {
 			// 1. Parse payload to get orderId
-			Long orderId = extractLong(event.payloadJson(), "orderId");
+			OrderCreatedPayload payload = event.payloadAs(objectMapper, OrderCreatedPayload.class);
+			Long orderId = payload == null ? null : payload.getOrderId();
 			if (orderId == null) {
 				log.error("Failed to extract orderId from event payload: eventId={}", event.eventId());
 				throw new IllegalArgumentException("Invalid payload: orderId not found");
@@ -140,15 +144,16 @@ public class OrderEventHandler {
 	 */
 	@DomainEventHandler(domain = "order", eventType = "OrderCancelRequested")
 	@Transactional(rollbackFor = Exception.class)
-	public void handleOrderCancelRequested(DomainEventEnvelope event) {
+	public void handleOrderCancelRequested(DomainEventEnvelope<OrderCancelRequestedPayload> event) {
 		log.info("Handling OrderCancelRequested event: eventId={}, aggregateId={}", event.eventId(),
 				event.aggregateId());
 
 		try {
 			// 1. Parse payload
-			Long orderId = extractLong(event.payloadJson(), "orderId");
-			Long userId = extractLong(event.payloadJson(), "userId");
-			Long marketId = extractLong(event.payloadJson(), "marketId");
+			OrderCancelRequestedPayload payload = event.payloadAs(objectMapper, OrderCancelRequestedPayload.class);
+			Long orderId = payload == null ? null : payload.getOrderId();
+			Long userId = payload == null ? null : payload.getUserId();
+			Long marketId = payload == null ? null : payload.getMarketId();
 
 			if (orderId == null || userId == null || marketId == null) {
 				log.error("Invalid OrderCancelRequested payload: eventId={}, payload={}", event.eventId(),
@@ -196,43 +201,18 @@ public class OrderEventHandler {
 		}
 	}
 
-	/**
-	 * Extract Long value from JSON payload
-	 */
-	private Long extractLong(String payloadJson, String key) {
-		try {
-			Map<String, Object> payload = JSONUtil.toBean(payloadJson, Map.class);
-			Object value = payload.get(key);
-			if (value instanceof Number) {
-				return ((Number) value).longValue();
-			}
-			else if (value instanceof String) {
-				return Long.parseLong((String) value);
-			}
-			return null;
-		}
-		catch (Exception e) {
-			log.error("Failed to parse payload: key={}", key, e);
-			return null;
-		}
-	}
-
 	private void publishOrderCancelEvent(Order order) {
-		Map<String, Object> payload = new HashMap<>();
-		payload.put("orderId", order.getOrderId());
-		payload.put("userId", order.getUserId());
-		payload.put("marketId", order.getMarketId());
-		payload.put("status", order.getStatus().name());
-		payload.put("reason", order.getRejectReason());
+		OrderCancelPayload payload = new OrderCancelPayload(order.getOrderId(), order.getUserId(),
+				order.getMarketId(), order.getStatus().name(), order.getRejectReason());
 
-		DomainEventEnvelope event = new DomainEventEnvelope(IdUtil.randomUUID(), // eventId
+		DomainEventEnvelope<OrderCancelPayload> event = new DomainEventEnvelope<>(IdUtil.randomUUID(), // eventId
 				DOMAIN_ORDER, // domain
 				AGG_TYPE_ORDER, // aggregateType
 				String.valueOf(order.getOrderId()), // aggregateId
 				EVENT_ORDER_CANCEL, // eventType
 				System.currentTimeMillis(), // occurredAt
 				null, // headers
-				JSONUtil.toJsonStr(payload) // payloadJson
+				payload // payload
 		);
 
 		domainEventPublisher.publish(event);

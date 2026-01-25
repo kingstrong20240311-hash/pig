@@ -18,7 +18,6 @@ package com.pig4cloud.pig.order.match;
 
 import cn.hutool.core.util.IdUtil;
 import cn.hutool.core.util.StrUtil;
-import cn.hutool.json.JSONUtil;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.pig4cloud.pig.common.error.service.ErrorRecordService;
 import com.pig4cloud.pig.order.api.dto.CommitMatchRequest;
@@ -33,7 +32,9 @@ import com.pig4cloud.pig.order.mapper.OrderMapper;
 import com.pig4cloud.pig.order.match.dto.FailedReduceEventDTO;
 import com.pig4cloud.pig.order.match.dto.FailedRejectEventDTO;
 import com.pig4cloud.pig.order.match.dto.FailedTradeEventDTO;
+import com.pig4cloud.pig.order.match.dto.MatchCommittedPayload;
 import com.pig4cloud.pig.outbox.api.model.DomainEventEnvelope;
+import com.pig4cloud.pig.outbox.api.payload.order.OrderCancelPayload;
 import com.pig4cloud.pig.outbox.api.publisher.DomainEventPublisher;
 import exchange.core2.core.IEventsHandler;
 import lombok.RequiredArgsConstructor;
@@ -450,20 +451,17 @@ public class MatcherEventHandler implements OrderMatchService {
 	 * Publish MatchCommittedEvent via DomainEventPublisher
 	 */
 	private void publishMatchCommittedEvent(CommitMatchRequest request, Map<Long, OrderStateDTO> orderStates) {
-		Map<String, Object> payload = new HashMap<>();
-		payload.put("matchId", request.getMatchId());
-		payload.put("takerOrderId", request.getTakerOrderId());
-		payload.put("fills", request.getFills());
-		payload.put("orderStates", orderStates);
+		MatchCommittedPayload payload = new MatchCommittedPayload(request.getMatchId(), request.getTakerOrderId(),
+				request.getFills(), orderStates);
 
-		DomainEventEnvelope event = new DomainEventEnvelope(IdUtil.randomUUID(), // eventId
+		DomainEventEnvelope<MatchCommittedPayload> event = new DomainEventEnvelope<>(IdUtil.randomUUID(), // eventId
 				DOMAIN_ORDER, // domain
 				AGG_TYPE_MATCH, // aggregateType
 				request.getMatchId(), // aggregateId
 				"MatchCommitted", // eventType
 				System.currentTimeMillis(), // occurredAt
 				null, // headers
-				JSONUtil.toJsonStr(payload) // payloadJson
+				payload // payload
 		);
 
 		domainEventPublisher.publish(event);
@@ -473,23 +471,17 @@ public class MatcherEventHandler implements OrderMatchService {
 	 * Publish OrderCancel event via DomainEventPublisher
 	 */
 	private void publishOrderCancelEvent(Order order, String reason) {
-		Map<String, Object> payload = new HashMap<>();
-		payload.put("orderId", order.getOrderId());
-		payload.put("userId", order.getUserId());
-		payload.put("marketId", order.getMarketId());
-		payload.put("status", order.getStatus().name());
-		if (reason != null) {
-			payload.put("reason", reason);
-		}
+		OrderCancelPayload payload = new OrderCancelPayload(order.getOrderId(), order.getUserId(),
+				order.getMarketId(), order.getStatus().name(), reason);
 
-		DomainEventEnvelope event = new DomainEventEnvelope(IdUtil.randomUUID(), // eventId
+		DomainEventEnvelope<OrderCancelPayload> event = new DomainEventEnvelope<>(IdUtil.randomUUID(), // eventId
 				DOMAIN_ORDER, // domain
 				AGG_TYPE_ORDER, // aggregateType
 				String.valueOf(order.getOrderId()), // aggregateId
 				EVENT_ORDER_CANCEL, // eventType
 				System.currentTimeMillis(), // occurredAt
 				null, // headers
-				JSONUtil.toJsonStr(payload) // payloadJson
+				payload // payload
 		);
 
 		domainEventPublisher.publish(event);
