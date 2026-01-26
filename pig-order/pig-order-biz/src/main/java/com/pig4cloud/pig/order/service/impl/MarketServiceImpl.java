@@ -26,6 +26,7 @@ import com.pig4cloud.pig.order.api.enums.MarketStatus;
 import com.pig4cloud.pig.order.api.enums.OrderStatus;
 import com.pig4cloud.pig.order.mapper.MarketMapper;
 import com.pig4cloud.pig.order.mapper.OrderMapper;
+import com.pig4cloud.pig.outbox.api.payload.market.MarketCreatedPayload;
 import com.pig4cloud.pig.order.service.MarketService;
 import com.pig4cloud.pig.outbox.api.model.DomainEventEnvelope;
 import com.pig4cloud.pig.outbox.api.payload.order.OrderCancelPayload;
@@ -63,6 +64,8 @@ public class MarketServiceImpl implements MarketService {
 
 	private static final String EVENT_ORDER_CANCEL = "OrderCancel";
 
+	private static final String EVENT_MARKET_CREATED = "MarketCreated";
+
 	private final MarketMapper marketMapper;
 
 	private final OrderMapper orderMapper;
@@ -90,6 +93,9 @@ public class MarketServiceImpl implements MarketService {
 		Instant now = Instant.now();
 		if (market.getStatus() != MarketStatus.ACTIVE) {
 			throw new IllegalStateException("Market is not active: " + marketId);
+		}
+		if (market.getSymbolIdYes() == null || market.getSymbolIdNo() == null) {
+			throw new IllegalStateException("Market symbols not ready: " + marketId);
 		}
 		if (market.getExpireAt() != null && !market.getExpireAt().isAfter(now)) {
 			throw new IllegalStateException("Market is expired: " + marketId);
@@ -125,6 +131,24 @@ public class MarketServiceImpl implements MarketService {
 
 		log.info("Expired {} markets at {}", expiredMarkets.size(), now);
 		return expiredMarkets.size();
+	}
+
+	@Override
+	@Transactional(rollbackFor = Exception.class)
+	public void activateMarketWithSymbols(Long marketId, int symbolIdYes, int symbolIdNo) {
+		Market market = marketMapper.selectById(marketId);
+		if (market == null) {
+			throw new IllegalArgumentException("Market not found: " + marketId);
+		}
+
+		market.setSymbolIdYes(symbolIdYes);
+		market.setSymbolIdNo(symbolIdNo);
+		market.setStatus(MarketStatus.ACTIVE);
+		market.setUpdateTime(Instant.now());
+		marketMapper.updateById(market);
+
+		log.info("Market activated with symbols: marketId={}, symbolIdYes={}, symbolIdNo={}", marketId, symbolIdYes,
+				symbolIdNo);
 	}
 
 	private void expireOrdersForMarket(Long marketId) {
@@ -193,7 +217,26 @@ public class MarketServiceImpl implements MarketService {
 		marketMapper.insert(market);
 		log.info("Created market: {}", market.getMarketId());
 
+		publishMarketCreatedEvent(market);
+
 		return market.getMarketId();
+	}
+
+	private void publishMarketCreatedEvent(Market market) {
+		MarketCreatedPayload payload = new MarketCreatedPayload(market.getMarketId(), market.getName(),
+				market.getExpireAt());
+
+		DomainEventEnvelope<MarketCreatedPayload> event = new DomainEventEnvelope<>(IdUtil.randomUUID(), // eventId
+				DOMAIN_MARKET, // domain
+				AGG_TYPE_MARKET, // aggregateType
+				String.valueOf(market.getMarketId()), // aggregateId
+				EVENT_MARKET_CREATED, // eventType
+				System.currentTimeMillis(), // occurredAt
+				null, // headers
+				payload // payload
+		);
+
+		domainEventPublisher.publish(event);
 	}
 
 	@Override

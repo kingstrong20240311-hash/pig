@@ -16,9 +16,12 @@
 
 package com.pig4cloud.pig.order.match;
 
+import com.pig4cloud.pig.order.api.entity.Market;
 import com.pig4cloud.pig.order.api.entity.Order;
 import com.pig4cloud.pig.order.api.enums.OrderStatus;
+import com.pig4cloud.pig.order.api.enums.Outcome;
 import com.pig4cloud.pig.order.mapper.OrderMapper;
+import com.pig4cloud.pig.order.service.MarketService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.pig4cloud.pig.outbox.api.model.DomainEventEnvelope;
 import com.pig4cloud.pig.outbox.api.payload.order.OrderCancelRequestedPayload;
@@ -61,6 +64,12 @@ class OrderEventHandlerTest {
 	private MatchingEngineSymbolService matchingEngineSymbolService;
 
 	@Mock
+	private MatchingEngineProperties matchingEngineProperties;
+
+	@Mock
+	private MarketService marketService;
+
+	@Mock
 	private DomainEventPublisher domainEventPublisher;
 
 	@Mock
@@ -82,12 +91,16 @@ class OrderEventHandlerTest {
 		Long orderId = 1001L;
 		String eventId = "event-1";
 		String aggregateId = "order-1001";
-		OrderCreatedPayload payload = new OrderCreatedPayload(orderId, 123L, 1L, "OPEN");
+		OrderCreatedPayload payload = new OrderCreatedPayload(orderId, 123L, 1L, "YES", "OPEN");
 		DomainEventEnvelope<OrderCreatedPayload> event = new DomainEventEnvelope<>(eventId, "order", "Order",
 				aggregateId, "OrderCreated", System.currentTimeMillis(), null, payload);
 
 		Order order = createOrder(orderId, OrderStatus.OPEN, BigDecimal.valueOf(100), BigDecimal.valueOf(10));
+		order.setOutcome(Outcome.YES);
+		Market market = createMarket(order.getMarketId(), 101, 102);
 
+		when(marketService.getMarket(order.getMarketId())).thenReturn(market);
+		when(matchingEngineProperties.getDefaultAsset()).thenReturn(1);
 		when(orderMapper.selectById(orderId)).thenReturn(order);
 		when(exchangeApi.submitCommandAsync(any()))
 			.thenReturn(CompletableFuture.completedFuture(CommandResultCode.SUCCESS));
@@ -97,7 +110,7 @@ class OrderEventHandlerTest {
 		orderEventHandler.handleOrderCreated(event);
 
 		// Then
-		verify(matchingEngineSymbolService).ensureSymbol(order.getMarketId().intValue());
+		verify(matchingEngineSymbolService).ensureSymbol(101, 101, 1);
 		verify(exchangeApi).submitCommandAsync(any());
 		verify(orderMapper).updateById(orderCaptor.capture());
 
@@ -116,10 +129,14 @@ class OrderEventHandlerTest {
 		DomainEventEnvelope<OrderCreatedPayload> event = new DomainEventEnvelope<>(eventId, "order", "Order",
 				aggregateId, "OrderCreated", System.currentTimeMillis(), null, payloadJson);
 
-		OrderCreatedPayload payload = new OrderCreatedPayload(orderId, 123L, 1L, "OPEN");
+		OrderCreatedPayload payload = new OrderCreatedPayload(orderId, 123L, 1L, "YES", "OPEN");
 		when(objectMapper.readValue(payloadJson, OrderCreatedPayload.class)).thenReturn(payload);
 
 		Order order = createOrder(orderId, OrderStatus.OPEN, BigDecimal.valueOf(100), BigDecimal.valueOf(10));
+		order.setOutcome(Outcome.YES);
+		Market market = createMarket(order.getMarketId(), 101, 102);
+		when(marketService.getMarket(order.getMarketId())).thenReturn(market);
+		when(matchingEngineProperties.getDefaultAsset()).thenReturn(1);
 		when(orderMapper.selectById(orderId)).thenReturn(order);
 		when(exchangeApi.submitCommandAsync(any()))
 			.thenReturn(CompletableFuture.completedFuture(CommandResultCode.SUCCESS));
@@ -137,13 +154,16 @@ class OrderEventHandlerTest {
 	void testHandleOrderCreated_MarketOrderSuccess_NoMatchingTransition() {
 		// Given
 		Long orderId = 1002L;
-		OrderCreatedPayload payload = new OrderCreatedPayload(orderId, 123L, 1L, "OPEN");
+		OrderCreatedPayload payload = new OrderCreatedPayload(orderId, 123L, 1L, "YES", "OPEN");
 		DomainEventEnvelope<OrderCreatedPayload> event = new DomainEventEnvelope<>("event-2", "order", "Order",
 				"order-1002", "OrderCreated", System.currentTimeMillis(), null, payload);
 
 		Order order = createOrder(orderId, OrderStatus.OPEN, BigDecimal.valueOf(100), BigDecimal.valueOf(10));
+		order.setOutcome(Outcome.YES);
 		order.setOrderType(com.pig4cloud.pig.order.api.enums.OrderType.MARKET);
 
+		when(marketService.getMarket(order.getMarketId())).thenReturn(createMarket(order.getMarketId(), 101, 102));
+		when(matchingEngineProperties.getDefaultAsset()).thenReturn(1);
 		when(orderMapper.selectById(orderId)).thenReturn(order);
 		when(exchangeApi.submitCommandAsync(any()))
 			.thenReturn(CompletableFuture.completedFuture(CommandResultCode.SUCCESS));
@@ -160,12 +180,15 @@ class OrderEventHandlerTest {
 	void testHandleOrderCreated_OrderRejectedByEngine() {
 		// Given
 		Long orderId = 1001L;
-		OrderCreatedPayload payload = new OrderCreatedPayload(orderId, 123L, 1L, "OPEN");
+		OrderCreatedPayload payload = new OrderCreatedPayload(orderId, 123L, 1L, "YES", "OPEN");
 		DomainEventEnvelope<OrderCreatedPayload> event = new DomainEventEnvelope<>("event-1", "order", "Order",
 				"order-1001", "OrderCreated", System.currentTimeMillis(), null, payload);
 
 		Order order = createOrder(orderId, OrderStatus.OPEN, BigDecimal.valueOf(100), BigDecimal.valueOf(10));
+		order.setOutcome(Outcome.YES);
 
+		when(marketService.getMarket(order.getMarketId())).thenReturn(createMarket(order.getMarketId(), 101, 102));
+		when(matchingEngineProperties.getDefaultAsset()).thenReturn(1);
 		when(orderMapper.selectById(orderId)).thenReturn(order);
 		when(exchangeApi.submitCommandAsync(any()))
 			.thenReturn(CompletableFuture.completedFuture(CommandResultCode.MATCHING_UNSUPPORTED_COMMAND));
@@ -184,7 +207,7 @@ class OrderEventHandlerTest {
 	@Test
 	void testHandleOrderCreated_OrderNotFound() {
 		// Given
-		OrderCreatedPayload payload = new OrderCreatedPayload(9999L, 123L, 1L, "OPEN");
+		OrderCreatedPayload payload = new OrderCreatedPayload(9999L, 123L, 1L, "YES", "OPEN");
 		DomainEventEnvelope<OrderCreatedPayload> event = new DomainEventEnvelope<>("event-1", "order", "Order",
 				"order-9999", "OrderCreated", System.currentTimeMillis(), null, payload);
 
@@ -199,11 +222,12 @@ class OrderEventHandlerTest {
 	void testHandleOrderCreated_OrderNotInOpenState() {
 		// Given
 		Long orderId = 1001L;
-		OrderCreatedPayload payload = new OrderCreatedPayload(orderId, 123L, 1L, "OPEN");
+		OrderCreatedPayload payload = new OrderCreatedPayload(orderId, 123L, 1L, "YES", "OPEN");
 		DomainEventEnvelope<OrderCreatedPayload> event = new DomainEventEnvelope<>("event-1", "order", "Order",
 				"order-1001", "OrderCreated", System.currentTimeMillis(), null, payload);
 
 		Order order = createOrder(orderId, OrderStatus.MATCHING, BigDecimal.valueOf(100), BigDecimal.valueOf(10));
+		order.setOutcome(Outcome.YES);
 
 		when(orderMapper.selectById(orderId)).thenReturn(order);
 
@@ -218,7 +242,7 @@ class OrderEventHandlerTest {
 	@Test
 	void testHandleOrderCreated_InvalidPayload() {
 		// Given
-		OrderCreatedPayload payload = new OrderCreatedPayload(null, 123L, 1L, "OPEN");
+		OrderCreatedPayload payload = new OrderCreatedPayload(null, 123L, 1L, "YES", "OPEN");
 		DomainEventEnvelope<OrderCreatedPayload> event = new DomainEventEnvelope<>("event-1", "order", "Order",
 				"order-1001", "OrderCreated", System.currentTimeMillis(), null, payload);
 
@@ -243,8 +267,10 @@ class OrderEventHandlerTest {
 
 		Order order = createOrder(orderId, OrderStatus.CANCEL_REQUESTED, BigDecimal.valueOf(100),
 				BigDecimal.valueOf(10));
+		order.setOutcome(Outcome.YES);
 		order.setMarketId(marketId);
 
+		when(marketService.getMarket(order.getMarketId())).thenReturn(createMarket(order.getMarketId(), 101, 102));
 		when(orderMapper.selectById(orderId)).thenReturn(order);
 		when(exchangeApi.submitCommandAsync(any()))
 			.thenReturn(CompletableFuture.completedFuture(CommandResultCode.SUCCESS));
@@ -321,6 +347,14 @@ class OrderEventHandlerTest {
 		order.setRemainingQuantity(remainingQuantity);
 		order.setStatus(status);
 		return order;
+	}
+
+	private Market createMarket(Long marketId, Integer symbolIdYes, Integer symbolIdNo) {
+		Market market = new Market();
+		market.setMarketId(marketId);
+		market.setSymbolIdYes(symbolIdYes);
+		market.setSymbolIdNo(symbolIdNo);
+		return market;
 	}
 
 }

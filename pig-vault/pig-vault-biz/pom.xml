@@ -44,6 +44,10 @@
 		</dependency>
 		<dependency>
 			<groupId>com.pig4cloud</groupId>
+			<artifactId>pig-outbox-biz</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>com.pig4cloud</groupId>
 			<artifactId>pig-outbox-consumer</artifactId>
 		</dependency>
 		<!-- 安全模块 -->

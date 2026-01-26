@@ -25,6 +25,7 @@ import com.pig4cloud.pig.order.api.entity.Order;
 import com.pig4cloud.pig.order.api.entity.OrderFill;
 import com.pig4cloud.pig.order.api.enums.OrderStatus;
 import com.pig4cloud.pig.order.api.enums.OrderType;
+import com.pig4cloud.pig.order.api.enums.Outcome;
 import com.pig4cloud.pig.order.api.enums.Side;
 import com.pig4cloud.pig.order.api.enums.TimeInForce;
 import com.pig4cloud.pig.order.mapper.OrderFillMapper;
@@ -95,6 +96,7 @@ class OrderMatchingIntegrationTest extends BaseIntegrationTest {
 		CreateOrderRequest makerRequest = new CreateOrderRequest();
 		makerRequest.setUserId(100L);
 		makerRequest.setMarketId(1L);
+		makerRequest.setOutcome(Outcome.YES);
 		makerRequest.setSide(Side.SELL);
 		makerRequest.setType(OrderType.LIMIT);
 		makerRequest.setPrice(new BigDecimal("100.00"));
@@ -111,6 +113,7 @@ class OrderMatchingIntegrationTest extends BaseIntegrationTest {
 		CreateOrderRequest takerRequest = new CreateOrderRequest();
 		takerRequest.setUserId(200L);
 		takerRequest.setMarketId(1L);
+		takerRequest.setOutcome(Outcome.YES);
 		takerRequest.setSide(Side.BUY);
 		takerRequest.setType(OrderType.LIMIT);
 		takerRequest.setPrice(new BigDecimal("100.00"));
@@ -156,6 +159,7 @@ class OrderMatchingIntegrationTest extends BaseIntegrationTest {
 		CreateOrderRequest makerRequest = new CreateOrderRequest();
 		makerRequest.setUserId(100L);
 		makerRequest.setMarketId(1L);
+		makerRequest.setOutcome(Outcome.YES);
 		makerRequest.setSide(Side.SELL);
 		makerRequest.setType(OrderType.LIMIT);
 		makerRequest.setPrice(new BigDecimal("100.00"));
@@ -172,6 +176,7 @@ class OrderMatchingIntegrationTest extends BaseIntegrationTest {
 		CreateOrderRequest takerRequest = new CreateOrderRequest();
 		takerRequest.setUserId(200L);
 		takerRequest.setMarketId(1L);
+		takerRequest.setOutcome(Outcome.YES);
 		takerRequest.setSide(Side.BUY);
 		takerRequest.setType(OrderType.LIMIT);
 		takerRequest.setPrice(new BigDecimal("100.00"));
@@ -209,6 +214,7 @@ class OrderMatchingIntegrationTest extends BaseIntegrationTest {
 		CreateOrderRequest makerRequest = new CreateOrderRequest();
 		makerRequest.setUserId(100L);
 		makerRequest.setMarketId(1L);
+		makerRequest.setOutcome(Outcome.YES);
 		makerRequest.setSide(Side.SELL);
 		makerRequest.setType(OrderType.LIMIT);
 		makerRequest.setPrice(new BigDecimal("100.00"));
@@ -225,6 +231,7 @@ class OrderMatchingIntegrationTest extends BaseIntegrationTest {
 		CreateOrderRequest takerRequest = new CreateOrderRequest();
 		takerRequest.setUserId(200L);
 		takerRequest.setMarketId(1L);
+		takerRequest.setOutcome(Outcome.YES);
 		takerRequest.setSide(Side.BUY);
 		takerRequest.setType(OrderType.LIMIT);
 		takerRequest.setPrice(new BigDecimal("100.00"));

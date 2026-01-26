@@ -20,7 +20,9 @@ import cn.hutool.core.util.IdUtil;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.pig4cloud.pig.order.api.entity.Order;
 import com.pig4cloud.pig.order.api.enums.OrderStatus;
+import com.pig4cloud.pig.order.api.enums.Outcome;
 import com.pig4cloud.pig.order.mapper.OrderMapper;
+import com.pig4cloud.pig.order.service.MarketService;
 import com.pig4cloud.pig.outbox.api.annotation.DomainEventHandler;
 import com.pig4cloud.pig.outbox.api.model.DomainEventEnvelope;
 import com.pig4cloud.pig.outbox.api.payload.order.OrderCancelPayload;
@@ -53,6 +55,10 @@ public class OrderEventHandler {
 	private final ExchangeApi exchangeApi;
 
 	private final MatchingEngineSymbolService matchingEngineSymbolService;
+
+	private final MatchingEngineProperties matchingEngineProperties;
+
+	private final MarketService marketService;
 
 	private final DomainEventPublisher domainEventPublisher;
 
@@ -96,8 +102,8 @@ public class OrderEventHandler {
 			}
 
 			// 4. Submit order to matching engine
-			int symbolId = order.getMarketId().intValue();
-			matchingEngineSymbolService.ensureSymbol(symbolId);
+			int symbolId = resolveSymbolId(order);
+			matchingEngineSymbolService.ensureSymbol(symbolId, symbolId, matchingEngineProperties.getDefaultAsset());
 			ApiPlaceOrder placeOrderCmd = OrderCommandConverter.toApiPlaceOrder(order, symbolId);
 			CommandResultCode resultCode = exchangeApi.submitCommandAsync(placeOrderCmd).join();
 
@@ -177,7 +183,7 @@ public class OrderEventHandler {
 			}
 
 			// 4. Submit cancel to matching engine
-			int symbolId = marketId.intValue();
+			int symbolId = resolveSymbolId(order);
 			ApiCancelOrder cancelOrderCmd = OrderCommandConverter.toApiCancelOrder(orderId, userId, symbolId);
 			CommandResultCode resultCode = exchangeApi.submitCommandAsync(cancelOrderCmd).join();
 
@@ -216,6 +222,23 @@ public class OrderEventHandler {
 		);
 
 		domainEventPublisher.publish(event);
+	}
+
+	private int resolveSymbolId(Order order) {
+		if (order.getOutcome() == null) {
+			throw new IllegalStateException("Order outcome is required: orderId=" + order.getOrderId());
+		}
+
+		com.pig4cloud.pig.order.api.entity.Market market = marketService.getMarket(order.getMarketId());
+		if (market == null) {
+			throw new IllegalStateException("Market not found: " + order.getMarketId());
+		}
+
+		Integer symbolId = order.getOutcome() == Outcome.YES ? market.getSymbolIdYes() : market.getSymbolIdNo();
+		if (symbolId == null) {
+			throw new IllegalStateException("Market symbols not ready: marketId=" + order.getMarketId());
+		}
+		return symbolId;
 	}
 
 }

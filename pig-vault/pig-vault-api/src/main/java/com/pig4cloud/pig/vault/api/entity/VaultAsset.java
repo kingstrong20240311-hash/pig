@@ -53,6 +53,12 @@ public class VaultAsset implements Serializable {
 	private String symbol;
 
 	/**
+	 * Currency ID for exchange-core
+	 */
+	@Schema(description = "Currency ID")
+	private Integer currencyId;
+
+	/**
 	 * Decimal places
 	 */
 	@Schema(description = "Decimal places")

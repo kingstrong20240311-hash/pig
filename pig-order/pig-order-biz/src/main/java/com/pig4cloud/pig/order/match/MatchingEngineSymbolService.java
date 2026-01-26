@@ -44,11 +44,9 @@ public class MatchingEngineSymbolService {
 
 	private final ExchangeApi exchangeApi;
 
-	private final MatchingEngineProperties matchingEngineProperties;
-
 	private final ConcurrentHashMap<Integer, Boolean> registeredSymbols = new ConcurrentHashMap<>();
 
-	public void ensureSymbol(int symbolId) {
+	public void ensureSymbol(int symbolId, int baseCurrency, int quoteCurrency) {
 		if (registeredSymbols.putIfAbsent(symbolId, Boolean.TRUE) != null) {
 			return;
 		}
@@ -56,8 +54,8 @@ public class MatchingEngineSymbolService {
 		CoreSymbolSpecification symbolSpec = CoreSymbolSpecification.builder()
 			.symbolId(symbolId)
 			.type(SymbolType.CURRENCY_EXCHANGE_PAIR)
-			.baseCurrency(matchingEngineProperties.getDefaultAsset())
-			.quoteCurrency(matchingEngineProperties.getDefaultAsset())
+			.baseCurrency(baseCurrency)
+			.quoteCurrency(quoteCurrency)
 			.baseScaleK(DEFAULT_SCALE_K)
 			.quoteScaleK(DEFAULT_SCALE_K)
 			.takerFee(DEFAULT_FEE)

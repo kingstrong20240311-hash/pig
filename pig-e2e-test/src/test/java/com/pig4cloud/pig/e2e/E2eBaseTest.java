@@ -24,6 +24,7 @@ import com.pig4cloud.pig.order.api.dto.CreateMarketRequest;
 import com.pig4cloud.pig.order.api.dto.CreateOrderRequest;
 import com.pig4cloud.pig.order.api.enums.MarketStatus;
 import com.pig4cloud.pig.order.api.enums.OrderType;
+import com.pig4cloud.pig.order.api.enums.Outcome;
 import com.pig4cloud.pig.order.api.enums.Side;
 import com.pig4cloud.pig.order.api.enums.TimeInForce;
 import com.pig4cloud.pig.vault.api.dto.DepositRequest;
@@ -497,6 +498,7 @@ public abstract class E2eBaseTest {
 
 		CreateOrderRequest request = new CreateOrderRequest();
 		request.setMarketId(marketId);
+		request.setOutcome(Outcome.YES);
 		request.setSide(side);
 		request.setType(type);
 		request.setQuantity(quantity);
@@ -586,7 +588,12 @@ public abstract class E2eBaseTest {
 				if (statusObj != null) {
 					int status = statusObj instanceof Integer ? (Integer) statusObj : Integer.parseInt(statusObj.toString());
 					if (status == 1) { // ACTIVE
-						log.info("Market ID {} 已存在且为有效状态", TEST_MARKET_ID);
+						if (isMarketSymbolsReady(queryResponse)) {
+							log.info("Market ID {} 已存在且为有效状态", TEST_MARKET_ID);
+							return;
+						}
+						log.info("Market ID {} 已激活但 symbol 未就绪，等待异步准备", TEST_MARKET_ID);
+						waitForMarketReady(TEST_MARKET_ID);
 						return;
 					}
 				}
@@ -620,6 +627,7 @@ public abstract class E2eBaseTest {
 				Long marketId = ((Number) marketIdObj).longValue();
 				TEST_MARKET_ID = marketId;
 				log.info("使用已存在的有效 Market，ID: {}", TEST_MARKET_ID);
+				waitForMarketReady(TEST_MARKET_ID);
 				return;
 			}
 		}
@@ -629,6 +637,7 @@ public abstract class E2eBaseTest {
 		try {
 			Long createdMarketId = createMarket();
 			TEST_MARKET_ID = createdMarketId;
+			waitForMarketReady(TEST_MARKET_ID);
 			log.info("Market 创建成功，ID: {}，测试将使用此 Market", TEST_MARKET_ID);
 		} catch (Exception e) {
 			log.error("创建 Market 失败，可能是权限问题", e);
@@ -673,6 +682,32 @@ public abstract class E2eBaseTest {
 		String errorMsg = response.getBody().asString();
 		log.error("创建 Market 失败，状态码: {}, 响应: {}", response.getStatusCode(), errorMsg);
 		throw new IllegalStateException("创建 Market 失败: " + errorMsg);
+	}
+
+	private void waitForMarketReady(Long marketId) {
+		pollUntil(() -> authenticatedRequest()
+				.when()
+				.get("/order/market/" + marketId)
+				.then()
+				.extract()
+				.response(),
+			this::isMarketSymbolsReady,
+			"Market 未就绪：状态不为 ACTIVE 或 symbol 未就绪");
+	}
+
+	private boolean isMarketSymbolsReady(Response response) {
+		if (response.getStatusCode() != 200 || response.jsonPath().get("data") == null) {
+			return false;
+		}
+		Object statusObj = response.jsonPath().get("data.status");
+		if (statusObj == null) {
+			return false;
+		}
+		int status = statusObj instanceof Integer ? (Integer) statusObj : Integer.parseInt(statusObj.toString());
+		if (status != 1) {
+			return false;
+		}
+		return response.jsonPath().get("data.symbolIdYes") != null && response.jsonPath().get("data.symbolIdNo") != null;
 	}
 
 	/**

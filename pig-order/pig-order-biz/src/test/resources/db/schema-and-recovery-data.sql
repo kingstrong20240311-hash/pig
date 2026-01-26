@@ -5,6 +5,8 @@
 CREATE TABLE IF NOT EXISTS ord_market (
   market_id   BIGINT NOT NULL,
   name        VARCHAR(128) NOT NULL,
+  symbol_id_yes INT NULL,
+  symbol_id_no  INT NULL,
   status      TINYINT NOT NULL,
   expire_at   TIMESTAMP NULL,
 
@@ -22,6 +24,7 @@ CREATE TABLE IF NOT EXISTS ord_order (
   order_id           BIGINT NOT NULL,
   user_id            BIGINT NOT NULL,
   market_id          BIGINT NOT NULL,
+  outcome            TINYINT NOT NULL,
 
   side               TINYINT NOT NULL,
   order_type         TINYINT NOT NULL,
@@ -116,34 +119,35 @@ CREATE TABLE IF NOT EXISTS outbox_event (
 
 -- Recovery test data (inserted BEFORE app starts)
 
-INSERT INTO ord_market (market_id, name, status, expire_at, del_flag)
-VALUES (1, 'Test Market', 1, NULL, '0')
-ON DUPLICATE KEY UPDATE name = VALUES(name), status = VALUES(status), expire_at = VALUES(expire_at);
+INSERT INTO ord_market (market_id, name, symbol_id_yes, symbol_id_no, status, expire_at, del_flag)
+VALUES (1, 'Test Market', 101, 102, 1, NULL, '0')
+ON DUPLICATE KEY UPDATE name = VALUES(name), status = VALUES(status), expire_at = VALUES(expire_at),
+symbol_id_yes = VALUES(symbol_id_yes), symbol_id_no = VALUES(symbol_id_no);
 
 -- Insert MATCHING status orders
 INSERT INTO ord_order (
-    order_id, user_id, market_id,
+    order_id, user_id, market_id, outcome,
     side, order_type, price, quantity, remaining_quantity,
     status, time_in_force,
     idempotency_key, version, del_flag
 ) VALUES
-(1000, 100, 1, 1, 1, 90.00, 10.00, 10.00, 2, 1, 'recovery-matching-1', 0, '0'),
-(1001, 100, 1, 2, 1, 110.00, 5.00, 5.00, 2, 1, 'recovery-matching-2', 0, '0');
+(1000, 100, 1, 1, 1, 1, 90.00, 10.00, 10.00, 2, 1, 'recovery-matching-1', 0, '0'),
+(1001, 100, 1, 1, 2, 1, 110.00, 5.00, 5.00, 2, 1, 'recovery-matching-2', 0, '0');
 
 -- Insert OPEN status orders
 INSERT INTO ord_order (
-    order_id, user_id, market_id,
+    order_id, user_id, market_id, outcome,
     side, order_type, price, quantity, remaining_quantity,
     status, time_in_force,
     idempotency_key, version, del_flag
 ) VALUES
-(2000, 100, 1, 1, 1, 90.00, 10.00, 10.00, 1, 1, 'recovery-open-1', 0, '0');
+(2000, 100, 1, 1, 1, 1, 90.00, 10.00, 10.00, 1, 1, 'recovery-open-1', 0, '0');
 
 -- Insert PARTIALLY_FILLED status orders
 INSERT INTO ord_order (
-    order_id, user_id, market_id,
+    order_id, user_id, market_id, outcome,
     side, order_type, price, quantity, remaining_quantity,
     status, time_in_force,
     idempotency_key, version, del_flag
 ) VALUES
-(2001, 100, 1, 2, 1, 110.00, 10.00, 7.00, 3, 1, 'recovery-partial-1', 0, '0');
+(2001, 100, 1, 1, 2, 1, 110.00, 10.00, 7.00, 3, 1, 'recovery-partial-1', 0, '0');

@@ -40,6 +40,14 @@ public interface MarketService {
 	int expireDueMarkets(Instant now);
 
 	/**
+	 * Activate market after symbols are ready
+	 * @param marketId market ID
+	 * @param symbolIdYes YES symbol ID
+	 * @param symbolIdNo NO symbol ID
+	 */
+	void activateMarketWithSymbols(Long marketId, int symbolIdYes, int symbolIdNo);
+
+	/**
 	 * Create a new market
 	 * @param request create market request
 	 * @return market ID

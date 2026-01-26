@@ -15,7 +15,7 @@
  * Author: lengleng (wangiegie@gmail.com)
  */
 
-package com.pig4cloud.pig.outbox.api.payload.order;
+package com.pig4cloud.pig.outbox.api.payload.market;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonInclude;
@@ -24,9 +24,10 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.io.Serializable;
+import java.time.Instant;
 
 /**
- * OrderCreated 事件负载
+ * MarketCreated 事件负载
  *
  * @author pig4cloud
  * @date 2026-01-25
@@ -36,16 +37,12 @@ import java.io.Serializable;
 @AllArgsConstructor
 @JsonIgnoreProperties(ignoreUnknown = true)
 @JsonInclude(JsonInclude.Include.NON_NULL)
-public class OrderCreatedPayload implements Serializable {
-
-	private Long orderId;
-
-	private Long userId;
+public class MarketCreatedPayload implements Serializable {
 
 	private Long marketId;
 
-	private String outcome;
+	private String name;
 
-	private String status;
+	private Instant expireAt;
 
 }

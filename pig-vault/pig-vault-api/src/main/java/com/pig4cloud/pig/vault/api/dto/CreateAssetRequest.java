@@ -47,6 +47,12 @@ public class CreateAssetRequest implements Serializable {
 	private String symbol;
 
 	/**
+	 * Currency ID for exchange-core
+	 */
+	@Schema(description = "Currency ID", example = "1")
+	private Integer currencyId;
+
+	/**
 	 * Decimal places
 	 */
 	@NotNull(message = "Decimals cannot be null")

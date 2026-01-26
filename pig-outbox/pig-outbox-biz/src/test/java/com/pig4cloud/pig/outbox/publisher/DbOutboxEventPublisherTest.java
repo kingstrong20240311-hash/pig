@@ -64,7 +64,7 @@ class DbOutboxEventPublisherTest {
 	void setUp() {
 		testEvent = new DomainEventEnvelope<>("evt-001", "order", "Order", "order-123", "OrderMatched",
 				System.currentTimeMillis(), Map.of("userId", "user-1"),
-				new OrderCreatedPayload(1001L, 2001L, 3001L, "OPEN"));
+				new OrderCreatedPayload(1001L, 2001L, 3001L, "YES", "OPEN"));
 	}
 
 	@Test
@@ -102,7 +102,7 @@ class DbOutboxEventPublisherTest {
 		// Given
 		DomainEventEnvelope<OrderCreatedPayload> eventWithoutHeaders = new DomainEventEnvelope<>("evt-002", "order",
 				"Order", "order-456", "OrderCreated", System.currentTimeMillis(), null,
-				new OrderCreatedPayload(1002L, 2002L, 3002L, "OPEN"));
+				new OrderCreatedPayload(1002L, 2002L, 3002L, "YES", "OPEN"));
 
 		ArgumentCaptor<OutboxEvent> captor = ArgumentCaptor.forClass(OutboxEvent.class);
 

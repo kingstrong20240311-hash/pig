@@ -27,7 +27,8 @@ import com.pig4cloud.pig.vault.api.entity.VaultAsset;
 import com.pig4cloud.pig.vault.mapper.VaultAssetMapper;
 import com.pig4cloud.pig.vault.service.VaultAssetService;
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -40,10 +41,11 @@ import java.util.stream.Collectors;
  * @author luka
  * @date 2025-01-24
  */
-@Slf4j
 @Service
 @RequiredArgsConstructor
 public class VaultAssetServiceImpl implements VaultAssetService {
+
+	private static final Logger log = LoggerFactory.getLogger(VaultAssetServiceImpl.class);
 
 	private final VaultAssetMapper vaultAssetMapper;
 
@@ -61,6 +63,7 @@ public class VaultAssetServiceImpl implements VaultAssetService {
 		// Create new asset
 		VaultAsset asset = new VaultAsset();
 		asset.setSymbol(request.getSymbol().toUpperCase());
+		asset.setCurrencyId(request.getCurrencyId());
 		asset.setDecimals(request.getDecimals());
 		asset.setIsActive(request.getIsActive() != null ? request.getIsActive() : true);
 
@@ -174,6 +177,7 @@ public class VaultAssetServiceImpl implements VaultAssetService {
 		AssetResponse response = new AssetResponse();
 		response.setAssetId(asset.getAssetId());
 		response.setSymbol(asset.getSymbol());
+		response.setCurrencyId(asset.getCurrencyId());
 		response.setDecimals(asset.getDecimals());
 		response.setIsActive(asset.getIsActive());
 		response.setCreateTime(asset.getCreateTime() != null ? asset.getCreateTime().toEpochMilli() : null);

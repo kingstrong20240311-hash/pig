@@ -22,6 +22,7 @@ import com.pig4cloud.pig.order.api.entity.Order;
 import com.pig4cloud.pig.order.api.entity.Market;
 import com.pig4cloud.pig.order.api.enums.MarketStatus;
 import com.pig4cloud.pig.order.api.enums.OrderStatus;
+import com.pig4cloud.pig.order.api.enums.Outcome;
 import com.pig4cloud.pig.order.mapper.OrderMapper;
 import com.pig4cloud.pig.order.service.MarketService;
 import com.pig4cloud.pig.outbox.api.model.DomainEventEnvelope;
@@ -172,8 +173,8 @@ public class OrderStateRecoveryService {
 			return;
 		}
 
-		int symbolId = order.getMarketId().intValue();
-		matchingEngineSymbolService.ensureSymbol(symbolId);
+		int symbolId = resolveSymbolId(order, market);
+		matchingEngineSymbolService.ensureSymbol(symbolId, symbolId, matchingEngineProperties.getDefaultAsset());
 
 		// For OPEN orders, we need to update status to MATCHING after successful
 		// submission
@@ -224,6 +225,17 @@ public class OrderStateRecoveryService {
 		);
 
 		domainEventPublisher.publish(event);
+	}
+
+	private int resolveSymbolId(Order order, Market market) {
+		if (order.getOutcome() == null) {
+			throw new IllegalStateException("Order outcome is required: orderId=" + order.getOrderId());
+		}
+		Integer symbolId = order.getOutcome() == Outcome.YES ? market.getSymbolIdYes() : market.getSymbolIdNo();
+		if (symbolId == null) {
+			throw new IllegalStateException("Market symbols not ready: marketId=" + market.getMarketId());
+		}
+		return symbolId;
 	}
 
 }

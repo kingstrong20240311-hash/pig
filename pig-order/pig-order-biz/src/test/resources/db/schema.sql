@@ -4,6 +4,8 @@
 CREATE TABLE IF NOT EXISTS ord_market (
   market_id   BIGINT NOT NULL,
   name        VARCHAR(128) NOT NULL,
+  symbol_id_yes INT NULL,
+  symbol_id_no  INT NULL,
   status      TINYINT NOT NULL,
   expire_at   TIMESTAMP NULL,
 
@@ -21,6 +23,7 @@ CREATE TABLE IF NOT EXISTS ord_order (
   order_id           BIGINT NOT NULL,
   user_id            BIGINT NOT NULL,
   market_id          BIGINT NOT NULL,
+  outcome            TINYINT NOT NULL,
 
   side               TINYINT NOT NULL,
   order_type         TINYINT NOT NULL,
@@ -113,6 +116,7 @@ CREATE TABLE IF NOT EXISTS outbox_event (
     KEY idx_domain (domain, id)
 ) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COLLATE = utf8mb4_unicode_ci;
 
-INSERT INTO ord_market (market_id, name, status, expire_at, del_flag)
-VALUES (1, 'Test Market', 1, NULL, '0')
-ON DUPLICATE KEY UPDATE name = VALUES(name), status = VALUES(status), expire_at = VALUES(expire_at);
+INSERT INTO ord_market (market_id, name, symbol_id_yes, symbol_id_no, status, expire_at, del_flag)
+VALUES (1, 'Test Market', 101, 102, 1, NULL, '0')
+ON DUPLICATE KEY UPDATE name = VALUES(name), status = VALUES(status), expire_at = VALUES(expire_at),
+symbol_id_yes = VALUES(symbol_id_yes), symbol_id_no = VALUES(symbol_id_no);

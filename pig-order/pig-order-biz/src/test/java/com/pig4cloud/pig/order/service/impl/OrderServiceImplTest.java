@@ -22,10 +22,12 @@ import com.pig4cloud.pig.order.api.dto.CancelOrderRequest;
 import com.pig4cloud.pig.order.api.dto.CancelOrderResponse;
 import com.pig4cloud.pig.order.api.dto.CreateOrderRequest;
 import com.pig4cloud.pig.order.api.dto.CreateOrderResponse;
+import com.pig4cloud.pig.order.api.entity.Market;
 import com.pig4cloud.pig.order.api.entity.Order;
 import com.pig4cloud.pig.order.api.entity.OrderCancel;
 import com.pig4cloud.pig.order.api.enums.OrderStatus;
 import com.pig4cloud.pig.order.api.enums.OrderType;
+import com.pig4cloud.pig.order.api.enums.Outcome;
 import com.pig4cloud.pig.order.api.enums.Side;
 import com.pig4cloud.pig.order.api.enums.TimeInForce;
 import com.pig4cloud.pig.order.mapper.OrderCancelMapper;
@@ -37,7 +39,6 @@ import com.pig4cloud.pig.outbox.service.OutboxEventService;
 import com.pig4cloud.pig.vault.api.dto.FreezeResponse;
 import com.pig4cloud.pig.vault.api.feign.VaultService;
 import exchange.core2.core.ExchangeApi;
-import exchange.core2.core.common.cmd.CommandResultCode;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -48,12 +49,8 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.test.util.ReflectionTestUtils;
 
 import java.math.BigDecimal;
-import java.util.concurrent.CompletableFuture;
-
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.*;
 
@@ -109,6 +106,7 @@ class OrderServiceImplTest {
 		CreateOrderRequest request = new CreateOrderRequest();
 		request.setUserId(100L);
 		request.setMarketId(1L);
+		request.setOutcome(Outcome.YES);
 		request.setSide(Side.BUY);
 		request.setType(OrderType.LIMIT);
 		request.setPrice(new BigDecimal("100.00"));
@@ -119,6 +117,7 @@ class OrderServiceImplTest {
 		// Mock: no existing order
 		when(orderMapper.selectOne(any(LambdaQueryWrapper.class))).thenReturn(null);
 		doNothing().when(marketService).assertMarketActive(anyLong());
+		when(marketService.getMarket(anyLong())).thenReturn(buildMarket(1L));
 
 		// Mock: freeze success
 		FreezeResponse freezeResponse = new FreezeResponse();
@@ -157,6 +156,7 @@ class OrderServiceImplTest {
 		CreateOrderRequest request = new CreateOrderRequest();
 		request.setUserId(100L);
 		request.setMarketId(1L);
+		request.setOutcome(Outcome.YES);
 		request.setSide(Side.BUY);
 		request.setType(OrderType.LIMIT);
 		request.setPrice(new BigDecimal("100.00"));
@@ -167,6 +167,7 @@ class OrderServiceImplTest {
 		// Mock: no existing order
 		when(orderMapper.selectOne(any(LambdaQueryWrapper.class))).thenReturn(null);
 		doNothing().when(marketService).assertMarketActive(anyLong());
+		when(marketService.getMarket(anyLong())).thenReturn(buildMarket(1L));
 
 		// Mock: freeze failure (insufficient balance)
 		when(vaultService.createFreeze(any())).thenReturn(R.failed("Insufficient balance"));
@@ -185,6 +186,14 @@ class OrderServiceImplTest {
 		verify(vaultService, times(1)).createFreeze(any());
 		verify(orderMapper, never()).insert(any(Order.class));
 		verify(domainEventPublisher, never()).publish(any());
+	}
+
+	private Market buildMarket(Long marketId) {
+		Market market = new Market();
+		market.setMarketId(marketId);
+		market.setSymbolIdYes(101);
+		market.setSymbolIdNo(102);
+		return market;
 	}
 
 	/**

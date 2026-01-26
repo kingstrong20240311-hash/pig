@@ -21,10 +21,12 @@ import cn.hutool.core.util.StrUtil;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.pig4cloud.pig.common.core.util.R;
 import com.pig4cloud.pig.order.api.dto.*;
+import com.pig4cloud.pig.order.api.entity.Market;
 import com.pig4cloud.pig.order.api.entity.Order;
 import com.pig4cloud.pig.order.api.entity.OrderCancel;
 import com.pig4cloud.pig.order.api.enums.OrderStatus;
 import com.pig4cloud.pig.order.api.enums.OrderType;
+import com.pig4cloud.pig.order.api.enums.Outcome;
 import com.pig4cloud.pig.order.api.enums.TimeInForce;
 import com.pig4cloud.pig.order.mapper.OrderCancelMapper;
 import com.pig4cloud.pig.order.mapper.OrderMapper;
@@ -99,6 +101,15 @@ public class OrderServiceImpl implements OrderService {
 		// 3. Validate request
 		validateCreateOrderRequest(request);
 
+		Market market = marketService.getMarket(request.getMarketId());
+		if (market == null) {
+			throw new IllegalArgumentException("Market not found: " + request.getMarketId());
+		}
+		Integer symbolId = request.getOutcome() == Outcome.YES ? market.getSymbolIdYes() : market.getSymbolIdNo();
+		if (symbolId == null) {
+			throw new IllegalStateException("Market symbols not ready: " + request.getMarketId());
+		}
+
 		// 4. Generate order ID using configured workerId and datacenterId
 		Long orderId = IdUtil.getSnowflake(nodeId, DATACENTER_ID).nextId();
 
@@ -122,6 +133,7 @@ public class OrderServiceImpl implements OrderService {
 		order.setOrderId(orderId);
 		order.setUserId(request.getUserId());
 		order.setMarketId(request.getMarketId());
+		order.setOutcome(request.getOutcome());
 		order.setSide(request.getSide());
 		order.setOrderType(request.getType());
 		order.setPrice(request.getPrice());
@@ -205,6 +217,9 @@ public class OrderServiceImpl implements OrderService {
 	 */
 	private void validateCreateOrderRequest(CreateOrderRequest request) {
 		marketService.assertMarketActive(request.getMarketId());
+		if (request.getOutcome() == null) {
+			throw new IllegalArgumentException("Outcome is required");
+		}
 
 		// Validate LIMIT order must have price
 		if (request.getType() == OrderType.LIMIT && request.getPrice() == null) {
@@ -276,7 +291,8 @@ public class OrderServiceImpl implements OrderService {
 	 */
 	private void publishOrderCreatedEvent(Order order) {
 		OrderCreatedPayload payload = new OrderCreatedPayload(order.getOrderId(), order.getUserId(),
-				order.getMarketId(), order.getStatus().name());
+				order.getMarketId(), order.getOutcome() != null ? order.getOutcome().name() : null,
+				order.getStatus().name());
 
 		DomainEventEnvelope<OrderCreatedPayload> event = new DomainEventEnvelope<>(IdUtil.randomUUID(), // eventId
 				DOMAIN_ORDER, // domain
