@@ -27,6 +27,7 @@ import com.pig4cloud.pig.order.api.entity.Order;
 import com.pig4cloud.pig.order.api.entity.OrderFill;
 import com.pig4cloud.pig.order.api.enums.OrderStatus;
 import com.pig4cloud.pig.order.api.enums.OrderType;
+import com.pig4cloud.pig.order.api.enums.Outcome;
 import com.pig4cloud.pig.order.api.enums.Side;
 import com.pig4cloud.pig.order.api.enums.TimeInForce;
 import com.pig4cloud.pig.order.mapper.OrderFillMapper;
@@ -42,7 +43,6 @@ import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.test.context.jdbc.Sql;
 
 import java.math.BigDecimal;
-import java.util.Comparator;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 
@@ -93,7 +93,7 @@ class MatcherEndToEndTest extends BaseIntegrationTest {
 		// Given: Create multiple SELL orders at different prices
 		// Order 1: Price 102, Time T1
 		CreateOrderRequest sell1 = createOrder(Side.SELL, new BigDecimal("102.00"), new BigDecimal("5.00"), "sell-1");
-		CreateOrderResponse sellResp1 = orderService.createOrder(sell1);
+		orderService.createOrder(sell1);
 
 		// Order 2: Price 100, Time T2 (better price, later time)
 		CreateOrderRequest sell2 = createOrder(Side.SELL, new BigDecimal("100.00"), new BigDecimal("5.00"), "sell-2");
@@ -101,7 +101,7 @@ class MatcherEndToEndTest extends BaseIntegrationTest {
 
 		// Order 3: Price 101, Time T3
 		CreateOrderRequest sell3 = createOrder(Side.SELL, new BigDecimal("101.00"), new BigDecimal("5.00"), "sell-3");
-		CreateOrderResponse sellResp3 = orderService.createOrder(sell3);
+		orderService.createOrder(sell3);
 
 		// Order 4: Price 100, Time T4 (same price as Order 2, later time)
 		CreateOrderRequest sell4 = createOrder(Side.SELL, new BigDecimal("100.00"), new BigDecimal("5.00"), "sell-4");
@@ -152,6 +152,7 @@ class MatcherEndToEndTest extends BaseIntegrationTest {
 		CreateOrderRequest iocBuy = new CreateOrderRequest();
 		iocBuy.setUserId(100L);
 		iocBuy.setMarketId(1L);
+		iocBuy.setOutcome(Outcome.YES);
 		iocBuy.setSide(Side.BUY);
 		iocBuy.setType(OrderType.LIMIT);
 		iocBuy.setPrice(new BigDecimal("100.00"));
@@ -214,6 +215,7 @@ class MatcherEndToEndTest extends BaseIntegrationTest {
 		CreateOrderRequest request = new CreateOrderRequest();
 		request.setUserId(100L);
 		request.setMarketId(1L);
+		request.setOutcome(Outcome.YES);
 		request.setSide(side);
 		request.setType(OrderType.LIMIT);
 		request.setPrice(price);

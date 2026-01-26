@@ -28,10 +28,17 @@ CREATE TABLE IF NOT EXISTS vault_account (
 CREATE TABLE IF NOT EXISTS vault_asset (
     asset_id BIGINT PRIMARY KEY COMMENT 'Asset ID',
     symbol VARCHAR(32) NOT NULL UNIQUE COMMENT 'Asset symbol (e.g., USDC, ETH)',
+    currency_id INT NULL COMMENT 'Currency ID for exchange-core',
     decimals INT NOT NULL COMMENT 'Decimal places',
     is_active BOOLEAN NOT NULL DEFAULT TRUE COMMENT 'Is active',
     create_time TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT 'Create time'
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='Vault Asset Table';
+
+CREATE UNIQUE INDEX uk_vault_asset_currency_id ON vault_asset (currency_id);
+
+CREATE TABLE IF NOT EXISTS currency_id_seq (
+  id INT PRIMARY KEY AUTO_INCREMENT
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='Currency ID sequence';
 
 -- ==========================
 -- 3. vault_balance table

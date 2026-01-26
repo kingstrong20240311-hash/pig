@@ -38,6 +38,8 @@ import com.pig4cloud.pig.vault.mapper.VaultAssetMapper;
 import com.pig4cloud.pig.vault.service.VaultFreezeService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -51,10 +53,11 @@ import java.time.Instant;
  * @author luka
  * @date 2025-01-14
  */
-@Slf4j
 @Service
 @RequiredArgsConstructor
 public class VaultFreezeServiceImpl implements VaultFreezeService {
+
+	private static final Logger log = LoggerFactory.getLogger(VaultFreezeServiceImpl.class);
 
 	private final FreezeMapper freezeMapper;
 

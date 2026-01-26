@@ -17,15 +17,16 @@
 package com.pig4cloud.pig.order.match;
 
 import cn.hutool.core.util.IdUtil;
-import cn.hutool.json.JSONUtil;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.pig4cloud.pig.order.api.entity.Order;
 import com.pig4cloud.pig.order.api.entity.Market;
 import com.pig4cloud.pig.order.api.enums.MarketStatus;
 import com.pig4cloud.pig.order.api.enums.OrderStatus;
+import com.pig4cloud.pig.order.api.enums.Outcome;
 import com.pig4cloud.pig.order.mapper.OrderMapper;
 import com.pig4cloud.pig.order.service.MarketService;
 import com.pig4cloud.pig.outbox.api.model.DomainEventEnvelope;
+import com.pig4cloud.pig.outbox.api.payload.order.OrderCancelPayload;
 import com.pig4cloud.pig.outbox.api.publisher.DomainEventPublisher;
 import exchange.core2.core.ExchangeApi;
 import exchange.core2.core.common.api.ApiPlaceOrder;
@@ -41,9 +42,7 @@ import org.springframework.stereotype.Service;
 
 import java.time.Instant;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 
 import com.pig4cloud.pig.order.match.event.ExchangeCoreInitedEvent;
 
@@ -174,8 +173,8 @@ public class OrderStateRecoveryService {
 			return;
 		}
 
-		int symbolId = order.getMarketId().intValue();
-		matchingEngineSymbolService.ensureSymbol(symbolId);
+		int symbolId = resolveSymbolId(order, market);
+		matchingEngineSymbolService.ensureSymbol(symbolId, symbolId, matchingEngineProperties.getDefaultAsset());
 
 		// For OPEN orders, we need to update status to MATCHING after successful
 		// submission
@@ -212,26 +211,31 @@ public class OrderStateRecoveryService {
 	}
 
 	private void publishOrderCancelEvent(Order order, String reason) {
-		Map<String, Object> payload = new HashMap<>();
-		payload.put("orderId", order.getOrderId());
-		payload.put("userId", order.getUserId());
-		payload.put("marketId", order.getMarketId());
-		payload.put("status", order.getStatus().name());
-		if (reason != null) {
-			payload.put("reason", reason);
-		}
+		OrderCancelPayload payload = new OrderCancelPayload(order.getOrderId(), order.getUserId(),
+				order.getMarketId(), order.getStatus().name(), reason);
 
-		DomainEventEnvelope event = new DomainEventEnvelope(IdUtil.randomUUID(), // eventId
+		DomainEventEnvelope<OrderCancelPayload> event = new DomainEventEnvelope<>(IdUtil.randomUUID(), // eventId
 				DOMAIN_ORDER, // domain
 				AGG_TYPE_ORDER, // aggregateType
 				String.valueOf(order.getOrderId()), // aggregateId
 				EVENT_ORDER_CANCEL, // eventType
 				System.currentTimeMillis(), // occurredAt
 				null, // headers
-				JSONUtil.toJsonStr(payload) // payloadJson
+				payload // payload
 		);
 
 		domainEventPublisher.publish(event);
+	}
+
+	private int resolveSymbolId(Order order, Market market) {
+		if (order.getOutcome() == null) {
+			throw new IllegalStateException("Order outcome is required: orderId=" + order.getOrderId());
+		}
+		Integer symbolId = order.getOutcome() == Outcome.YES ? market.getSymbolIdYes() : market.getSymbolIdNo();
+		if (symbolId == null) {
+			throw new IllegalStateException("Market symbols not ready: marketId=" + market.getMarketId());
+		}
+		return symbolId;
 	}
 
 }

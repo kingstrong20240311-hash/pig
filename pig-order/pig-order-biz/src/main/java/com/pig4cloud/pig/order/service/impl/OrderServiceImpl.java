@@ -18,31 +18,28 @@ package com.pig4cloud.pig.order.service.impl;
 
 import cn.hutool.core.util.IdUtil;
 import cn.hutool.core.util.StrUtil;
-import cn.hutool.json.JSONUtil;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
-import com.pig4cloud.pig.common.core.exception.ErrorCodes;
 import com.pig4cloud.pig.common.core.util.R;
 import com.pig4cloud.pig.order.api.dto.*;
+import com.pig4cloud.pig.order.api.entity.Market;
 import com.pig4cloud.pig.order.api.entity.Order;
 import com.pig4cloud.pig.order.api.entity.OrderCancel;
 import com.pig4cloud.pig.order.api.enums.OrderStatus;
 import com.pig4cloud.pig.order.api.enums.OrderType;
+import com.pig4cloud.pig.order.api.enums.Outcome;
 import com.pig4cloud.pig.order.api.enums.TimeInForce;
 import com.pig4cloud.pig.order.mapper.OrderCancelMapper;
 import com.pig4cloud.pig.order.mapper.OrderMapper;
-import com.pig4cloud.pig.order.match.MatchingEngineSymbolService;
-import com.pig4cloud.pig.order.match.OrderCommandConverter;
 import com.pig4cloud.pig.order.service.MarketService;
 import com.pig4cloud.pig.order.service.OrderService;
 import com.pig4cloud.pig.outbox.api.model.DomainEventEnvelope;
+import com.pig4cloud.pig.outbox.api.payload.order.OrderCancelRequestedPayload;
+import com.pig4cloud.pig.outbox.api.payload.order.OrderCreatedPayload;
 import com.pig4cloud.pig.outbox.api.publisher.DomainEventPublisher;
 import com.pig4cloud.pig.vault.api.dto.CreateFreezeRequest;
-import com.pig4cloud.pig.vault.api.dto.FreezeLookupRequest;
 import com.pig4cloud.pig.vault.api.dto.FreezeResponse;
 import com.pig4cloud.pig.vault.api.enums.RefType;
 import com.pig4cloud.pig.vault.api.feign.VaultService;
-import exchange.core2.core.common.api.ApiCancelOrder;
-import exchange.core2.core.common.cmd.CommandResultCode;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -51,8 +48,6 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.time.Instant;
-import java.util.HashMap;
-import java.util.Map;
 
 /**
  * Order Service Implementation
@@ -106,6 +101,15 @@ public class OrderServiceImpl implements OrderService {
 		// 3. Validate request
 		validateCreateOrderRequest(request);
 
+		Market market = marketService.getMarket(request.getMarketId());
+		if (market == null) {
+			throw new IllegalArgumentException("Market not found: " + request.getMarketId());
+		}
+		Integer symbolId = request.getOutcome() == Outcome.YES ? market.getSymbolIdYes() : market.getSymbolIdNo();
+		if (symbolId == null) {
+			throw new IllegalStateException("Market symbols not ready: " + request.getMarketId());
+		}
+
 		// 4. Generate order ID using configured workerId and datacenterId
 		Long orderId = IdUtil.getSnowflake(nodeId, DATACENTER_ID).nextId();
 
@@ -129,6 +133,7 @@ public class OrderServiceImpl implements OrderService {
 		order.setOrderId(orderId);
 		order.setUserId(request.getUserId());
 		order.setMarketId(request.getMarketId());
+		order.setOutcome(request.getOutcome());
 		order.setSide(request.getSide());
 		order.setOrderType(request.getType());
 		order.setPrice(request.getPrice());
@@ -212,6 +217,9 @@ public class OrderServiceImpl implements OrderService {
 	 */
 	private void validateCreateOrderRequest(CreateOrderRequest request) {
 		marketService.assertMarketActive(request.getMarketId());
+		if (request.getOutcome() == null) {
+			throw new IllegalArgumentException("Outcome is required");
+		}
 
 		// Validate LIMIT order must have price
 		if (request.getType() == OrderType.LIMIT && request.getPrice() == null) {
@@ -282,20 +290,18 @@ public class OrderServiceImpl implements OrderService {
 	 * Publish OrderCreatedEvent via DomainEventPublisher
 	 */
 	private void publishOrderCreatedEvent(Order order) {
-		Map<String, Object> payload = new HashMap<>();
-		payload.put("orderId", order.getOrderId());
-		payload.put("userId", order.getUserId());
-		payload.put("marketId", order.getMarketId());
-		payload.put("status", order.getStatus().name());
+		OrderCreatedPayload payload = new OrderCreatedPayload(order.getOrderId(), order.getUserId(),
+				order.getMarketId(), order.getOutcome() != null ? order.getOutcome().name() : null,
+				order.getStatus().name());
 
-		DomainEventEnvelope event = new DomainEventEnvelope(IdUtil.randomUUID(), // eventId
+		DomainEventEnvelope<OrderCreatedPayload> event = new DomainEventEnvelope<>(IdUtil.randomUUID(), // eventId
 				DOMAIN_ORDER, // domain
 				AGG_TYPE_ORDER, // aggregateType
 				String.valueOf(order.getOrderId()), // aggregateId
 				"OrderCreated", // eventType
 				System.currentTimeMillis(), // occurredAt
 				null, // headers
-				JSONUtil.toJsonStr(payload) // payloadJson
+				payload // payload
 		);
 
 		domainEventPublisher.publish(event);
@@ -305,21 +311,17 @@ public class OrderServiceImpl implements OrderService {
 	 * Publish OrderCancelRequestedEvent via DomainEventPublisher
 	 */
 	private void publishOrderCancelRequestedEvent(Order order, String idempotencyKey) {
-		Map<String, Object> payload = new HashMap<>();
-		payload.put("orderId", order.getOrderId());
-		payload.put("userId", order.getUserId());
-		payload.put("marketId", order.getMarketId());
-		payload.put("status", order.getStatus().name());
-		payload.put("idempotencyKey", idempotencyKey);
+		OrderCancelRequestedPayload payload = new OrderCancelRequestedPayload(order.getOrderId(), order.getUserId(),
+				order.getMarketId(), order.getStatus().name(), idempotencyKey);
 
-		DomainEventEnvelope event = new DomainEventEnvelope(IdUtil.randomUUID(), // eventId
+		DomainEventEnvelope<OrderCancelRequestedPayload> event = new DomainEventEnvelope<>(IdUtil.randomUUID(), // eventId
 				DOMAIN_ORDER, // domain
 				AGG_TYPE_ORDER, // aggregateType
 				String.valueOf(order.getOrderId()), // aggregateId
 				"OrderCancelRequested", // eventType
 				System.currentTimeMillis(), // occurredAt
 				null, // headers
-				JSONUtil.toJsonStr(payload) // payloadJson
+				payload // payload
 		);
 
 		domainEventPublisher.publish(event);

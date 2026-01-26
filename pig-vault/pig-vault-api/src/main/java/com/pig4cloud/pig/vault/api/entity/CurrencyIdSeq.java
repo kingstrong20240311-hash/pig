@@ -17,59 +17,28 @@
  *
  */
 
-package com.pig4cloud.pig.vault.api.dto;
+package com.pig4cloud.pig.vault.api.entity;
 
-import io.swagger.v3.oas.annotations.media.Schema;
+import com.baomidou.mybatisplus.annotation.IdType;
+import com.baomidou.mybatisplus.annotation.TableId;
+import com.baomidou.mybatisplus.annotation.TableName;
 import lombok.Data;
 
 import java.io.Serializable;
 
 /**
- * Asset Response
+ * Currency ID sequence entity.
  *
- * @author luka
- * @date 2025-01-24
+ * @author pig4cloud
+ * @date 2026-01-25
  */
 @Data
-@Schema(description = "Asset Response")
-public class AssetResponse implements Serializable {
+@TableName("currency_id_seq")
+public class CurrencyIdSeq implements Serializable {
 
 	private static final long serialVersionUID = 1L;
 
-	/**
-	 * Asset ID
-	 */
-	@Schema(description = "Asset ID")
-	private Long assetId;
-
-	/**
-	 * Asset symbol (e.g., USDC, ETH)
-	 */
-	@Schema(description = "Asset symbol")
-	private String symbol;
-
-	/**
-	 * Currency ID for exchange-core
-	 */
-	@Schema(description = "Currency ID")
-	private Integer currencyId;
-
-	/**
-	 * Decimal places
-	 */
-	@Schema(description = "Decimal places")
-	private Integer decimals;
-
-	/**
-	 * Is active
-	 */
-	@Schema(description = "Is active")
-	private Boolean isActive;
-
-	/**
-	 * Create time
-	 */
-	@Schema(description = "Create time")
-	private Long createTime; // Unix timestamp in milliseconds
+	@TableId(value = "id", type = IdType.AUTO)
+	private Integer id;
 
 }

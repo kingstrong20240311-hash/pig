@@ -199,7 +199,14 @@ public class ExchangeCoreConfiguration {
 
 			List<Market> activeMarkets = marketService.listActiveMarkets(java.time.Instant.now());
 			for (Market market : activeMarkets) {
-				matchingEngineSymbolService.ensureSymbol(market.getMarketId().intValue());
+				if (market.getSymbolIdYes() != null) {
+					matchingEngineSymbolService.ensureSymbol(market.getSymbolIdYes(), market.getSymbolIdYes(),
+							matchingEngineProperties.getDefaultAsset());
+				}
+				if (market.getSymbolIdNo() != null) {
+					matchingEngineSymbolService.ensureSymbol(market.getSymbolIdNo(), market.getSymbolIdNo(),
+							matchingEngineProperties.getDefaultAsset());
+				}
 			}
 			log.info("Registered {} active markets in matching engine", activeMarkets.size());
 

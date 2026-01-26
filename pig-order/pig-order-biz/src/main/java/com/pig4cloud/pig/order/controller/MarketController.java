@@ -130,6 +130,8 @@ public class MarketController {
 		MarketDTO dto = new MarketDTO();
 		dto.setMarketId(market.getMarketId());
 		dto.setName(market.getName());
+		dto.setSymbolIdYes(market.getSymbolIdYes());
+		dto.setSymbolIdNo(market.getSymbolIdNo());
 		dto.setStatus(market.getStatus());
 		dto.setExpireAt(market.getExpireAt() != null ? market.getExpireAt().toEpochMilli() : null);
 		dto.setCreateTime(market.getCreateTime() != null ? market.getCreateTime().toEpochMilli() : null);

@@ -17,6 +17,7 @@
 package com.pig4cloud.pig.order.api.dto;
 
 import com.pig4cloud.pig.order.api.enums.OrderType;
+import com.pig4cloud.pig.order.api.enums.Outcome;
 import com.pig4cloud.pig.order.api.enums.Side;
 import com.pig4cloud.pig.order.api.enums.TimeInForce;
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -53,6 +54,13 @@ public class CreateOrderRequest implements Serializable {
 	@NotNull(message = "市场ID不能为空")
 	@Schema(description = "市场ID")
 	private Long marketId;
+
+	/**
+	 * Outcome: YES / NO
+	 */
+	@NotNull(message = "Outcome不能为空")
+	@Schema(description = "Outcome")
+	private Outcome outcome;
 
 	/**
 	 * Side: BUY / SELL

@@ -49,6 +49,12 @@ public class Market extends Model<Market> {
 	@Schema(description = "市场名称")
 	private String name;
 
+	@Schema(description = "YES 订单簿 symbolId")
+	private Integer symbolIdYes;
+
+	@Schema(description = "NO 订单簿 symbolId")
+	private Integer symbolIdNo;
+
 	@Schema(description = "市场状态")
 	private MarketStatus status;
 

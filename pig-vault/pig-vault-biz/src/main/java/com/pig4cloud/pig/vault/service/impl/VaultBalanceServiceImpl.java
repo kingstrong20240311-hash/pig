@@ -37,7 +37,8 @@ import com.pig4cloud.pig.vault.mapper.VaultAccountMapper;
 import com.pig4cloud.pig.vault.mapper.VaultAssetMapper;
 import com.pig4cloud.pig.vault.service.VaultBalanceService;
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -50,10 +51,11 @@ import java.math.BigDecimal;
  * @author luka
  * @date 2025-01-23
  */
-@Slf4j
 @Service
 @RequiredArgsConstructor
 public class VaultBalanceServiceImpl implements VaultBalanceService {
+
+	private static final Logger log = LoggerFactory.getLogger(VaultBalanceServiceImpl.class);
 
 	private final BalanceMapper balanceMapper;
 

@@ -27,6 +27,7 @@ import com.pig4cloud.pig.order.api.entity.Order;
 import com.pig4cloud.pig.order.api.entity.OrderCancel;
 import com.pig4cloud.pig.order.api.enums.OrderStatus;
 import com.pig4cloud.pig.order.api.enums.OrderType;
+import com.pig4cloud.pig.order.api.enums.Outcome;
 import com.pig4cloud.pig.order.api.enums.Side;
 import com.pig4cloud.pig.order.api.enums.TimeInForce;
 import com.pig4cloud.pig.order.mapper.OrderCancelMapper;
@@ -50,7 +51,6 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.awaitility.Awaitility.await;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
@@ -102,6 +102,7 @@ class OrderCancelTransactionIntegrationTest extends BaseIntegrationTest {
 		CreateOrderRequest createRequest = new CreateOrderRequest();
 		createRequest.setUserId(100L);
 		createRequest.setMarketId(1L);
+		createRequest.setOutcome(Outcome.YES);
 		createRequest.setSide(Side.BUY);
 		createRequest.setType(OrderType.LIMIT);
 		createRequest.setPrice(new BigDecimal("100.00"));
@@ -163,6 +164,7 @@ class OrderCancelTransactionIntegrationTest extends BaseIntegrationTest {
 		CreateOrderRequest createRequest = new CreateOrderRequest();
 		createRequest.setUserId(100L);
 		createRequest.setMarketId(1L);
+		createRequest.setOutcome(Outcome.YES);
 		createRequest.setSide(Side.BUY);
 		createRequest.setType(OrderType.LIMIT);
 		createRequest.setPrice(new BigDecimal("100.00"));
@@ -198,6 +200,7 @@ class OrderCancelTransactionIntegrationTest extends BaseIntegrationTest {
 		CreateOrderRequest createRequest = new CreateOrderRequest();
 		createRequest.setUserId(100L);
 		createRequest.setMarketId(1L);
+		createRequest.setOutcome(Outcome.YES);
 		createRequest.setSide(Side.BUY);
 		createRequest.setType(OrderType.LIMIT);
 		createRequest.setPrice(new BigDecimal("100.00"));

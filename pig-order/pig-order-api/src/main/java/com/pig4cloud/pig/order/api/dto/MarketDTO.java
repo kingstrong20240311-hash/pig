@@ -49,6 +49,18 @@ public class MarketDTO implements Serializable {
 	private String name;
 
 	/**
+	 * YES orderbook symbolId
+	 */
+	@Schema(description = "YES 订单簿 symbolId")
+	private Integer symbolIdYes;
+
+	/**
+	 * NO orderbook symbolId
+	 */
+	@Schema(description = "NO 订单簿 symbolId")
+	private Integer symbolIdNo;
+
+	/**
 	 * Market status
 	 */
 	@Schema(description = "市场状态")

@@ -25,11 +25,14 @@ import com.pig4cloud.pig.vault.api.dto.FreezeLookupRequest;
 import com.pig4cloud.pig.vault.api.enums.RefType;
 import com.pig4cloud.pig.vault.service.VaultFreezeService;
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.lang.reflect.Method;
 import java.util.Map;
+
 
 /**
  * Handle order lifecycle events for vault operations
@@ -37,10 +40,11 @@ import java.util.Map;
  * @author pig4cloud
  * @date 2026-01-24
  */
-@Slf4j
 @Service
 @RequiredArgsConstructor
 public class OrderCreatedEventHandler {
+
+	private static final Logger log = LoggerFactory.getLogger(OrderCreatedEventHandler.class);
 
 	private final VaultFreezeService vaultFreezeService;
 
@@ -52,14 +56,14 @@ public class OrderCreatedEventHandler {
 	@DomainEventHandler(domain = "order", eventType = "OrderCreated")
 	@Transactional(rollbackFor = Exception.class)
 	public void handleOrderCreated(DomainEventEnvelope event) {
-		log.info("Handling OrderCreated event in vault: eventId={}, aggregateId={}", event.eventId(),
-				event.aggregateId());
+		log.info("Handling OrderCreated event in vault: eventId={}, aggregateId={}", invokeMethod(event, "eventId"),
+				extractAggregateId(event));
 
 		try {
 			String orderId = extractOrderId(event);
 			if (orderId == null || orderId.isBlank()) {
-				log.error("Failed to extract orderId from event payload: eventId={}, payload={}", event.eventId(),
-						event.payloadJson());
+				log.error("Failed to extract orderId from event payload: eventId={}, payload={}",
+						invokeMethod(event, "eventId"), extractPayloadJson(event));
 				throw new IllegalArgumentException("Invalid payload: orderId not found");
 			}
 
@@ -69,47 +73,70 @@ public class OrderCreatedEventHandler {
 
 			vaultFreezeService.claimFreeze(request);
 
-			log.info("Freeze claimed for order: orderId={}, eventId={}", orderId, event.eventId());
+			log.info("Freeze claimed for order: orderId={}, eventId={}", orderId, invokeMethod(event, "eventId"));
 		}
 		catch (Exception e) {
-			log.error("Failed to handle OrderCreated event in vault: eventId={}, aggregateId={}", event.eventId(),
-					event.aggregateId(), e);
+			log.error("Failed to handle OrderCreated event in vault: eventId={}, aggregateId={}",
+					invokeMethod(event, "eventId"), extractAggregateId(event), e);
 			throw new RuntimeException("Failed to process OrderCreated event in vault", e);
 		}
 	}
 
 	private String extractOrderId(DomainEventEnvelope event) {
-		String orderId = parseOrderIdFromPayload(event.payloadJson());
-		if (orderId != null && !orderId.isBlank()) {
-			return orderId;
+		Map<String, Object> payload = extractPayloadMap(event);
+		if (payload != null && payload.get("orderId") != null) {
+			return String.valueOf(payload.get("orderId"));
 		}
-		return event.aggregateId();
+		return extractAggregateId(event);
 	}
 
-	private String parseOrderIdFromPayload(String payloadJson) {
+	private Map<String, Object> extractPayloadMap(DomainEventEnvelope event) {
+		Object payload = invokeMethod(event, "payload");
+		if (payload != null) {
+			return objectMapper.convertValue(payload, new TypeReference<Map<String, Object>>() {
+			});
+		}
+		String payloadJson = extractPayloadJson(event);
 		if (payloadJson == null || payloadJson.isBlank()) {
 			return null;
 		}
 		try {
-			Map<String, Object> payload = objectMapper.readValue(payloadJson,
-					new TypeReference<Map<String, Object>>() {
-					});
-			Object value = payload.get("orderId");
-			if (value == null) {
-				return null;
-			}
-			if (value instanceof Number) {
-				return String.valueOf(((Number) value).longValue());
-			}
-			if (value instanceof String) {
-				return (String) value;
-			}
-			return String.valueOf(value);
+			return objectMapper.readValue(payloadJson, new TypeReference<Map<String, Object>>() {
+			});
 		}
 		catch (Exception e) {
-			log.error("Failed to parse payload for orderId", e);
+			throw new IllegalArgumentException("Failed to parse payloadJson", e);
+		}
+	}
+
+	private String extractPayloadJson(DomainEventEnvelope event) {
+		String payloadJson = toStringOrNull(invokeMethod(event, "payloadJson"));
+		if (payloadJson != null) {
+			return payloadJson;
+		}
+		return toStringOrNull(invokeMethod(event, "getPayloadJson"));
+	}
+
+	private String extractAggregateId(DomainEventEnvelope event) {
+		String aggregateId = toStringOrNull(invokeMethod(event, "aggregateId"));
+		if (aggregateId != null) {
+			return aggregateId;
+		}
+		return toStringOrNull(invokeMethod(event, "getAggregateId"));
+	}
+
+	private Object invokeMethod(Object target, String methodName) {
+		try {
+			Method method = target.getClass().getMethod(methodName);
+			return method.invoke(target);
+		}
+		catch (Exception e) {
 			return null;
 		}
+	}
+
+	private String toStringOrNull(Object value) {
+		return value == null ? null : String.valueOf(value);
 	}
 
 }

@@ -14,8 +14,8 @@ INSERT INTO vault_account (account_id, user_id, account_type, status, create_tim
 VALUES (1001, 10001, 1, 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP);
 
 -- 2. Insert test asset (USDC)
-INSERT INTO vault_asset (asset_id, symbol, decimals, is_active, create_time)
-VALUES (1, 'USDC', 6, TRUE, CURRENT_TIMESTAMP);
+INSERT INTO vault_asset (asset_id, symbol, currency_id, decimals, is_active, create_time)
+VALUES (1, 'USDC', 1, 6, TRUE, CURRENT_TIMESTAMP);
 
 -- 3. Insert test balance (100 USDC available, 0 frozen)
 INSERT INTO vault_balance (balance_id, account_id, asset_id, available, frozen, version, update_time)

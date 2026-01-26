@@ -15,25 +15,33 @@
  * Author: lengleng (wangiegie@gmail.com)
  */
 
-package com.pig4cloud.pig.outbox.api.publisher;
+package com.pig4cloud.pig.outbox.api.payload.market;
 
-import com.pig4cloud.pig.outbox.api.model.DomainEventEnvelope;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.fasterxml.jackson.annotation.JsonInclude;
+import lombok.AllArgsConstructor;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+
+import java.io.Serializable;
 
 /**
- * 领域事件发布器统一接口
- * <p>
- * 业务代码只依赖此接口，运行时按profile切换实现： - 单体模式：InProcessEventPublisher（进程内总线） -
- * 微服务模式：DbOutboxEventPublisher（写MySQL outbox表）
+ * MarketAssetsReady 事件负载
  *
  * @author pig4cloud
- * @date 2025-01-15
+ * @date 2026-01-25
  */
-public interface DomainEventPublisher {
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
+@JsonIgnoreProperties(ignoreUnknown = true)
+@JsonInclude(JsonInclude.Include.NON_NULL)
+public class MarketAssetsReadyPayload implements Serializable {
 
-	/**
-	 * 发布领域事件
-	 * @param event 领域事件信封
-	 */
-	void publish(DomainEventEnvelope<?> event);
+	private Long marketId;
+
+	private Integer currencyIdYes;
+
+	private Integer currencyIdNo;
 
 }

@@ -33,6 +33,8 @@ DROP TABLE IF EXISTS `ord_market`;
 CREATE TABLE `ord_market` (
   `market_id`   BIGINT NOT NULL COMMENT '市场ID',
   `name`        VARCHAR(128) NOT NULL COMMENT '市场名称',
+  `symbol_id_yes` INT NULL COMMENT 'YES 订单簿 symbolId',
+  `symbol_id_no`  INT NULL COMMENT 'NO 订单簿 symbolId',
   `status`      TINYINT NOT NULL COMMENT '状态: 0=INACTIVE, 1=ACTIVE, 2=EXPIRED',
   `expire_at`   TIMESTAMP NULL COMMENT '市场过期时间',
 
@@ -54,6 +56,7 @@ CREATE TABLE `ord_order` (
   `order_id`           BIGINT NOT NULL COMMENT '订单ID',
   `user_id`            BIGINT NOT NULL COMMENT '用户ID',
   `market_id`          BIGINT NOT NULL COMMENT '市场ID',
+  `outcome`            TINYINT NOT NULL COMMENT '结果: 1=YES, 2=NO',
 
   `side`               TINYINT NOT NULL COMMENT '方向: 1=BUY, 2=SELL',
   `order_type`         TINYINT NOT NULL COMMENT '订单类型: 1=LIMIT, 2=MARKET',

@@ -35,7 +35,8 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpHeaders;
 import org.springframework.web.bind.annotation.*;
 
@@ -47,12 +48,13 @@ import jakarta.validation.Valid;
  * @author luka
  * @date 2025-01-14
  */
-@Slf4j
 @RestController
 @RequiredArgsConstructor
 @Tag(description = "vault", name = "Vault Management")
 @SecurityRequirement(name = HttpHeaders.AUTHORIZATION)
 public class VaultController {
+
+	private static final Logger log = LoggerFactory.getLogger(VaultController.class);
 
 	private final VaultFreezeService vaultFreezeService;
 

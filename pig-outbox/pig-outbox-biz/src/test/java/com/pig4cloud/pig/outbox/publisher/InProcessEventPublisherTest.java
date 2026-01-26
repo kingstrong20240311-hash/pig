@@ -19,6 +19,7 @@ package com.pig4cloud.pig.outbox.publisher;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.pig4cloud.pig.outbox.api.model.DomainEventEnvelope;
+import com.pig4cloud.pig.outbox.api.payload.order.OrderCreatedPayload;
 import com.pig4cloud.pig.outbox.entity.OutboxEvent;
 import com.pig4cloud.pig.outbox.enums.OutboxStatus;
 import com.pig4cloud.pig.outbox.service.OutboxEventService;
@@ -53,15 +54,15 @@ class InProcessEventPublisherTest {
 
 	private InProcessEventPublisher publisher;
 
-	private DomainEventEnvelope testEvent;
+	private DomainEventEnvelope<OrderCreatedPayload> testEvent;
 
 	@BeforeEach
 	void setUp() {
 		objectMapper = new ObjectMapper();
 		publisher = new InProcessEventPublisher(outboxEventService, objectMapper);
-		testEvent = new DomainEventEnvelope("evt-001", "order", "Order", "order-123", "OrderMatched",
-				System.currentTimeMillis(),
-				Map.of("userId", "user-1"), "{\"amount\":100}");
+		testEvent = new DomainEventEnvelope<>("evt-001", "order", "Order", "order-123", "OrderMatched",
+				System.currentTimeMillis(), Map.of("userId", "user-1"),
+				new OrderCreatedPayload(1001L, 2001L, 3001L, "YES", "OPEN"));
 	}
 
 	@Test
@@ -80,7 +81,8 @@ class InProcessEventPublisherTest {
 		assertThat(saved.getAggregateType()).isEqualTo("Order");
 		assertThat(saved.getAggregateId()).isEqualTo("order-123");
 		assertThat(saved.getEventType()).isEqualTo("OrderMatched");
-		assertThat(saved.getPayloadJson()).isEqualTo("{\"amount\":100}");
+		assertThat(saved.getPayloadJson()).contains("orderId");
+		assertThat(saved.getPayloadJson()).contains("1001");
 		assertThat(saved.getPartitionKey()).isEqualTo("order-123");
 		assertThat(saved.getStatus()).isEqualTo(OutboxStatus.PENDING);
 		assertThat(saved.getAttempts()).isEqualTo(0);
@@ -108,8 +110,9 @@ class InProcessEventPublisherTest {
 	@DisplayName("INP-003: publish handles null headers")
 	void publish_handles_null_headers() {
 		// Given
-		DomainEventEnvelope eventWithoutHeaders = new DomainEventEnvelope("evt-002", "order", "Order", "order-123",
-				"OrderMatched", System.currentTimeMillis(), null, "{\"amount\":100}");
+		DomainEventEnvelope<OrderCreatedPayload> eventWithoutHeaders = new DomainEventEnvelope<>("evt-002", "order",
+				"Order", "order-123", "OrderMatched", System.currentTimeMillis(), null,
+				new OrderCreatedPayload(1002L, 2002L, 3002L, "YES", "OPEN"));
 
 		// When
 		publisher.publish(eventWithoutHeaders);
