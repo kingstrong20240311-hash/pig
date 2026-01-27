@@ -30,7 +30,6 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.lang.reflect.Method;
-import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -213,7 +212,7 @@ class DomainEventRouterTest {
 		// Given
 		Map<String, String> headers = Map.of("userId", "user-1", "traceId", "trace-123");
 		DomainEventEnvelope envelope = new DomainEventEnvelope("evt-001", "order", "Order", "order-123", "OrderCreated",
-				Instant.now(), headers, "{\"amount\":100}");
+				System.currentTimeMillis(), headers, "{\"amount\":100}");
 		String messageValue = objectMapper.writeValueAsString(envelope);
 
 		Method method = TestHandler.class.getMethod("handle", DomainEventEnvelope.class);
@@ -237,7 +236,7 @@ class DomainEventRouterTest {
 	void route_handles_envelope_without_headers() throws Exception {
 		// Given
 		DomainEventEnvelope envelope = new DomainEventEnvelope("evt-001", "order", "Order", "order-123", "OrderCreated",
-				Instant.now(), null, "{\"amount\":100}");
+				System.currentTimeMillis(), null, "{\"amount\":100}");
 		String messageValue = objectMapper.writeValueAsString(envelope);
 
 		Method method = TestHandler.class.getMethod("handle", DomainEventEnvelope.class);
@@ -283,8 +282,8 @@ class DomainEventRouterTest {
 
 	// Helper method to create test envelope
 	private DomainEventEnvelope createTestEnvelope(String domain, String eventType) {
-		return new DomainEventEnvelope("evt-001", domain, "Order", "order-123", eventType, Instant.now(), null,
-				"{\"amount\":100}");
+		return new DomainEventEnvelope("evt-001", domain, "Order", "order-123", eventType, System.currentTimeMillis(),
+				null, "{\"amount\":100}");
 	}
 
 	// Test helper classes

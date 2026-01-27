@@ -39,11 +39,11 @@ import java.math.BigDecimal;
 public class CreateFreezeRequest {
 
 	/**
-	 * Account ID
+	 * User ID
 	 */
-	@NotNull(message = "Account ID cannot be null")
-	@Schema(description = "Account ID", requiredMode = Schema.RequiredMode.REQUIRED)
-	private Long accountId;
+	@NotNull(message = "User ID cannot be null")
+	@Schema(description = "User ID", requiredMode = Schema.RequiredMode.REQUIRED)
+	private Long userId;
 
 	/**
 	 * Asset symbol

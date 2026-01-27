@@ -32,6 +32,7 @@ import org.springframework.web.context.request.ServletRequestAttributes;
 import org.springframework.web.method.HandlerMethod;
 
 import java.nio.charset.StandardCharsets;
+import java.util.Objects;
 import java.util.Optional;
 
 /**
@@ -106,8 +107,14 @@ public class WebUtils extends org.springframework.web.util.WebUtils {
 	 * @return {HttpServletRequest}
 	 */
 	public Optional<HttpServletRequest> getRequest() {
-		return Optional
-			.ofNullable(((ServletRequestAttributes) RequestContextHolder.getRequestAttributes()).getRequest());
+		if (RequestContextHolder.getRequestAttributes() == null) {
+			return Optional.empty();
+		}
+		else {
+			return Optional
+				.of(((ServletRequestAttributes) Objects.requireNonNull(RequestContextHolder.getRequestAttributes()))
+					.getRequest());
+		}
 	}
 
 	/**

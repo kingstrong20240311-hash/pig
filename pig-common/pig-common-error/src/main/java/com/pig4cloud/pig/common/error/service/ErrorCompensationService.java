@@ -196,7 +196,7 @@ public class ErrorCompensationService {
 	private void handleCompensationFailure(ErrorRecord record, Exception e) {
 		// 提取实际的异常（处理反射调用时的 InvocationTargetException）
 		Throwable actualException = e.getCause() != null ? e.getCause() : e;
-		
+
 		int attempts = record.getAttempts() + 1;
 		record.setAttempts(attempts);
 		record.setErrorMessage(truncate(actualException.getMessage(), 500));

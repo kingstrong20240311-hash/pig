@@ -50,7 +50,6 @@ public enum ErrorRecordStatus {
 	DEAD("DEAD", "死信");
 
 	@EnumValue
-	@JsonValue
 	private final String value;
 
 	private final String description;

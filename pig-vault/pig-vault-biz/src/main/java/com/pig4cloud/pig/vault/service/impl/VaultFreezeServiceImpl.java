@@ -27,6 +27,7 @@ import com.pig4cloud.pig.vault.api.dto.FreezeResponse;
 import com.pig4cloud.pig.vault.api.entity.Balance;
 import com.pig4cloud.pig.vault.api.entity.Freeze;
 import com.pig4cloud.pig.vault.api.entity.LedgerEntry;
+import com.pig4cloud.pig.vault.api.entity.VaultAccount;
 import com.pig4cloud.pig.vault.api.entity.VaultAsset;
 import com.pig4cloud.pig.vault.api.enums.Direction;
 import com.pig4cloud.pig.vault.api.enums.FreezeStatus;
@@ -34,10 +35,13 @@ import com.pig4cloud.pig.vault.api.enums.LedgerType;
 import com.pig4cloud.pig.vault.mapper.BalanceMapper;
 import com.pig4cloud.pig.vault.mapper.FreezeMapper;
 import com.pig4cloud.pig.vault.mapper.LedgerEntryMapper;
+import com.pig4cloud.pig.vault.mapper.VaultAccountMapper;
 import com.pig4cloud.pig.vault.mapper.VaultAssetMapper;
 import com.pig4cloud.pig.vault.service.VaultFreezeService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -51,10 +55,11 @@ import java.time.Instant;
  * @author luka
  * @date 2025-01-14
  */
-@Slf4j
 @Service
 @RequiredArgsConstructor
 public class VaultFreezeServiceImpl implements VaultFreezeService {
+
+	private static final Logger log = LoggerFactory.getLogger(VaultFreezeServiceImpl.class);
 
 	private final FreezeMapper freezeMapper;
 
@@ -64,15 +69,25 @@ public class VaultFreezeServiceImpl implements VaultFreezeService {
 
 	private final VaultAssetMapper vaultAssetMapper;
 
+	private final VaultAccountMapper vaultAccountMapper;
+
 	@Override
 	@Transactional(rollbackFor = Exception.class)
 	public FreezeResponse createFreeze(CreateFreezeRequest request) {
-		// 0) Convert symbol to assetId
+		// 0) Get account by userId
+		VaultAccount account = vaultAccountMapper
+			.selectOne(Wrappers.<VaultAccount>lambdaQuery().eq(VaultAccount::getUserId, request.getUserId()));
+		if (account == null) {
+			throw new IllegalStateException("Account not found for userId=" + request.getUserId());
+		}
+		Long accountId = account.getAccountId();
+
+		// 1) Convert symbol to assetId
 		Long assetId = getAssetIdBySymbol(request.getSymbol());
 
-		// 1) Idempotency: try insert freeze (unique constraint on refType + refId)
+		// 2) Idempotency: try insert freeze (unique constraint on refType + refId)
 		Freeze freeze = new Freeze();
-		freeze.setAccountId(request.getAccountId());
+		freeze.setAccountId(accountId);
 		freeze.setAssetId(assetId);
 		freeze.setAmount(request.getAmount());
 		freeze.setStatus(FreezeStatus.HELD);
@@ -90,33 +105,34 @@ public class VaultFreezeServiceImpl implements VaultFreezeService {
 			return toFreezeResponse(existing);
 		}
 
-		// 2) Get balance with FOR UPDATE semantics (pessimistic lock)
+		// 3) Get balance with FOR UPDATE semantics (pessimistic lock)
 		Balance balance = balanceMapper.selectOne(Wrappers.<Balance>lambdaQuery()
-			.eq(Balance::getAccountId, request.getAccountId())
+			.eq(Balance::getAccountId, accountId)
 			.eq(Balance::getAssetId, assetId)
 			.last("FOR UPDATE"));
 
 		if (balance == null) {
-			throw new IllegalStateException(
-					"Balance not found for accountId=" + request.getAccountId() + ", symbol=" + request.getSymbol());
+			throw new IllegalStateException("Balance not found for userId=" + request.getUserId() + ", accountId="
+					+ accountId + ", symbol=" + request.getSymbol());
 		}
 
 		// Check available >= amount
 		if (balance.getAvailable().compareTo(request.getAmount()) < 0) {
+			log.error("Insufficient balance: userId={}, accountId={}, aval={} symbol={}, request={}",
+					request.getUserId(), accountId, balance.getAvailable(), request.getSymbol(), request.getAmount());
 			throw new IllegalStateException("Insufficient available balance");
 		}
 
-		// 3) Update balance (optimistic lock with version)
-		int rows = balanceMapper.freezeBalance(request.getAccountId(), assetId, request.getAmount(),
-				balance.getVersion());
+		// 4) Update balance (optimistic lock with version)
+		int rows = balanceMapper.freezeBalance(accountId, assetId, request.getAmount(), balance.getVersion());
 
 		if (rows != 1) {
 			throw new IllegalStateException("Concurrency conflict when updating balance");
 		}
 
-		// 4) Write ledger entry
+		// 5) Write ledger entry
 		LedgerEntry ledger = new LedgerEntry();
-		ledger.setAccountId(request.getAccountId());
+		ledger.setAccountId(accountId);
 		ledger.setAssetId(assetId);
 		ledger.setEntryType(LedgerType.FREEZE);
 		ledger.setDirection(Direction.DEBIT);
@@ -131,8 +147,8 @@ public class VaultFreezeServiceImpl implements VaultFreezeService {
 
 		ledgerEntryMapper.insert(ledger);
 
-		log.info("Freeze created successfully: freezeId={}, refType={}, refId={}", freeze.getFreezeId(),
-				request.getRefType(), request.getRefId());
+		log.info("Freeze created successfully: userId={}, accountId={}, freezeId={}, refType={}, refId={}",
+				request.getUserId(), accountId, freeze.getFreezeId(), request.getRefType(), request.getRefId());
 
 		return toFreezeResponse(freeze);
 	}
@@ -361,7 +377,7 @@ public class VaultFreezeServiceImpl implements VaultFreezeService {
 		response.setFreezeId(freeze.getFreezeId());
 		response.setStatus(freeze.getStatus());
 		response.setAmount(freeze.getAmount());
-		response.setClaimTime(freeze.getClaimTime());
+		response.setClaimTime(freeze.getClaimTime() != null ? freeze.getClaimTime().toEpochMilli() : null);
 		return response;
 	}
 
@@ -369,9 +385,8 @@ public class VaultFreezeServiceImpl implements VaultFreezeService {
 	 * Get asset ID by symbol
 	 */
 	private Long getAssetIdBySymbol(String symbol) {
-		VaultAsset asset = vaultAssetMapper.selectOne(Wrappers.<VaultAsset>lambdaQuery()
-			.eq(VaultAsset::getSymbol, symbol)
-			.eq(VaultAsset::getIsActive, true));
+		VaultAsset asset = vaultAssetMapper.selectOne(
+				Wrappers.<VaultAsset>lambdaQuery().eq(VaultAsset::getSymbol, symbol).eq(VaultAsset::getIsActive, true));
 
 		if (asset == null) {
 			throw new IllegalArgumentException("Asset not found or inactive for symbol: " + symbol);

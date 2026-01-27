@@ -19,13 +19,19 @@ package com.pig4cloud.pig.order.service.impl;
 import cn.hutool.core.util.IdUtil;
 import cn.hutool.json.JSONUtil;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
+import com.pig4cloud.pig.order.api.dto.CreateMarketRequest;
 import com.pig4cloud.pig.order.api.entity.Market;
 import com.pig4cloud.pig.order.api.entity.Order;
 import com.pig4cloud.pig.order.api.enums.MarketStatus;
 import com.pig4cloud.pig.order.api.enums.OrderStatus;
 import com.pig4cloud.pig.order.mapper.MarketMapper;
 import com.pig4cloud.pig.order.mapper.OrderMapper;
+import com.pig4cloud.pig.outbox.api.payload.market.MarketCreatedPayload;
 import com.pig4cloud.pig.order.service.MarketService;
+import com.pig4cloud.pig.outbox.api.model.DomainEventEnvelope;
+import com.pig4cloud.pig.outbox.api.payload.order.OrderCancelPayload;
+import com.pig4cloud.pig.order.event.MarketClosedPayload;
+import com.pig4cloud.pig.outbox.api.publisher.DomainEventPublisher;
 import com.pig4cloud.pig.outbox.entity.OutboxEvent;
 import com.pig4cloud.pig.outbox.enums.OutboxStatus;
 import com.pig4cloud.pig.outbox.service.OutboxEventService;
@@ -35,9 +41,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 
 /**
  * Market Service Implementation
@@ -54,11 +58,21 @@ public class MarketServiceImpl implements MarketService {
 
 	private static final String AGG_TYPE_MARKET = "Market";
 
+	private static final String DOMAIN_ORDER = "order";
+
+	private static final String AGG_TYPE_ORDER = "Order";
+
+	private static final String EVENT_ORDER_CANCEL = "OrderCancel";
+
+	private static final String EVENT_MARKET_CREATED = "MarketCreated";
+
 	private final MarketMapper marketMapper;
 
 	private final OrderMapper orderMapper;
 
 	private final OutboxEventService outboxEventService;
+
+	private final DomainEventPublisher domainEventPublisher;
 
 	@Override
 	public Market getMarket(Long marketId) {
@@ -79,6 +93,9 @@ public class MarketServiceImpl implements MarketService {
 		Instant now = Instant.now();
 		if (market.getStatus() != MarketStatus.ACTIVE) {
 			throw new IllegalStateException("Market is not active: " + marketId);
+		}
+		if (market.getSymbolIdYes() == null || market.getSymbolIdNo() == null) {
+			throw new IllegalStateException("Market symbols not ready: " + marketId);
 		}
 		if (market.getExpireAt() != null && !market.getExpireAt().isAfter(now)) {
 			throw new IllegalStateException("Market is expired: " + marketId);
@@ -116,13 +133,35 @@ public class MarketServiceImpl implements MarketService {
 		return expiredMarkets.size();
 	}
 
+	@Override
+	@Transactional(rollbackFor = Exception.class)
+	public void activateMarketWithSymbols(Long marketId, int symbolIdYes, int symbolIdNo) {
+		Market market = marketMapper.selectById(marketId);
+		if (market == null) {
+			throw new IllegalArgumentException("Market not found: " + marketId);
+		}
+
+		market.setSymbolIdYes(symbolIdYes);
+		market.setSymbolIdNo(symbolIdNo);
+		market.setStatus(MarketStatus.ACTIVE);
+		market.setUpdateTime(Instant.now());
+		marketMapper.updateById(market);
+
+		log.info("Market activated with symbols: marketId={}, symbolIdYes={}, symbolIdNo={}", marketId, symbolIdYes,
+				symbolIdNo);
+	}
+
 	private void expireOrdersForMarket(Long marketId) {
-		orderMapper.update(null,
-				Wrappers.<Order>lambdaUpdate()
-					.eq(Order::getMarketId, marketId)
-					.in(Order::getStatus, OrderStatus.OPEN, OrderStatus.MATCHING, OrderStatus.PARTIALLY_FILLED,
-							OrderStatus.CANCEL_REQUESTED)
-					.set(Order::getStatus, OrderStatus.EXPIRED));
+		List<Order> expiringOrders = orderMapper.selectList(Wrappers.<Order>lambdaQuery()
+			.eq(Order::getMarketId, marketId)
+			.in(Order::getStatus, OrderStatus.OPEN, OrderStatus.MATCHING, OrderStatus.PARTIALLY_FILLED,
+					OrderStatus.CANCEL_REQUESTED));
+
+		for (Order order : expiringOrders) {
+			order.setStatus(OrderStatus.EXPIRED);
+			orderMapper.updateById(order);
+			publishOrderCancelEvent(order, "Market expired");
+		}
 	}
 
 	private void publishMarketClosedEvent(Market market) {
@@ -133,10 +172,8 @@ public class MarketServiceImpl implements MarketService {
 		event.setAggregateId(String.valueOf(market.getMarketId()));
 		event.setEventType("MarketClosed");
 
-		Map<String, Object> payload = new HashMap<>();
-		payload.put("marketId", market.getMarketId());
-		payload.put("expireAt", market.getExpireAt());
-		payload.put("closedAt", Instant.now());
+		MarketClosedPayload payload = new MarketClosedPayload(market.getMarketId(), market.getExpireAt(),
+				Instant.now());
 		event.setPayloadJson(JSONUtil.toJsonStr(payload));
 
 		event.setPartitionKey(String.valueOf(market.getMarketId()));
@@ -146,6 +183,91 @@ public class MarketServiceImpl implements MarketService {
 		event.setUpdatedAt(Instant.now());
 
 		outboxEventService.save(event);
+	}
+
+	private void publishOrderCancelEvent(Order order, String reason) {
+		OrderCancelPayload payload = new OrderCancelPayload(order.getOrderId(), order.getUserId(), order.getMarketId(),
+				order.getStatus().name(), reason);
+
+		DomainEventEnvelope<OrderCancelPayload> event = new DomainEventEnvelope<>(IdUtil.randomUUID(), // eventId
+				DOMAIN_ORDER, // domain
+				AGG_TYPE_ORDER, // aggregateType
+				String.valueOf(order.getOrderId()), // aggregateId
+				EVENT_ORDER_CANCEL, // eventType
+				System.currentTimeMillis(), // occurredAt
+				null, // headers
+				payload // payload
+		);
+
+		domainEventPublisher.publish(event);
+	}
+
+	@Override
+	public Long createMarket(CreateMarketRequest request) {
+		Market market = new Market();
+		market.setName(request.getName());
+		market.setStatus(request.getStatus());
+		// Convert Long timestamp (milliseconds) to Instant
+		if (request.getExpireAt() != null) {
+			market.setExpireAt(Instant.ofEpochMilli(request.getExpireAt()));
+		}
+		market.setCreateTime(Instant.now());
+		market.setUpdateTime(Instant.now());
+
+		marketMapper.insert(market);
+		log.info("Created market: {}", market.getMarketId());
+
+		publishMarketCreatedEvent(market);
+
+		return market.getMarketId();
+	}
+
+	private void publishMarketCreatedEvent(Market market) {
+		Long expireAtMillis = null;
+		if (market.getExpireAt() != null) {
+			expireAtMillis = market.getExpireAt().toEpochMilli();
+		}
+		MarketCreatedPayload payload = new MarketCreatedPayload(market.getMarketId(), market.getName(), expireAtMillis);
+
+		DomainEventEnvelope<MarketCreatedPayload> event = new DomainEventEnvelope<>(IdUtil.randomUUID(), // eventId
+				DOMAIN_MARKET, // domain
+				AGG_TYPE_MARKET, // aggregateType
+				String.valueOf(market.getMarketId()), // aggregateId
+				EVENT_MARKET_CREATED, // eventType
+				System.currentTimeMillis(), // occurredAt
+				null, // headers
+				payload // payload
+		);
+
+		domainEventPublisher.publish(event);
+	}
+
+	@Override
+	public void updateMarketStatus(Long marketId, MarketStatus status) {
+		Market market = marketMapper.selectById(marketId);
+		if (market == null) {
+			throw new IllegalArgumentException("Market not found: " + marketId);
+		}
+
+		market.setStatus(status);
+		market.setUpdateTime(Instant.now());
+		marketMapper.updateById(market);
+
+		log.info("Updated market {} status to {}", marketId, status);
+	}
+
+	@Override
+	public void deleteMarket(Long marketId) {
+		Market market = marketMapper.selectById(marketId);
+		if (market == null) {
+			throw new IllegalArgumentException("Market not found: " + marketId);
+		}
+
+		market.setDelFlag("1");
+		market.setUpdateTime(Instant.now());
+		marketMapper.updateById(market);
+
+		log.info("Deleted market: {}", marketId);
 	}
 
 }

@@ -34,6 +34,6 @@ public interface DomainEventPublisher {
 	 * 发布领域事件
 	 * @param event 领域事件信封
 	 */
-	void publish(DomainEventEnvelope event);
+	void publish(DomainEventEnvelope<?> event);
 
 }

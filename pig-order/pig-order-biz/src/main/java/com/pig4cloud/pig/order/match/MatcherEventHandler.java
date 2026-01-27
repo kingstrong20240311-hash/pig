@@ -18,7 +18,6 @@ package com.pig4cloud.pig.order.match;
 
 import cn.hutool.core.util.IdUtil;
 import cn.hutool.core.util.StrUtil;
-import cn.hutool.json.JSONUtil;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.pig4cloud.pig.common.error.service.ErrorRecordService;
 import com.pig4cloud.pig.order.api.dto.CommitMatchRequest;
@@ -33,7 +32,9 @@ import com.pig4cloud.pig.order.mapper.OrderMapper;
 import com.pig4cloud.pig.order.match.dto.FailedReduceEventDTO;
 import com.pig4cloud.pig.order.match.dto.FailedRejectEventDTO;
 import com.pig4cloud.pig.order.match.dto.FailedTradeEventDTO;
+import com.pig4cloud.pig.order.match.dto.MatchCommittedPayload;
 import com.pig4cloud.pig.outbox.api.model.DomainEventEnvelope;
+import com.pig4cloud.pig.outbox.api.payload.order.OrderCancelPayload;
 import com.pig4cloud.pig.outbox.api.publisher.DomainEventPublisher;
 import exchange.core2.core.IEventsHandler;
 import lombok.RequiredArgsConstructor;
@@ -43,7 +44,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
-import java.time.Instant;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -67,6 +67,10 @@ public class MatcherEventHandler implements OrderMatchService {
 	private static final String DOMAIN_ORDER = "order";
 
 	private static final String AGG_TYPE_MATCH = "Match";
+
+	private static final String AGG_TYPE_ORDER = "Order";
+
+	private static final String EVENT_ORDER_CANCEL = "OrderCancel";
 
 	private final OrderMapper orderMapper;
 
@@ -165,10 +169,16 @@ public class MatcherEventHandler implements OrderMatchService {
 				return;
 			}
 
+			// note: No need to check previous status,
+			// because it has been checked before requesting cancel to matching engine
 			// Update order status based on whether it's completed
 			if (reduceEvent.orderCompleted) {
 				order.setStatus(OrderStatus.CANCELLED);
-				order.setRemainingQuantity(BigDecimal.ZERO);
+				// DO NOT set remainingQuantity to ZERO!
+				// remainingQuantity should preserve the amount that was NOT filled when
+				// cancelled
+				// This is critical for calculating filledQuantity = quantity -
+				// remainingQuantity
 			}
 			else {
 				// Partial cancel - update remaining quantity
@@ -178,6 +188,9 @@ public class MatcherEventHandler implements OrderMatchService {
 			}
 
 			orderMapper.updateById(order);
+			if (reduceEvent.orderCompleted) {
+				publishOrderCancelEvent(order, "Order cancelled");
+			}
 			log.info("Reduce event processed successfully: orderId={}, newStatus={}", reduceEvent.orderId,
 					order.getStatus());
 		}
@@ -225,6 +238,7 @@ public class MatcherEventHandler implements OrderMatchService {
 			order.setRejectReason("IOC order could not be filled at specified price");
 
 			orderMapper.updateById(order);
+			publishOrderCancelEvent(order, order.getRejectReason());
 			log.info("Reject event processed successfully: orderId={}", rejectEvent.orderId);
 		}
 		catch (Exception e) {
@@ -347,7 +361,12 @@ public class MatcherEventHandler implements OrderMatchService {
 				// Greater than 0: PARTIALLY_FILLED
 				makerOrder.setStatus(OrderStatus.PARTIALLY_FILLED);
 			}
-			orderMapper.updateById(makerOrder);
+			int rows = orderMapper.updateById(makerOrder);
+			if (rows != 1) {
+				throw new IllegalStateException("Failed to update maker order: orderId=" + makerOrder.getOrderId());
+			}
+			log.info("makerOrderId: {}, newMakerRemaining: {}, status: {}", makerOrder.getOrderId(), newMakerRemaining,
+					makerOrder.getStatus());
 
 			// Track maker order state
 			orderStates.put(makerOrder.getOrderId(), buildOrderStateDTO(makerOrder));
@@ -441,20 +460,37 @@ public class MatcherEventHandler implements OrderMatchService {
 	 * Publish MatchCommittedEvent via DomainEventPublisher
 	 */
 	private void publishMatchCommittedEvent(CommitMatchRequest request, Map<Long, OrderStateDTO> orderStates) {
-		Map<String, Object> payload = new HashMap<>();
-		payload.put("matchId", request.getMatchId());
-		payload.put("takerOrderId", request.getTakerOrderId());
-		payload.put("fills", request.getFills());
-		payload.put("orderStates", orderStates);
+		MatchCommittedPayload payload = new MatchCommittedPayload(request.getMatchId(), request.getTakerOrderId(),
+				request.getFills(), orderStates);
 
-		DomainEventEnvelope event = new DomainEventEnvelope(IdUtil.randomUUID(), // eventId
+		DomainEventEnvelope<MatchCommittedPayload> event = new DomainEventEnvelope<>(IdUtil.randomUUID(), // eventId
 				DOMAIN_ORDER, // domain
 				AGG_TYPE_MATCH, // aggregateType
 				request.getMatchId(), // aggregateId
 				"MatchCommitted", // eventType
-				Instant.now(), // occurredAt
+				System.currentTimeMillis(), // occurredAt
 				null, // headers
-				JSONUtil.toJsonStr(payload) // payloadJson
+				payload // payload
+		);
+
+		domainEventPublisher.publish(event);
+	}
+
+	/**
+	 * Publish OrderCancel event via DomainEventPublisher
+	 */
+	private void publishOrderCancelEvent(Order order, String reason) {
+		OrderCancelPayload payload = new OrderCancelPayload(order.getOrderId(), order.getUserId(), order.getMarketId(),
+				order.getStatus().name(), reason);
+
+		DomainEventEnvelope<OrderCancelPayload> event = new DomainEventEnvelope<>(IdUtil.randomUUID(), // eventId
+				DOMAIN_ORDER, // domain
+				AGG_TYPE_ORDER, // aggregateType
+				String.valueOf(order.getOrderId()), // aggregateId
+				EVENT_ORDER_CANCEL, // eventType
+				System.currentTimeMillis(), // occurredAt
+				null, // headers
+				payload // payload
 		);
 
 		domainEventPublisher.publish(event);

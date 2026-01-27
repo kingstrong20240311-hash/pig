@@ -58,6 +58,6 @@ public class FreezeResponse {
 	 * Claim time (only meaningful for create/claim operations)
 	 */
 	@Schema(description = "Claim time")
-	private Instant claimTime;
+	private Long claimTime;
 
 }

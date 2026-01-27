@@ -78,8 +78,8 @@ class HandlerRegistrationTest {
 		allHandlers.forEach((key, handlers) -> {
 			System.out.println("Key: " + key);
 			handlers.forEach(h -> {
-				System.out.println(
-						"  Handler: " + h.getBean().getClass().getSimpleName() + "." + h.getMethod().getName());
+				System.out
+					.println("  Handler: " + h.getBean().getClass().getSimpleName() + "." + h.getMethod().getName());
 			});
 		});
 

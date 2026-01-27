@@ -122,4 +122,64 @@ class OrderCommandConverterTest {
 		assertThat(apiOrder.reservePrice).isEqualTo(expectedReservePrice);
 	}
 
+	/**
+	 * U-04: Test MARKET BUY order uses maximum price
+	 */
+	@Test
+	@DisplayName("U-04: MARKET BUY order uses maximum price")
+	void testMarketBuyOrder() {
+		// Given: Market BUY order with null price
+		Order order = new Order();
+		order.setOrderId(1003L);
+		order.setUserId(100L);
+		order.setMarketId(1L);
+		order.setSide(Side.BUY);
+		order.setOrderType(OrderType.MARKET);
+		order.setPrice(null); // Market order has no price
+		order.setQuantity(new BigDecimal("10.00"));
+		order.setTimeInForce(TimeInForce.IOC);
+
+		int symbolId = 1;
+
+		// When
+		ApiPlaceOrder apiOrder = OrderCommandConverter.toApiPlaceOrder(order, symbolId);
+
+		// Then: Should use maximum price (10000 = 100.00 * 100)
+		long expectedPrice = 10000L;
+		long expectedReservePrice = 12000L; // 10000 * 1.2
+		assertThat(apiOrder.price).isEqualTo(expectedPrice);
+		assertThat(apiOrder.reservePrice).isEqualTo(expectedReservePrice);
+		assertThat(apiOrder.orderType).isEqualTo(exchange.core2.core.common.OrderType.IOC);
+	}
+
+	/**
+	 * U-05: Test MARKET SELL order uses minimum price
+	 */
+	@Test
+	@DisplayName("U-05: MARKET SELL order uses minimum price")
+	void testMarketSellOrder() {
+		// Given: Market SELL order with null price
+		Order order = new Order();
+		order.setOrderId(1004L);
+		order.setUserId(100L);
+		order.setMarketId(1L);
+		order.setSide(Side.SELL);
+		order.setOrderType(OrderType.MARKET);
+		order.setPrice(null); // Market order has no price
+		order.setQuantity(new BigDecimal("10.00"));
+		order.setTimeInForce(TimeInForce.IOC);
+
+		int symbolId = 1;
+
+		// When
+		ApiPlaceOrder apiOrder = OrderCommandConverter.toApiPlaceOrder(order, symbolId);
+
+		// Then: Should use minimum price (1 = 0.01 * 100)
+		long expectedPrice = 1L;
+		long expectedReservePrice = 0L; // 1 * 0.8 = 0.8 -> 0 (truncated to long)
+		assertThat(apiOrder.price).isEqualTo(expectedPrice);
+		assertThat(apiOrder.reservePrice).isEqualTo(expectedReservePrice);
+		assertThat(apiOrder.orderType).isEqualTo(exchange.core2.core.common.OrderType.IOC);
+	}
+
 }

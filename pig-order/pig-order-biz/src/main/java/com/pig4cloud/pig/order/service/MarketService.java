@@ -16,7 +16,9 @@
 
 package com.pig4cloud.pig.order.service;
 
+import com.pig4cloud.pig.order.api.dto.CreateMarketRequest;
 import com.pig4cloud.pig.order.api.entity.Market;
+import com.pig4cloud.pig.order.api.enums.MarketStatus;
 
 import java.time.Instant;
 import java.util.List;
@@ -36,5 +38,33 @@ public interface MarketService {
 	List<Market> listActiveMarkets(Instant now);
 
 	int expireDueMarkets(Instant now);
+
+	/**
+	 * Activate market after symbols are ready
+	 * @param marketId market ID
+	 * @param symbolIdYes YES symbol ID
+	 * @param symbolIdNo NO symbol ID
+	 */
+	void activateMarketWithSymbols(Long marketId, int symbolIdYes, int symbolIdNo);
+
+	/**
+	 * Create a new market
+	 * @param request create market request
+	 * @return market ID
+	 */
+	Long createMarket(CreateMarketRequest request);
+
+	/**
+	 * Update market status
+	 * @param marketId market ID
+	 * @param status new status
+	 */
+	void updateMarketStatus(Long marketId, MarketStatus status);
+
+	/**
+	 * Delete market (soft delete)
+	 * @param marketId market ID
+	 */
+	void deleteMarket(Long marketId);
 
 }

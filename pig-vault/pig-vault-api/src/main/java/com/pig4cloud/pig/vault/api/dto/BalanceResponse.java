@@ -23,7 +23,6 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Data;
 
 import java.math.BigDecimal;
-import java.time.Instant;
 
 /**
  * Balance Response DTO
@@ -72,9 +71,9 @@ public class BalanceResponse {
 	private BigDecimal frozen;
 
 	/**
-	 * Update time
+	 * Update time - Unix timestamp in milliseconds
 	 */
 	@Schema(description = "Update time")
-	private Instant updateTime;
+	private Long updateTime;
 
 }

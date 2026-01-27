@@ -25,6 +25,7 @@ import com.baomidou.mybatisplus.annotation.Version;
 import com.baomidou.mybatisplus.extension.activerecord.Model;
 import com.pig4cloud.pig.order.api.enums.OrderStatus;
 import com.pig4cloud.pig.order.api.enums.OrderType;
+import com.pig4cloud.pig.order.api.enums.Outcome;
 import com.pig4cloud.pig.order.api.enums.Side;
 import com.pig4cloud.pig.order.api.enums.TimeInForce;
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -68,6 +69,12 @@ public class Order extends Model<Order> {
 	 */
 	@Schema(description = "市场ID")
 	private Long marketId;
+
+	/**
+	 * Outcome: YES / NO
+	 */
+	@Schema(description = "Outcome: YES / NO")
+	private Outcome outcome;
 
 	/**
 	 * Side: BUY / SELL

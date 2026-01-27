@@ -41,6 +41,16 @@ public class OutboxDispatcherProperties {
 	private int batchSize = 100;
 
 	/**
+	 * 调度间隔（毫秒）
+	 */
+	private long dispatchIntervalMs = 1000;
+
+	/**
+	 * 首次调度延迟（毫秒）
+	 */
+	private long initialDelayMs = 1000;
+
+	/**
 	 * 锁超时时间（秒）
 	 */
 	private int lockTimeoutSeconds = 60;

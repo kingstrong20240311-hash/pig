@@ -18,6 +18,7 @@ package com.pig4cloud.pig.common.error;
 
 import com.baomidou.mybatisplus.autoconfigure.MybatisPlusAutoConfiguration;
 import com.pig4cloud.pig.common.error.config.ErrorRecordAutoConfiguration;
+import com.pig4cloud.pig.common.mybatis.MybatisAutoConfiguration;
 import org.springframework.boot.autoconfigure.jackson.JacksonAutoConfiguration;
 import org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration;
 import org.springframework.boot.autoconfigure.web.servlet.WebMvcAutoConfiguration;
@@ -38,7 +39,8 @@ import org.testcontainers.junit.jupiter.Testcontainers;
  * @date 2026-01-21
  */
 @SpringBootTest(classes = { ErrorRecordAutoConfiguration.class, DataSourceAutoConfiguration.class,
-		MybatisPlusAutoConfiguration.class, JacksonAutoConfiguration.class, WebMvcAutoConfiguration.class })
+		MybatisPlusAutoConfiguration.class, MybatisAutoConfiguration.class, JacksonAutoConfiguration.class,
+		WebMvcAutoConfiguration.class })
 @Testcontainers
 public abstract class BaseIntegrationTest {
 

@@ -64,14 +64,16 @@ class SpringContextDebugTest {
 	void verifyAllBeansAreLoaded() {
 		System.out.println("=== All Bean Names ===");
 		String[] beanNames = applicationContext.getBeanDefinitionNames();
-		Arrays.stream(beanNames).filter(name -> name.contains("outbox") || name.contains("domain") || name.contains("event")
-				|| name.contains("kafka") || name.contains("handler")).sorted().forEach(System.out::println);
+		Arrays.stream(beanNames)
+			.filter(name -> name.contains("outbox") || name.contains("domain") || name.contains("event")
+					|| name.contains("kafka") || name.contains("handler"))
+			.sorted()
+			.forEach(System.out::println);
 
 		System.out.println("\n=== Checking Critical Beans ===");
 
 		// Check EventHandlerRegistry
-		assertThat(applicationContext.containsBean("eventHandlerRegistry"))
-			.as("EventHandlerRegistry bean should exist")
+		assertThat(applicationContext.containsBean("eventHandlerRegistry")).as("EventHandlerRegistry bean should exist")
 			.isTrue();
 		EventHandlerRegistry registry = applicationContext.getBean(EventHandlerRegistry.class);
 		System.out.println("✓ EventHandlerRegistry found");
@@ -91,7 +93,8 @@ class SpringContextDebugTest {
 		System.out.println("✓ DomainEventKafkaListener found");
 
 		// Check OutboxConsumerProperties
-		assertThat(applicationContext.containsBean("pig.outbox.consumer-com.pig4cloud.pig.outbox.consumer.config.OutboxConsumerProperties"))
+		assertThat(applicationContext
+			.containsBean("pig.outbox.consumer-com.pig4cloud.pig.outbox.consumer.config.OutboxConsumerProperties"))
 			.as("OutboxConsumerProperties bean should exist")
 			.isTrue();
 		OutboxConsumerProperties properties = applicationContext.getBean(OutboxConsumerProperties.class);

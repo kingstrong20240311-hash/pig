@@ -40,7 +40,6 @@ public enum OrderType {
 	MARKET(2, "MARKET");
 
 	@EnumValue
-	@JsonValue
 	private final int code;
 
 	private final String description;

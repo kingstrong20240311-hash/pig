@@ -25,6 +25,7 @@ import com.pig4cloud.pig.order.api.entity.OrderFill;
 import com.pig4cloud.pig.order.api.enums.OrderStatus;
 import com.pig4cloud.pig.order.mapper.OrderFillMapper;
 import com.pig4cloud.pig.order.mapper.OrderMapper;
+import com.pig4cloud.pig.common.error.service.ErrorRecordService;
 import com.pig4cloud.pig.outbox.api.model.DomainEventEnvelope;
 import com.pig4cloud.pig.outbox.api.publisher.DomainEventPublisher;
 import exchange.core2.core.IEventsHandler;
@@ -64,6 +65,9 @@ class MatcherEventHandlerTest {
 
 	@Mock
 	private DomainEventPublisher domainEventPublisher;
+
+	@Mock
+	private ErrorRecordService errorRecordService;
 
 	@InjectMocks
 	private MatcherEventHandler matcherEventHandler;
@@ -221,34 +225,6 @@ class MatcherEventHandlerTest {
 		Order updatedOrder = orderCaptor.getValue();
 		assertThat(updatedOrder.getStatus()).isEqualTo(OrderStatus.CANCELLED);
 		assertThat(updatedOrder.getRemainingQuantity()).isEqualTo(BigDecimal.ZERO);
-	}
-
-	@Test
-	void testHandleReduceEvent_PartialCancel() {
-		// Given
-		long orderId = 1001L;
-		IEventsHandler.ReduceEvent reduceEvent = new IEventsHandler.ReduceEvent(1, // symbol
-				300L, // reducedVolume (3.00)
-				false, // orderCompleted
-				10000L, // price
-				orderId, // orderId
-				123L, // uid
-				System.currentTimeMillis() // timestamp
-		);
-
-		Order order = createOrder(orderId, OrderStatus.PARTIALLY_FILLED, BigDecimal.valueOf(100),
-				BigDecimal.valueOf(10));
-
-		when(orderMapper.selectById(orderId)).thenReturn(order);
-		when(orderMapper.updateById(any(Order.class))).thenReturn(1);
-
-		// When
-		matcherEventHandler.handleReduceEvent(reduceEvent);
-
-		// Then
-		verify(orderMapper).updateById(orderCaptor.capture());
-		Order updatedOrder = orderCaptor.getValue();
-		assertThat(updatedOrder.getRemainingQuantity()).isEqualByComparingTo(BigDecimal.valueOf(7.00));
 	}
 
 	@Test

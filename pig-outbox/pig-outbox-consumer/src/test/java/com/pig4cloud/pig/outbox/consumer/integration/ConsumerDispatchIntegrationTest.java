@@ -50,7 +50,6 @@ import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 import org.testcontainers.utility.DockerImageName;
 
-import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -73,7 +72,8 @@ import static org.awaitility.Awaitility.await;
 @SpringBootTest
 @Testcontainers
 @DisplayName("I-02: Consumer Dispatch Integration")
-@Import({ EventHandlerAutoConfiguration.class, EventHandlerScannerConfiguration.class, OutboxConsumerAutoConfiguration.class })
+@Import({ EventHandlerAutoConfiguration.class, EventHandlerScannerConfiguration.class,
+		OutboxConsumerAutoConfiguration.class })
 class ConsumerDispatchIntegrationTest {
 
 	@Container
@@ -98,10 +98,10 @@ class ConsumerDispatchIntegrationTest {
 		// Clear test handler invocations
 		TestOrderEventHandler.invocations.clear();
 		TestVaultEventHandler.invocations.clear();
-		
+
 		// 确保 topics 存在
 		ensureTopicsExist("domain.order", "domain.vault");
-		
+
 		// 等待 Kafka 监听器发现并订阅 topics
 		TimeUnit.SECONDS.sleep(3);
 	}
@@ -114,8 +114,8 @@ class ConsumerDispatchIntegrationTest {
 
 		// Given - Create DomainEventEnvelope
 		Map<String, String> headers = Map.of("userId", "user-1", "traceId", "trace-123");
-		DomainEventEnvelope envelope = new DomainEventEnvelope("evt-001", "order", "Order", "order-123",
-				"OrderCreated", Instant.now(), headers, "{\"amount\":100}");
+		DomainEventEnvelope envelope = new DomainEventEnvelope("evt-001", "order", "Order", "order-123", "OrderCreated",
+				System.currentTimeMillis(), headers, "{\"amount\":100}");
 
 		// When - Produce message to Kafka
 		String topic = "domain.order";
@@ -141,11 +141,11 @@ class ConsumerDispatchIntegrationTest {
 	void consumer_routes_different_event_types_to_correct_handlers() throws Exception {
 		// Given - Create OrderCreated event
 		DomainEventEnvelope orderEvent = new DomainEventEnvelope("evt-order-1", "order", "Order", "order-123",
-				"OrderCreated", Instant.now(), null, "{\"amount\":100}");
+				"OrderCreated", System.currentTimeMillis(), null, "{\"amount\":100}");
 
 		// And - Create VaultCreated event
 		DomainEventEnvelope vaultEvent = new DomainEventEnvelope("evt-vault-1", "vault", "Vault", "vault-123",
-				"VaultCreated", Instant.now(), null, "{\"balance\":1000}");
+				"VaultCreated", System.currentTimeMillis(), null, "{\"balance\":1000}");
 
 		// When - Produce both messages
 		produceMessage("domain.order", "order-123", objectMapper.writeValueAsString(orderEvent));
@@ -164,10 +164,13 @@ class ConsumerDispatchIntegrationTest {
 
 	@Autowired
 	ApplicationContext applicationContext;
+
 	@Autowired
 	EventHandlerRegistry registry;
 
-	@Autowired ApplicationContext ctx;
+	@Autowired
+	ApplicationContext ctx;
+
 	@Autowired
 	KafkaListenerEndpointRegistry kafkaRegistry;
 
@@ -183,7 +186,7 @@ class ConsumerDispatchIntegrationTest {
 		List<DomainEventEnvelope> events = new ArrayList<>();
 		for (int i = 1; i <= 3; i++) {
 			DomainEventEnvelope envelope = new DomainEventEnvelope("evt-00" + i, "order", "Order", "order-" + i,
-					"OrderCreated", Instant.now(), null, "{\"orderId\":" + i + "}");
+					"OrderCreated", System.currentTimeMillis(), null, "{\"orderId\":" + i + "}");
 			events.add(envelope);
 		}
 
@@ -210,7 +213,7 @@ class ConsumerDispatchIntegrationTest {
 		List<DomainEventEnvelope> events = new ArrayList<>();
 		for (int i = 1; i <= 5; i++) {
 			DomainEventEnvelope envelope = new DomainEventEnvelope("evt-seq-" + i, "order", "Order", aggregateId,
-					"OrderUpdated", Instant.now(), null, "{\"sequence\":" + i + "}");
+					"OrderUpdated", System.currentTimeMillis(), null, "{\"sequence\":" + i + "}");
 			events.add(envelope);
 		}
 
@@ -248,19 +251,19 @@ class ConsumerDispatchIntegrationTest {
 	private void ensureTopicsExist(String... topicNames) throws Exception {
 		Map<String, Object> adminConfig = new HashMap<>();
 		adminConfig.put(AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG, kafka.getBootstrapServers());
-		
+
 		try (AdminClient adminClient = AdminClient.create(adminConfig)) {
 			Set<String> existingTopics = adminClient.listTopics().names().get();
-			
+
 			List<NewTopic> topicsToCreate = Arrays.stream(topicNames)
 				.filter(name -> !existingTopics.contains(name))
 				.map(name -> new NewTopic(name, 1, (short) 1))
 				.collect(Collectors.toList());
-			
+
 			if (!topicsToCreate.isEmpty()) {
 				adminClient.createTopics(topicsToCreate).all().get();
-				System.out.println("Created topics: " + topicsToCreate.stream()
-					.map(NewTopic::name).collect(Collectors.toList()));
+				System.out.println(
+						"Created topics: " + topicsToCreate.stream().map(NewTopic::name).collect(Collectors.toList()));
 			}
 		}
 	}

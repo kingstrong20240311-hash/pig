@@ -1,0 +1,152 @@
+version: '3.8'
+
+services:
+  # MySQL 8.0 数据库
+  mysql:
+    image: mysql:8.0
+    container_name: pig-e2e-mysql
+    hostname: pig-e2e-mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_ROOT_HOST: '%'
+      TZ: Asia/Shanghai
+    ports:
+      - "33307:3306"
+    volumes:
+      # 挂载数据库初始化脚本
+      - ../db/pig.sql:/docker-entrypoint-initdb.d/01-pig.sql
+      - ../db/pig_config.sql:/docker-entrypoint-initdb.d/02-pig_config.sql
+      - ../db/pig_order.sql:/docker-entrypoint-initdb.d/03-pig_order.sql
+      - ../db/vault_schema.sql:/docker-entrypoint-initdb.d/04-vault_schema.sql
+      - ../db/error_record.sql:/docker-entrypoint-initdb.d/05-error_record.sql
+      # 持久化数据（可选，用于调试）
+      # - ./data/mysql:/var/lib/mysql
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
+      - --default-authentication-plugin=mysql_native_password
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uroot", "-proot"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    networks:
+      - pig-e2e-network
+
+  # Redis 缓存
+  redis:
+    image: redis:7-alpine
+    container_name: pig-e2e-redis
+    hostname: pig-e2e-redis
+    restart: unless-stopped
+    ports:
+      - "36380:6379"
+    command: redis-server
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    networks:
+      - pig-e2e-network
+
+  # Kafka 消息队列
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.6.0
+    container_name: pig-e2e-zookeeper
+    hostname: pig-e2e-zookeeper
+    restart: unless-stopped
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+    ports:
+      - "22181:2181"
+    healthcheck:
+      test: ["CMD", "bash", "-c", "echo srvr | nc localhost 2181 | grep Mode"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - pig-e2e-network
+
+  kafka:
+    image: confluentinc/cp-kafka:7.6.0
+    container_name: pig-e2e-kafka
+    hostname: pig-e2e-kafka
+    restart: unless-stopped
+    depends_on:
+      zookeeper:
+        condition: service_healthy
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: 'pig-e2e-zookeeper:2181'
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://pig-e2e-kafka:29092,PLAINTEXT_HOST://localhost:9093
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: 'true'
+      KAFKA_LOG_RETENTION_HOURS: 168
+      KAFKA_LOG_SEGMENT_BYTES: 1073741824
+      KAFKA_LOG_RETENTION_CHECK_INTERVAL_MS: 300000
+    ports:
+      - "9093:9093"
+    healthcheck:
+      test: ["CMD", "kafka-broker-api-versions", "--bootstrap-server", "localhost:9093"]
+      interval: 10s
+      timeout: 10s
+      retries: 10
+    networks:
+      - pig-e2e-network
+
+  
+
+  # Nacos 配置中心和服务注册中心
+  nacos:
+    image: nacos/nacos-server:v3.1.0
+    container_name: pig-e2e-nacos
+    hostname: pig-e2e-nacos
+    restart: unless-stopped
+    depends_on:
+      mysql:
+        condition: service_healthy
+    environment:
+      MODE: standalone
+      PREFER_HOST_MODE: hostname
+      SPRING_DATASOURCE_PLATFORM: mysql
+      MYSQL_SERVICE_HOST: pig-e2e-mysql
+      MYSQL_SERVICE_PORT: 3306
+      MYSQL_SERVICE_DB_NAME: pig_config
+      MYSQL_SERVICE_USER: root
+      MYSQL_SERVICE_PASSWORD: root
+      MYSQL_SERVICE_DB_PARAM: characterEncoding=utf8&connectTimeout=10000&socketTimeout=30000&autoReconnect=true&useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=Asia/Shanghai
+      JVM_XMS: 256m
+      JVM_XMX: 256m
+      JVM_XMN: 128m
+      NACOS_AUTH_ENABLE: 'false'
+      NACOS_AUTH_IDENTITY_KEY: nacos
+      NACOS_AUTH_IDENTITY_VALUE: nacos
+      NACOS_AUTH_TOKEN: SecretKey012345678901234567890123456789012345678901234567890123456789
+    ports:
+      - "18849:8848"
+      - "19849:9848"
+      - "18081:8080"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8848/nacos/v1/console/health/readiness"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+    # 持久化数据（可选，用于调试）
+    # volumes:
+    #   - ./data/nacos/logs:/home/nacos/logs
+    #   - ./data/nacos/data:/home/nacos/data
+    networks:
+      - pig-e2e-network
+
+networks:
+  pig-e2e-network:
+    name: pig-e2e-network
+    driver: bridge
+

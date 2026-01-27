@@ -1,0 +1,15 @@
+# Docker 持久化数据目录
+data/
+
+# Docker Compose 环境文件
+.env
+
+# 测试日志
+*.log
+
+# IDE 配置
+.idea/
+*.iml
+
+# Maven
+target/

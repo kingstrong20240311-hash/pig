@@ -50,7 +50,7 @@ public class EventHandlerRegistry {
 	public void register(String domain, String eventType, Object bean, Method method, String groupId) {
 		// 设置可访问性以支持内部类和非公共方法
 		method.setAccessible(true);
-		
+
 		String key = buildKey(domain, eventType);
 		handlers.computeIfAbsent(key, k -> new ArrayList<>()).add(new HandlerMethod(bean, method, groupId));
 		log.info("Registered event handler: domain={}, eventType={}, method={}.{}", domain, eventType,

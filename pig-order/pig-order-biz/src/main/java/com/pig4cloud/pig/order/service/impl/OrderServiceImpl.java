@@ -18,31 +18,30 @@ package com.pig4cloud.pig.order.service.impl;
 
 import cn.hutool.core.util.IdUtil;
 import cn.hutool.core.util.StrUtil;
-import cn.hutool.json.JSONUtil;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
-import com.pig4cloud.pig.common.core.exception.ErrorCodes;
 import com.pig4cloud.pig.common.core.util.R;
 import com.pig4cloud.pig.order.api.dto.*;
+import com.pig4cloud.pig.order.api.entity.Market;
 import com.pig4cloud.pig.order.api.entity.Order;
 import com.pig4cloud.pig.order.api.entity.OrderCancel;
 import com.pig4cloud.pig.order.api.enums.OrderStatus;
 import com.pig4cloud.pig.order.api.enums.OrderType;
+import com.pig4cloud.pig.order.api.enums.Outcome;
+import com.pig4cloud.pig.order.api.enums.Side;
 import com.pig4cloud.pig.order.api.enums.TimeInForce;
+import com.pig4cloud.pig.order.match.MatchingEngineProperties;
 import com.pig4cloud.pig.order.mapper.OrderCancelMapper;
 import com.pig4cloud.pig.order.mapper.OrderMapper;
-import com.pig4cloud.pig.order.match.MatchingEngineSymbolService;
-import com.pig4cloud.pig.order.match.OrderCommandConverter;
 import com.pig4cloud.pig.order.service.MarketService;
 import com.pig4cloud.pig.order.service.OrderService;
 import com.pig4cloud.pig.outbox.api.model.DomainEventEnvelope;
+import com.pig4cloud.pig.outbox.api.payload.order.OrderCancelRequestedPayload;
+import com.pig4cloud.pig.outbox.api.payload.order.OrderCreatedPayload;
 import com.pig4cloud.pig.outbox.api.publisher.DomainEventPublisher;
 import com.pig4cloud.pig.vault.api.dto.CreateFreezeRequest;
-import com.pig4cloud.pig.vault.api.dto.FreezeLookupRequest;
 import com.pig4cloud.pig.vault.api.dto.FreezeResponse;
 import com.pig4cloud.pig.vault.api.enums.RefType;
 import com.pig4cloud.pig.vault.api.feign.VaultService;
-import exchange.core2.core.common.api.ApiCancelOrder;
-import exchange.core2.core.common.cmd.CommandResultCode;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -51,8 +50,6 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.time.Instant;
-import java.util.HashMap;
-import java.util.Map;
 
 /**
  * Order Service Implementation
@@ -74,6 +71,8 @@ public class OrderServiceImpl implements OrderService {
 	private final VaultService vaultService;
 
 	private final MarketService marketService;
+
+	private final MatchingEngineProperties matchingEngineProperties;
 
 	@Value("${node-id:0}")
 	private long nodeId;
@@ -106,14 +105,26 @@ public class OrderServiceImpl implements OrderService {
 		// 3. Validate request
 		validateCreateOrderRequest(request);
 
+		Market market = marketService.getMarket(request.getMarketId());
+		if (market == null) {
+			throw new IllegalArgumentException("Market not found: " + request.getMarketId());
+		}
+		Integer symbolId = request.getOutcome() == Outcome.YES ? market.getSymbolIdYes() : market.getSymbolIdNo();
+		if (symbolId == null) {
+			throw new IllegalStateException("Market symbols not ready: " + request.getMarketId());
+		}
+
 		// 4. Generate order ID using configured workerId and datacenterId
 		Long orderId = IdUtil.getSnowflake(nodeId, DATACENTER_ID).nextId();
 
 		// 5. Create freeze in Vault
 		CreateFreezeRequest freezeRequest = new CreateFreezeRequest();
-		freezeRequest.setAccountId(request.getUserId());
-		// TODO: get symbol from marketId mapping
-		freezeRequest.setSymbol("USDC");
+		freezeRequest.setUserId(request.getUserId());
+		// Determine freeze symbol based on side:
+		// BUY orders: freeze USDC (default asset)
+		// SELL orders: freeze the outcome token (YES or NO)
+		String freezeSymbol = determineFreezeSymbol(request.getSide(), request.getMarketId(), request.getOutcome());
+		freezeRequest.setSymbol(freezeSymbol);
 		freezeRequest.setAmount(calculateFreezeAmount(request));
 		freezeRequest.setRefType(RefType.ORDER);
 		freezeRequest.setRefId(String.valueOf(orderId));
@@ -129,6 +140,7 @@ public class OrderServiceImpl implements OrderService {
 		order.setOrderId(orderId);
 		order.setUserId(request.getUserId());
 		order.setMarketId(request.getMarketId());
+		order.setOutcome(request.getOutcome());
 		order.setSide(request.getSide());
 		order.setOrderType(request.getType());
 		order.setPrice(request.getPrice());
@@ -136,7 +148,10 @@ public class OrderServiceImpl implements OrderService {
 		order.setRemainingQuantity(request.getQuantity());
 		order.setStatus(OrderStatus.OPEN);
 		order.setTimeInForce(request.getTimeInForce() != null ? request.getTimeInForce() : TimeInForce.GTC);
-		order.setExpireAt(request.getExpireAt());
+		// Convert Long timestamp (milliseconds) to Instant
+		if (request.getExpireAt() != null) {
+			order.setExpireAt(Instant.ofEpochMilli(request.getExpireAt()));
+		}
 		order.setIdempotencyKey(idempotencyKey);
 		order.setVersion(0);
 
@@ -180,7 +195,8 @@ public class OrderServiceImpl implements OrderService {
 		// 4. Check if order can be cancelled
 		if (!order.isCancellable()) {
 			log.warn("Order cannot be cancelled: orderId={}, status={}", order.getOrderId(), order.getStatus());
-			return buildCancelOrderResponse(order);
+			throw new IllegalStateException(
+					"Order cannot be cancelled: orderId=" + order.getOrderId() + ", status=" + order.getStatus());
 		}
 
 		// 5. Insert cancel record (idempotent anchor)
@@ -209,6 +225,9 @@ public class OrderServiceImpl implements OrderService {
 	 */
 	private void validateCreateOrderRequest(CreateOrderRequest request) {
 		marketService.assertMarketActive(request.getMarketId());
+		if (request.getOutcome() == null) {
+			throw new IllegalArgumentException("Outcome is required");
+		}
 
 		// Validate LIMIT order must have price
 		if (request.getType() == OrderType.LIMIT && request.getPrice() == null) {
@@ -227,17 +246,55 @@ public class OrderServiceImpl implements OrderService {
 	}
 
 	/**
+	 * Determine which asset symbol to freeze based on order side
+	 * @param side order side (BUY/SELL)
+	 * @param marketId market ID
+	 * @param outcome outcome (YES/NO)
+	 * @return symbol name to freeze
+	 */
+	private String determineFreezeSymbol(Side side, Long marketId, Outcome outcome) {
+		if (side == Side.BUY) {
+			// BUY orders: freeze USDC (default asset) to purchase outcome tokens
+			return matchingEngineProperties.getAssetSymbol(matchingEngineProperties.getDefaultAsset());
+		}
+		else {
+			// SELL orders: freeze outcome tokens (YES or NO) to sell for USDC
+			// Symbol format matches MarketCreatedEventHandler: M{marketId}_{outcome}
+			return buildOutcomeSymbol(marketId, outcome.name());
+		}
+	}
+
+	/**
+	 * Build outcome asset symbol (must match format in MarketCreatedEventHandler)
+	 * @param marketId market ID
+	 * @param outcome outcome name (YES/NO)
+	 * @return symbol like "M1_YES" or "M1_NO"
+	 */
+	private String buildOutcomeSymbol(Long marketId, String outcome) {
+		return "M" + marketId + "_" + outcome;
+	}
+
+	/**
 	 * Calculate freeze amount based on order request
 	 */
 	private BigDecimal calculateFreezeAmount(CreateOrderRequest request) {
-		// For BUY orders: freeze = quantity * price
-		// For SELL orders: freeze = quantity
-		// TODO: adjust based on actual market requirements
-		if (request.getType() == OrderType.LIMIT) {
-			return request.getQuantity().multiply(request.getPrice());
+		// For BUY orders: freeze USDC amount = quantity * price
+		// For SELL orders: freeze token quantity = quantity
+		if (request.getSide() == Side.BUY) {
+			// BUY: need to freeze USDC to purchase tokens
+			if (request.getType() == OrderType.LIMIT) {
+				return request.getQuantity().multiply(request.getPrice());
+			}
+			else {
+				// MARKET order: freeze quantity * 1.0 (worst case price in prediction
+				// markets)
+				// Since max price is 1.0 in prediction markets, quantity equals the max
+				// USDC needed
+				return request.getQuantity();
+			}
 		}
 		else {
-			// MARKET order: use estimated amount
+			// SELL: need to freeze the outcome tokens (YES or NO)
 			return request.getQuantity();
 		}
 	}
@@ -279,20 +336,18 @@ public class OrderServiceImpl implements OrderService {
 	 * Publish OrderCreatedEvent via DomainEventPublisher
 	 */
 	private void publishOrderCreatedEvent(Order order) {
-		Map<String, Object> payload = new HashMap<>();
-		payload.put("orderId", order.getOrderId());
-		payload.put("userId", order.getUserId());
-		payload.put("marketId", order.getMarketId());
-		payload.put("status", order.getStatus().name());
+		OrderCreatedPayload payload = new OrderCreatedPayload(order.getOrderId(), order.getUserId(),
+				order.getMarketId(), order.getOutcome() != null ? order.getOutcome().name() : null,
+				order.getStatus().name());
 
-		DomainEventEnvelope event = new DomainEventEnvelope(IdUtil.randomUUID(), // eventId
+		DomainEventEnvelope<OrderCreatedPayload> event = new DomainEventEnvelope<>(IdUtil.randomUUID(), // eventId
 				DOMAIN_ORDER, // domain
 				AGG_TYPE_ORDER, // aggregateType
 				String.valueOf(order.getOrderId()), // aggregateId
 				"OrderCreated", // eventType
-				Instant.now(), // occurredAt
+				System.currentTimeMillis(), // occurredAt
 				null, // headers
-				JSONUtil.toJsonStr(payload) // payloadJson
+				payload // payload
 		);
 
 		domainEventPublisher.publish(event);
@@ -302,21 +357,17 @@ public class OrderServiceImpl implements OrderService {
 	 * Publish OrderCancelRequestedEvent via DomainEventPublisher
 	 */
 	private void publishOrderCancelRequestedEvent(Order order, String idempotencyKey) {
-		Map<String, Object> payload = new HashMap<>();
-		payload.put("orderId", order.getOrderId());
-		payload.put("userId", order.getUserId());
-		payload.put("marketId", order.getMarketId());
-		payload.put("status", order.getStatus().name());
-		payload.put("idempotencyKey", idempotencyKey);
+		OrderCancelRequestedPayload payload = new OrderCancelRequestedPayload(order.getOrderId(), order.getUserId(),
+				order.getMarketId(), order.getStatus().name(), idempotencyKey);
 
-		DomainEventEnvelope event = new DomainEventEnvelope(IdUtil.randomUUID(), // eventId
+		DomainEventEnvelope<OrderCancelRequestedPayload> event = new DomainEventEnvelope<>(IdUtil.randomUUID(), // eventId
 				DOMAIN_ORDER, // domain
 				AGG_TYPE_ORDER, // aggregateType
 				String.valueOf(order.getOrderId()), // aggregateId
 				"OrderCancelRequested", // eventType
-				Instant.now(), // occurredAt
+				System.currentTimeMillis(), // occurredAt
 				null, // headers
-				JSONUtil.toJsonStr(payload) // payloadJson
+				payload // payload
 		);
 
 		domainEventPublisher.publish(event);

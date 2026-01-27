@@ -20,6 +20,7 @@ package com.pig4cloud.pig.outbox.publisher;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.pig4cloud.pig.outbox.api.model.DomainEventEnvelope;
+import com.pig4cloud.pig.outbox.api.payload.order.OrderCreatedPayload;
 import com.pig4cloud.pig.outbox.entity.OutboxEvent;
 import com.pig4cloud.pig.outbox.enums.OutboxStatus;
 import com.pig4cloud.pig.outbox.service.OutboxEventService;
@@ -32,7 +33,6 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-import java.time.Instant;
 import java.util.Map;
 
 import static org.assertj.core.api.Assertions.*;
@@ -58,12 +58,13 @@ class DbOutboxEventPublisherTest {
 	@InjectMocks
 	private DbOutboxEventPublisher publisher;
 
-	private DomainEventEnvelope testEvent;
+	private DomainEventEnvelope<OrderCreatedPayload> testEvent;
 
 	@BeforeEach
 	void setUp() {
-		testEvent = new DomainEventEnvelope("evt-001", "order", "Order", "order-123", "OrderMatched", Instant.now(),
-				Map.of("userId", "user-1"), "{\"amount\":100}");
+		testEvent = new DomainEventEnvelope<>("evt-001", "order", "Order", "order-123", "OrderMatched",
+				System.currentTimeMillis(), Map.of("userId", "user-1"),
+				new OrderCreatedPayload(1001L, 2001L, 3001L, "YES", "OPEN"));
 	}
 
 	@Test
@@ -71,6 +72,12 @@ class DbOutboxEventPublisherTest {
 	void publish_maps_fields() {
 		// Given
 		ArgumentCaptor<OutboxEvent> captor = ArgumentCaptor.forClass(OutboxEvent.class);
+		try {
+			when(objectMapper.writeValueAsString(testEvent.payload())).thenReturn("{\"orderId\":1001}");
+		}
+		catch (JsonProcessingException e) {
+			throw new RuntimeException(e);
+		}
 
 		// When
 		publisher.publish(testEvent);
@@ -84,7 +91,8 @@ class DbOutboxEventPublisherTest {
 		assertThat(saved.getAggregateType()).isEqualTo("Order");
 		assertThat(saved.getAggregateId()).isEqualTo("order-123");
 		assertThat(saved.getEventType()).isEqualTo("OrderMatched");
-		assertThat(saved.getPayloadJson()).isEqualTo("{\"amount\":100}");
+		assertThat(saved.getPayloadJson()).contains("orderId");
+		assertThat(saved.getPayloadJson()).contains("1001");
 		assertThat(saved.getPartitionKey()).isEqualTo("order-123"); // 默认使用 aggregateId
 	}
 
@@ -92,12 +100,19 @@ class DbOutboxEventPublisherTest {
 	@DisplayName("PUB-002: publish 设置默认值")
 	void publish_sets_defaults() {
 		// Given
-		DomainEventEnvelope eventWithoutHeaders = new DomainEventEnvelope("evt-002", "order", "Order", "order-456",
-				"OrderCreated", Instant.now(), null, "{}");
+		DomainEventEnvelope<OrderCreatedPayload> eventWithoutHeaders = new DomainEventEnvelope<>("evt-002", "order",
+				"Order", "order-456", "OrderCreated", System.currentTimeMillis(), null,
+				new OrderCreatedPayload(1002L, 2002L, 3002L, "YES", "OPEN"));
 
 		ArgumentCaptor<OutboxEvent> captor = ArgumentCaptor.forClass(OutboxEvent.class);
 
 		// When
+		try {
+			when(objectMapper.writeValueAsString(eventWithoutHeaders.payload())).thenReturn("{\"orderId\":1002}");
+		}
+		catch (JsonProcessingException e) {
+			throw new RuntimeException(e);
+		}
 		publisher.publish(eventWithoutHeaders);
 
 		// Then
@@ -115,7 +130,9 @@ class DbOutboxEventPublisherTest {
 	void publish_serializes_headers() throws Exception {
 		// Given
 		String headersJson = "{\"userId\":\"user-1\"}";
-		when(objectMapper.writeValueAsString(any())).thenReturn(headersJson);
+		String payloadJson = "{\"orderId\":1001}";
+		when(objectMapper.writeValueAsString(testEvent.payload())).thenReturn(payloadJson);
+		when(objectMapper.writeValueAsString(testEvent.headers())).thenReturn(headersJson);
 
 		ArgumentCaptor<OutboxEvent> captor = ArgumentCaptor.forClass(OutboxEvent.class);
 
@@ -134,7 +151,8 @@ class DbOutboxEventPublisherTest {
 	@DisplayName("PUB-004: publish 吞噬 header 序列化异常")
 	void publish_swallow_header_serialize_error() throws Exception {
 		// Given
-		when(objectMapper.writeValueAsString(any())).thenThrow(new JsonProcessingException("test error") {
+		when(objectMapper.writeValueAsString(testEvent.payload())).thenReturn("{\"orderId\":1001}");
+		when(objectMapper.writeValueAsString(testEvent.headers())).thenThrow(new JsonProcessingException("test error") {
 		});
 
 		ArgumentCaptor<OutboxEvent> captor = ArgumentCaptor.forClass(OutboxEvent.class);

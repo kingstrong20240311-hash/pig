@@ -25,6 +25,7 @@ import com.pig4cloud.pig.order.api.entity.Order;
 import com.pig4cloud.pig.order.api.entity.OrderFill;
 import com.pig4cloud.pig.order.api.enums.OrderStatus;
 import com.pig4cloud.pig.order.api.enums.OrderType;
+import com.pig4cloud.pig.order.api.enums.Outcome;
 import com.pig4cloud.pig.order.api.enums.Side;
 import com.pig4cloud.pig.order.api.enums.TimeInForce;
 import com.pig4cloud.pig.order.mapper.OrderFillMapper;
@@ -117,6 +118,7 @@ class OrderConcurrencyIdempotencyIntegrationTest extends BaseIntegrationTest {
 					CreateOrderRequest request = new CreateOrderRequest();
 					request.setUserId(100L + index); // Different users
 					request.setMarketId(1L);
+					request.setOutcome(Outcome.YES);
 					request.setSide(index % 2 == 0 ? Side.BUY : Side.SELL);
 					request.setType(OrderType.LIMIT);
 					// Price varies by thread: 100 + index (e.g., 100, 101, 102, ...)
@@ -177,6 +179,7 @@ class OrderConcurrencyIdempotencyIntegrationTest extends BaseIntegrationTest {
 		CreateOrderRequest makerRequest = new CreateOrderRequest();
 		makerRequest.setUserId(100L);
 		makerRequest.setMarketId(1L);
+		makerRequest.setOutcome(Outcome.YES);
 		makerRequest.setSide(Side.SELL);
 		makerRequest.setType(OrderType.LIMIT);
 		makerRequest.setPrice(new BigDecimal("100.00"));
@@ -189,6 +192,7 @@ class OrderConcurrencyIdempotencyIntegrationTest extends BaseIntegrationTest {
 		CreateOrderRequest takerRequest = new CreateOrderRequest();
 		takerRequest.setUserId(200L);
 		takerRequest.setMarketId(1L);
+		takerRequest.setOutcome(Outcome.YES);
 		takerRequest.setSide(Side.BUY);
 		takerRequest.setType(OrderType.LIMIT);
 		takerRequest.setPrice(new BigDecimal("100.00"));

@@ -102,7 +102,60 @@
 		<module>pig-vault</module>
 		<module>pig-outbox</module>
 		<module>pig-order</module>
+		<module>pig-e2e-test</module>
 	</modules>
+
+	<profiles>
+		<profile>
+			<id>cloud</id>
+			<properties>
+				<!-- 环境标识，需要与配置文件的名称相对应 -->
+				<profiles.active>dev</profiles.active>
+				<nacos.username>nacos</nacos.username>
+				<nacos.password>nacos</nacos.password>
+			</properties>
+			<activation>
+				<!-- 默认环境 -->
+				<activeByDefault>true</activeByDefault>
+			</activation>
+		</profile>
+		<profile>
+			<id>boot</id>
+			<modules>
+				<module>pig-boot</module>
+			</modules>
+		</profile>
+		<profile>
+			<id>e2e</id>
+			<modules>
+				<module>pig-e2e-test</module>
+			</modules>
+		</profile>
+		<!-- 自动激活，针对 lombok 注解增强-->
+		<profile>
+			<id>jdk25-annotation-processor</id>
+			<activation>
+				<jdk>[25,)</jdk>
+			</activation>
+			<build>
+				<plugins>
+					<plugin>
+						<groupId>org.apache.maven.plugins</groupId>
+						<artifactId>maven-compiler-plugin</artifactId>
+						<configuration>
+							<!-- 支持 JDK 25+ 编译 -->
+							<annotationProcessorPaths>
+								<path>
+									<groupId>org.projectlombok</groupId>
+									<artifactId>lombok</artifactId>
+								</path>
+							</annotationProcessorPaths>
+						</configuration>
+					</plugin>
+				</plugins>
+			</build>
+		</profile>
+	</profiles>
 
 	<dependencyManagement>
 		<dependencies>
@@ -113,6 +166,11 @@
 				<version>${project.version}</version>
 				<type>pom</type>
 				<scope>import</scope>
+			</dependency>
+			<dependency>
+				<groupId>com.pig4cloud</groupId>
+				<artifactId>pig-outbox-consumer</artifactId>
+				<version>${project.version}</version>
 			</dependency>
 			<!-- spring boot 依赖 -->
 			<dependency>
@@ -299,50 +357,4 @@
 			</plugin>
 		</plugins>
 	</build>
-
-	<profiles>
-		<profile>
-			<id>cloud</id>
-			<properties>
-				<!-- 环境标识，需要与配置文件的名称相对应 -->
-				<profiles.active>dev</profiles.active>
-				<nacos.username>nacos</nacos.username>
-				<nacos.password>nacos</nacos.password>
-			</properties>
-			<activation>
-				<!-- 默认环境 -->
-				<activeByDefault>true</activeByDefault>
-			</activation>
-		</profile>
-		<profile>
-			<id>boot</id>
-			<modules>
-				<module>pig-boot</module>
-			</modules>
-		</profile>
-		<!-- 自动激活，针对 lombok 注解增强-->
-		<profile>
-			<id>jdk25-annotation-processor</id>
-			<activation>
-				<jdk>[25,)</jdk>
-			</activation>
-			<build>
-				<plugins>
-					<plugin>
-						<groupId>org.apache.maven.plugins</groupId>
-						<artifactId>maven-compiler-plugin</artifactId>
-						<configuration>
-							<!-- 支持 JDK 25+ 编译 -->
-							<annotationProcessorPaths>
-								<path>
-									<groupId>org.projectlombok</groupId>
-									<artifactId>lombok</artifactId>
-								</path>
-							</annotationProcessorPaths>
-						</configuration>
-					</plugin>
-				</plugins>
-			</build>
-		</profile>
-	</profiles>
 </project>

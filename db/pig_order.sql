@@ -19,6 +19,13 @@
 -- Description: Order domain database schema
 -- ----------------------------
 
+-- Create database
+DROP DATABASE IF EXISTS `pig_order`;
+CREATE DATABASE `pig_order` DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci;
+
+-- Use database
+USE `pig_order`;
+
 -- ----------------------------
 -- Table structure for ord_market (Prediction Markets)
 -- ----------------------------
@@ -26,6 +33,8 @@ DROP TABLE IF EXISTS `ord_market`;
 CREATE TABLE `ord_market` (
   `market_id`   BIGINT NOT NULL COMMENT '市场ID',
   `name`        VARCHAR(128) NOT NULL COMMENT '市场名称',
+  `symbol_id_yes` INT NULL COMMENT 'YES 订单簿 symbolId',
+  `symbol_id_no`  INT NULL COMMENT 'NO 订单簿 symbolId',
   `status`      TINYINT NOT NULL COMMENT '状态: 0=INACTIVE, 1=ACTIVE, 2=EXPIRED',
   `expire_at`   TIMESTAMP NULL COMMENT '市场过期时间',
 
@@ -47,6 +56,7 @@ CREATE TABLE `ord_order` (
   `order_id`           BIGINT NOT NULL COMMENT '订单ID',
   `user_id`            BIGINT NOT NULL COMMENT '用户ID',
   `market_id`          BIGINT NOT NULL COMMENT '市场ID',
+  `outcome`            TINYINT NOT NULL COMMENT '结果: 1=YES, 2=NO',
 
   `side`               TINYINT NOT NULL COMMENT '方向: 1=BUY, 2=SELL',
   `order_type`         TINYINT NOT NULL COMMENT '订单类型: 1=LIMIT, 2=MARKET',
@@ -123,3 +133,36 @@ CREATE TABLE `ord_order_cancel` (
   UNIQUE KEY `uk_cancel_idem` (`idempotency_key`),
   KEY `idx_cancel_order` (`order_id`, `create_time`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='订单取消记录表';
+
+-- ----------------------------
+-- Table structure for outbox_event (Outbox Event Table)
+-- ----------------------------
+DROP TABLE IF EXISTS `outbox_event`;
+CREATE TABLE `outbox_event` (
+    `id`               BIGINT PRIMARY KEY AUTO_INCREMENT COMMENT '自增主键',
+    `event_id`         VARCHAR(64)  NOT NULL COMMENT '全局唯一事件ID',
+    `domain`           VARCHAR(32)  NOT NULL COMMENT '领域（order/vault/settlement）',
+    `aggregate_type`   VARCHAR(64)  NOT NULL COMMENT '聚合类型',
+    `aggregate_id`     VARCHAR(64)  NOT NULL COMMENT '聚合ID（业务主键）',
+    `event_type`       VARCHAR(128) NOT NULL COMMENT '事件类型',
+    `payload_json`     JSON         NOT NULL COMMENT '负载JSON',
+    `headers_json`     JSON         NULL COMMENT '头部信息JSON',
+    `partition_key`    VARCHAR(128) NOT NULL COMMENT '分区键（用于Kafka key，通常=aggregate_id）',
+
+    `status`           TINYINT      NOT NULL DEFAULT 0 COMMENT '状态：0-NEW, 1-SENDING, 2-SENT, 3-RETRY, 9-DEAD',
+    `attempts`         INT          NOT NULL DEFAULT 0 COMMENT '尝试次数',
+    `next_retry_time`  DATETIME(3)  NULL COMMENT '下次重试时间',
+
+    `locked_by`        VARCHAR(64)  NULL COMMENT '锁定者标识',
+    `locked_at`        DATETIME(3)  NULL COMMENT '锁定时间',
+
+    `created_at`       DATETIME(3)  NOT NULL DEFAULT CURRENT_TIMESTAMP(3) COMMENT '创建时间',
+    `updated_at`       DATETIME(3)  NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3) COMMENT '更新时间',
+
+    UNIQUE KEY `uk_event_id` (`event_id`),
+    KEY `idx_pick` (`status`, `next_retry_time`, `locked_at`),
+    KEY `idx_agg` (`aggregate_type`, `aggregate_id`, `id`),
+    KEY `idx_domain` (`domain`, `id`)
+) ENGINE = InnoDB
+  DEFAULT CHARSET = utf8mb4
+  COLLATE = utf8mb4_unicode_ci COMMENT ='Outbox事件表';
