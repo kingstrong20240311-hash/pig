@@ -223,8 +223,11 @@ public class MarketServiceImpl implements MarketService {
 	}
 
 	private void publishMarketCreatedEvent(Market market) {
-		MarketCreatedPayload payload = new MarketCreatedPayload(market.getMarketId(), market.getName(),
-				market.getExpireAt());
+		Long expireAtMillis = null;
+		if (market.getExpireAt() != null) {
+			expireAtMillis = market.getExpireAt().toEpochMilli();
+		}
+		MarketCreatedPayload payload = new MarketCreatedPayload(market.getMarketId(), market.getName(), expireAtMillis);
 
 		DomainEventEnvelope<MarketCreatedPayload> event = new DomainEventEnvelope<>(IdUtil.randomUUID(), // eventId
 				DOMAIN_MARKET, // domain

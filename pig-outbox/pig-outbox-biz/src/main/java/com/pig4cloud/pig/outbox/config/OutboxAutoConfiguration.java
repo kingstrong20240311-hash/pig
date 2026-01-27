@@ -27,12 +27,15 @@ import com.pig4cloud.pig.outbox.publisher.InProcessEventPublisher;
 import com.pig4cloud.pig.outbox.service.OutboxEventService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.ibatis.annotations.Mapper;
 import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.common.serialization.StringSerializer;
+import org.mybatis.spring.annotation.MapperScan;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.ComponentScan;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Primary;
 import org.springframework.kafka.core.DefaultKafkaProducerFactory;
@@ -56,6 +59,8 @@ import java.util.Map;
 @Configuration
 @RequiredArgsConstructor
 @EnableScheduling
+@ComponentScan(basePackages = "com.pig4cloud.pig.outbox")
+@MapperScan(basePackages = "com.pig4cloud.pig.outbox.mapper", annotationClass = Mapper.class)
 @EnableConfigurationProperties({ OutboxProperties.class, OutboxDispatcherProperties.class,
 		OutboxKafkaProperties.class })
 public class OutboxAutoConfiguration {

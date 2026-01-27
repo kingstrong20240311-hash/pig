@@ -18,10 +18,11 @@
 package com.pig4cloud.pig.vault.event;
 
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
-import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.pig4cloud.pig.outbox.api.annotation.DomainEventHandler;
 import com.pig4cloud.pig.outbox.api.model.DomainEventEnvelope;
+import com.pig4cloud.pig.outbox.api.payload.market.MarketAssetsReadyPayload;
+import com.pig4cloud.pig.outbox.api.payload.market.MarketCreatedPayload;
 import com.pig4cloud.pig.outbox.api.publisher.DomainEventPublisher;
 import com.pig4cloud.pig.vault.api.entity.CurrencyIdSeq;
 import com.pig4cloud.pig.vault.api.entity.VaultAsset;
@@ -35,7 +36,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.lang.reflect.Method;
-import java.util.Map;
 import java.util.UUID;
 
 /**
@@ -63,9 +63,9 @@ public class MarketCreatedEventHandler {
 
 	@DomainEventHandler(domain = "market", eventType = "MarketCreated")
 	@Transactional(rollbackFor = Exception.class)
-	public void handleMarketCreated(DomainEventEnvelope event) {
-		Map<String, Object> payload = extractPayloadMap(event);
-		Long marketId = payload == null ? null : toLong(payload.get("marketId"));
+	public void handleMarketCreated(DomainEventEnvelope<?> event) {
+		MarketCreatedPayload payload = event.payloadAs(objectMapper, MarketCreatedPayload.class);
+		Long marketId = payload == null ? null : payload.getMarketId();
 		if (marketId == null) {
 			marketId = toLong(extractAggregateId(event));
 		}
@@ -79,10 +79,10 @@ public class MarketCreatedEventHandler {
 		VaultAsset yesAsset = findOrCreateAsset(yesSymbol);
 		VaultAsset noAsset = findOrCreateAsset(noSymbol);
 
-		Map<String, Object> readyPayload = Map.of("marketId", marketId, "currencyIdYes", yesAsset.getCurrencyId(),
-				"currencyIdNo", noAsset.getCurrencyId());
-		DomainEventEnvelope<Map<String, Object>> readyEvent = new DomainEventEnvelope<>(UUID.randomUUID().toString(), "market", "Market",
-				String.valueOf(marketId), "MarketAssetsReady", System.currentTimeMillis(), null, readyPayload);
+		MarketAssetsReadyPayload readyPayload = new MarketAssetsReadyPayload(marketId, yesAsset.getCurrencyId(),
+				noAsset.getCurrencyId());
+		DomainEventEnvelope<MarketAssetsReadyPayload> readyEvent = new DomainEventEnvelope<>(UUID.randomUUID().toString(), "market",
+				"Market", String.valueOf(marketId), "MarketAssetsReady", System.currentTimeMillis(), null, readyPayload);
 
 		domainEventPublisher.publish(readyEvent);
 
@@ -124,26 +124,7 @@ public class MarketCreatedEventHandler {
 		return "M" + marketId + "_" + outcome;
 	}
 
-	private Map<String, Object> extractPayloadMap(DomainEventEnvelope event) {
-		Object payload = invokeMethod(event, "payload");
-		if (payload != null) {
-			return objectMapper.convertValue(payload, new TypeReference<Map<String, Object>>() {
-			});
-		}
-		String payloadJson = extractPayloadJson(event);
-		if (payloadJson == null || payloadJson.isBlank()) {
-			return null;
-		}
-		try {
-			return objectMapper.readValue(payloadJson, new TypeReference<Map<String, Object>>() {
-			});
-		}
-		catch (Exception e) {
-			throw new IllegalArgumentException("Failed to parse payloadJson", e);
-		}
-	}
-
-	private String extractPayloadJson(DomainEventEnvelope event) {
+	private String extractPayloadJson(DomainEventEnvelope<?> event) {
 		String payloadJson = toStringOrNull(invokeMethod(event, "payloadJson"));
 		if (payloadJson != null) {
 			return payloadJson;
@@ -151,7 +132,7 @@ public class MarketCreatedEventHandler {
 		return toStringOrNull(invokeMethod(event, "getPayloadJson"));
 	}
 
-	private String extractAggregateId(DomainEventEnvelope event) {
+	private String extractAggregateId(DomainEventEnvelope<?> event) {
 		String aggregateId = toStringOrNull(invokeMethod(event, "aggregateId"));
 		if (aggregateId != null) {
 			return aggregateId;

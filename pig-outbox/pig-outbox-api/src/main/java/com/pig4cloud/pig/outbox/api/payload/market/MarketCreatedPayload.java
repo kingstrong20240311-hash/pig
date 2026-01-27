@@ -24,7 +24,6 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.io.Serializable;
-import java.time.Instant;
 
 /**
  * MarketCreated 事件负载
@@ -43,6 +42,6 @@ public class MarketCreatedPayload implements Serializable {
 
 	private String name;
 
-	private Instant expireAt;
+	private Long expireAt;
 
 }

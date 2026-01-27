@@ -479,6 +479,7 @@ public abstract class E2eBaseTest {
 	 * 构建创建订单请求（完整版）
 	 *
 	 * @param marketId       市场 ID
+	 * @param outcome        订单结果（YES/NO）
 	 * @param side           订单方向
 	 * @param type           订单类型
 	 * @param quantity       数量
@@ -489,6 +490,7 @@ public abstract class E2eBaseTest {
 	 */
 	protected CreateOrderRequest buildCreateOrderRequest(
 			Long marketId,
+			Outcome outcome,
 			Side side,
 			OrderType type,
 			java.math.BigDecimal quantity,
@@ -498,7 +500,7 @@ public abstract class E2eBaseTest {
 
 		CreateOrderRequest request = new CreateOrderRequest();
 		request.setMarketId(marketId);
-		request.setOutcome(Outcome.YES);
+		request.setOutcome(outcome);
 		request.setSide(side);
 		request.setType(type);
 		request.setQuantity(quantity);
@@ -510,7 +512,7 @@ public abstract class E2eBaseTest {
 	}
 
 	/**
-	 * 构建创建限价订单请求（简化版）
+	 * 构建创建限价订单请求（简化版，默认 YES）
 	 *
 	 * @param marketId 市场 ID
 	 * @param side     订单方向
@@ -526,6 +528,7 @@ public abstract class E2eBaseTest {
 
 		return buildCreateOrderRequest(
 				marketId,
+				Outcome.YES, // 默认使用 YES
 				side,
 				OrderType.LIMIT,
 				quantity,
@@ -536,7 +539,36 @@ public abstract class E2eBaseTest {
 	}
 
 	/**
-	 * 构建创建市价订单请求（简化版）
+	 * 构建创建限价订单请求（完整版，支持指定 Outcome）
+	 *
+	 * @param marketId 市场 ID
+	 * @param outcome  订单结果（YES/NO）
+	 * @param side     订单方向
+	 * @param quantity 数量
+	 * @param price    价格
+	 * @return CreateOrderRequest DTO
+	 */
+	protected CreateOrderRequest buildLimitOrderRequest(
+			Long marketId,
+			Outcome outcome,
+			Side side,
+			java.math.BigDecimal quantity,
+			java.math.BigDecimal price) {
+
+		return buildCreateOrderRequest(
+				marketId,
+				outcome,
+				side,
+				OrderType.LIMIT,
+				quantity,
+				price,
+				TimeInForce.GTC,
+				java.util.UUID.randomUUID().toString()
+		);
+	}
+
+	/**
+	 * 构建创建市价订单请求（简化版，默认 YES）
 	 *
 	 * @param marketId 市场 ID
 	 * @param side     订单方向
@@ -550,6 +582,34 @@ public abstract class E2eBaseTest {
 
 		return buildCreateOrderRequest(
 				marketId,
+				Outcome.YES, // 默认使用 YES
+				side,
+				OrderType.MARKET,
+				quantity,
+				null,  // 市价单无需价格
+				TimeInForce.IOC,  // 市价单通常使用 IOC
+				java.util.UUID.randomUUID().toString()
+		);
+	}
+
+	/**
+	 * 构建创建市价订单请求（完整版，支持指定 Outcome）
+	 *
+	 * @param marketId 市场 ID
+	 * @param outcome  订单结果（YES/NO）
+	 * @param side     订单方向
+	 * @param quantity 数量
+	 * @return CreateOrderRequest DTO
+	 */
+	protected CreateOrderRequest buildMarketOrderRequest(
+			Long marketId,
+			Outcome outcome,
+			Side side,
+			java.math.BigDecimal quantity) {
+
+		return buildCreateOrderRequest(
+				marketId,
+				outcome,
 				side,
 				OrderType.MARKET,
 				quantity,

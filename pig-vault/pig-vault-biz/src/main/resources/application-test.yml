@@ -121,3 +121,17 @@ springdoc:
   group-configs:
     - group: vault
       paths-to-match: /vault/**
+# Outbox Consumer 配置（E2E 测试环境）
+pig:
+  outbox:
+    consumer:
+      enabled: true
+      bootstrap-servers: ${KAFKA_HOST:127.0.0.1}:${KAFKA_PORT:9093}
+      domains: order,vault,market
+      group-id-prefix: vault-consumer
+      concurrency: 2
+      auto-offset-reset: earliest
+      enable-auto-commit: false
+      session-timeout-ms: 30000
+      max-poll-records: 100
+
