@@ -75,7 +75,6 @@ public enum OrderStatus {
 	FAILED(9, "FAILED");
 
 	@EnumValue
-	@JsonValue
 	private final int code;
 
 	private final String description;

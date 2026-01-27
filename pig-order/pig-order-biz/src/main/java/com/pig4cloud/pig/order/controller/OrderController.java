@@ -149,13 +149,32 @@ public class OrderController {
 	 */
 	@GetMapping("/trades")
 	@Operation(summary = "查询成交记录", description = "根据订单ID查询成交记录")
-	public R<List<OrderFill>> getTrades(@RequestParam("orderId") Long orderId) {
-		List<OrderFill> fills = orderFillMapper
-			.selectList(Wrappers.<OrderFill>lambdaQuery()
-				.eq(OrderFill::getTakerOrderId, orderId)
-				.or()
-				.eq(OrderFill::getMakerOrderId, orderId));
-		return R.ok(fills);
+	public R<List<OrderFillDTO>> getTrades(@RequestParam("orderId") Long orderId) {
+		List<OrderFill> fills = orderFillMapper.selectList(Wrappers.<OrderFill>lambdaQuery()
+			.eq(OrderFill::getTakerOrderId, orderId)
+			.or()
+			.eq(OrderFill::getMakerOrderId, orderId));
+
+		// Convert to DTO
+		List<OrderFillDTO> fillDTOs = fills.stream().map(this::convertToDTO).toList();
+		return R.ok(fillDTOs);
+	}
+
+	/**
+	 * Convert OrderFill entity to DTO
+	 */
+	private OrderFillDTO convertToDTO(OrderFill fill) {
+		OrderFillDTO dto = new OrderFillDTO();
+		dto.setTradeId(fill.getTradeId());
+		dto.setMatchId(fill.getMatchId());
+		dto.setTakerOrderId(fill.getTakerOrderId());
+		dto.setMakerOrderId(fill.getMakerOrderId());
+		dto.setPrice(fill.getPrice());
+		dto.setQuantity(fill.getQuantity());
+		dto.setFee(fill.getFee());
+		dto.setCreateTime(fill.getCreateTime() != null ? fill.getCreateTime().toEpochMilli() : null);
+		dto.setCreateBy(fill.getCreateBy());
+		return dto;
 	}
 
 }

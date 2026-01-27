@@ -38,7 +38,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-
 /**
  * Order Event Handler - Handles order lifecycle events from outbox
  *
@@ -96,8 +95,20 @@ public class OrderEventHandler {
 
 			// 3. Check order status - only process OPEN orders
 			if (order.getStatus() != OrderStatus.OPEN) {
-				log.info("Order already processed or in non-OPEN state: orderId={}, status={}, skipping", orderId,
-						order.getStatus());
+				// Special case: If order was cancelled before being submitted to matching
+				// engine
+				if (order.getStatus() == OrderStatus.CANCEL_REQUESTED) {
+					log.info(
+							"Order was cancelled before submission to matching engine: orderId={}, marking as CANCELLED directly",
+							orderId);
+					order.setStatus(OrderStatus.CANCELLED);
+					orderMapper.updateById(order);
+					publishOrderCancelEvent(order);
+				}
+				else {
+					log.info("Order already processed or in non-OPEN state: orderId={}, status={}, skipping", orderId,
+							order.getStatus());
+				}
 				return;
 			}
 
@@ -117,8 +128,7 @@ public class OrderEventHandler {
 								event.eventId());
 					}
 					else {
-						log.info(
-								"Order status changed before MATCHING transition: orderId={}, status={}, eventId={}",
+						log.info("Order status changed before MATCHING transition: orderId={}, status={}, eventId={}",
 								orderId, order.getStatus(), event.eventId());
 					}
 				}
@@ -192,6 +202,17 @@ public class OrderEventHandler {
 						event.eventId());
 				// Status will be updated by reduce event callback
 			}
+			else if (resultCode == CommandResultCode.MATCHING_UNKNOWN_ORDER_ID) {
+				// Order was never submitted to matching engine (race condition)
+				// Mark as CANCELLED directly since there's nothing to cancel in the
+				// engine
+				log.info(
+						"Order not found in matching engine (never submitted): orderId={}, marking as CANCELLED directly",
+						orderId);
+				order.setStatus(OrderStatus.CANCELLED);
+				orderMapper.updateById(order);
+				publishOrderCancelEvent(order);
+			}
 			else {
 				log.error("Failed to submit cancel to matching engine: orderId={}, resultCode={}", orderId, resultCode);
 				// Rollback order status to previous state
@@ -208,8 +229,8 @@ public class OrderEventHandler {
 	}
 
 	private void publishOrderCancelEvent(Order order) {
-		OrderCancelPayload payload = new OrderCancelPayload(order.getOrderId(), order.getUserId(),
-				order.getMarketId(), order.getStatus().name(), order.getRejectReason());
+		OrderCancelPayload payload = new OrderCancelPayload(order.getOrderId(), order.getUserId(), order.getMarketId(),
+				order.getStatus().name(), order.getRejectReason());
 
 		DomainEventEnvelope<OrderCancelPayload> event = new DomainEventEnvelope<>(IdUtil.randomUUID(), // eventId
 				DOMAIN_ORDER, // domain

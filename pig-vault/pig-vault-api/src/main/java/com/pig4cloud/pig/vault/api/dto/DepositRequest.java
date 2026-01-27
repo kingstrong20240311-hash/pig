@@ -38,11 +38,11 @@ import java.math.BigDecimal;
 public class DepositRequest {
 
 	/**
-	 * Account ID
+	 * User ID
 	 */
-	@NotNull(message = "Account ID cannot be null")
-	@Schema(description = "Account ID")
-	private Long accountId;
+	@NotNull(message = "User ID cannot be null")
+	@Schema(description = "User ID")
+	private Long userId;
 
 	/**
 	 * Asset symbol (e.g., USDC)

@@ -81,8 +81,9 @@ public class MarketCreatedEventHandler {
 
 		MarketAssetsReadyPayload readyPayload = new MarketAssetsReadyPayload(marketId, yesAsset.getCurrencyId(),
 				noAsset.getCurrencyId());
-		DomainEventEnvelope<MarketAssetsReadyPayload> readyEvent = new DomainEventEnvelope<>(UUID.randomUUID().toString(), "market",
-				"Market", String.valueOf(marketId), "MarketAssetsReady", System.currentTimeMillis(), null, readyPayload);
+		DomainEventEnvelope<MarketAssetsReadyPayload> readyEvent = new DomainEventEnvelope<>(
+				UUID.randomUUID().toString(), "market", "Market", String.valueOf(marketId), "MarketAssetsReady",
+				System.currentTimeMillis(), null, readyPayload);
 
 		domainEventPublisher.publish(readyEvent);
 

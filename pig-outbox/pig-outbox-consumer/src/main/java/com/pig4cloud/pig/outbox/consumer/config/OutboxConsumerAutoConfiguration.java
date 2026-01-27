@@ -107,14 +107,13 @@ public class OutboxConsumerAutoConfiguration {
 		return new DomainEventRouter(eventHandlerRegistry, objectMapper);
 	}
 
-		/**
+	/**
 	 * Kafka 监听器
 	 */
-		@Bean
-		public DomainEventKafkaListener domainEventKafkaListener(
-				OutboxConsumerProperties consumerProperties,
-				DomainEventRouter domainEventRouter) {
-			return new DomainEventKafkaListener(consumerProperties, domainEventRouter);
-		}
+	@Bean
+	public DomainEventKafkaListener domainEventKafkaListener(OutboxConsumerProperties consumerProperties,
+			DomainEventRouter domainEventRouter) {
+		return new DomainEventKafkaListener(consumerProperties, domainEventRouter);
+	}
 
 }

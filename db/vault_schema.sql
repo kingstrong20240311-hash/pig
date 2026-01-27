@@ -130,3 +130,11 @@ CREATE TABLE `outbox_event` (
 ) ENGINE = InnoDB
   DEFAULT CHARSET = utf8mb4
   COLLATE = utf8mb4_unicode_ci COMMENT ='Outbox事件表';
+
+-- ==========================
+-- Initial Data
+-- ==========================
+
+-- Create vault account for admin user (user_id=1 from pig.sys_user)
+INSERT INTO vault_account (account_id, user_id, account_type, status, create_time, update_time)
+VALUES (1000000, 1, 1, 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP);

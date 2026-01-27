@@ -68,13 +68,21 @@ public class VaultBalanceServiceImpl implements VaultBalanceService {
 	@Override
 	@Transactional(rollbackFor = Exception.class)
 	public BalanceResponse deposit(DepositRequest request) {
-		// 0) Convert symbol to assetId
+		// 0) Get account by userId
+		VaultAccount account = vaultAccountMapper
+			.selectOne(Wrappers.<VaultAccount>lambdaQuery().eq(VaultAccount::getUserId, request.getUserId()));
+		if (account == null) {
+			throw new IllegalStateException("Account not found for userId=" + request.getUserId());
+		}
+		Long accountId = account.getAccountId();
+
+		// 1) Convert symbol to assetId
 		Long assetId = getAssetIdBySymbol(request.getSymbol());
 
-		// 1) Idempotency: try insert ledger entry (unique constraint on idempotencyKey)
+		// 2) Idempotency: try insert ledger entry (unique constraint on idempotencyKey)
 		String idempotencyKey = buildIdempotencyKey(request.getRefId());
 		LedgerEntry ledger = new LedgerEntry();
-		ledger.setAccountId(request.getAccountId());
+		ledger.setAccountId(accountId);
 		ledger.setAssetId(assetId);
 		ledger.setEntryType(LedgerType.DEPOSIT);
 		ledger.setDirection(Direction.CREDIT);
@@ -91,72 +99,64 @@ public class VaultBalanceServiceImpl implements VaultBalanceService {
 		catch (DuplicateKeyException e) {
 			// Idempotent: deposit already processed, return existing balance
 			log.info("Deposit already processed for refId={}", request.getRefId());
-			return getBalanceResponse(request.getAccountId(), assetId, request.getSymbol());
+			return getBalanceResponse(accountId, assetId, request.getSymbol());
 		}
 
-		// 2) Get balance with FOR UPDATE semantics (pessimistic lock)
+		// 3) Get balance with FOR UPDATE semantics (pessimistic lock)
 		Balance balance = balanceMapper.selectOne(Wrappers.<Balance>lambdaQuery()
-			.eq(Balance::getAccountId, request.getAccountId())
+			.eq(Balance::getAccountId, accountId)
 			.eq(Balance::getAssetId, assetId)
 			.last("FOR UPDATE"));
 
-		// If balance does not exist, check if account exists and create balance record
+		// If balance does not exist, create balance record
 		if (balance == null) {
-			log.info("Balance not found, checking if account exists: accountId={}, symbol={}, assetId={}",
-					request.getAccountId(), request.getSymbol(), assetId);
-			
-			// Verify account exists before creating balance
-			VaultAccount account = vaultAccountMapper.selectById(request.getAccountId());
-			if (account == null) {
-				throw new IllegalStateException("Account not found for accountId=" + request.getAccountId());
-			}
-			
+			log.info("Balance not found, creating new balance: userId={}, accountId={}, symbol={}, assetId={}",
+					request.getUserId(), accountId, request.getSymbol(), assetId);
+
 			// Create new balance record
 			balance = new Balance();
-			balance.setAccountId(request.getAccountId());
+			balance.setAccountId(accountId);
 			balance.setAssetId(assetId);
 			balance.setAvailable(BigDecimal.ZERO);
 			balance.setFrozen(BigDecimal.ZERO);
 			balance.setVersion(0L);
-			
+
 			balanceMapper.insert(balance);
-			log.info("New balance record created: balanceId={}, accountId={}, assetId={}", 
-					balance.getBalanceId(), request.getAccountId(), assetId);
+			log.info("New balance record created: balanceId={}, accountId={}, assetId={}", balance.getBalanceId(),
+					accountId, assetId);
 		}
 
 		// Store before values for audit trail
 		BigDecimal beforeAvailable = balance.getAvailable();
 		BigDecimal beforeFrozen = balance.getFrozen();
 
-		// 3) Update balance (optimistic lock with version)
-		int rows = balanceMapper.depositBalance(request.getAccountId(), assetId, request.getAmount(),
-				balance.getVersion());
+		// 4) Update balance (optimistic lock with version)
+		int rows = balanceMapper.depositBalance(accountId, assetId, request.getAmount(), balance.getVersion());
 
 		if (rows != 1) {
 			throw new IllegalStateException("Concurrency conflict when updating balance");
 		}
 
-		// 4) Update ledger entry with before/after values
+		// 5) Update ledger entry with before/after values
 		ledger.setBeforeAvailable(beforeAvailable);
 		ledger.setBeforeFrozen(beforeFrozen);
 		ledger.setAfterAvailable(beforeAvailable.add(request.getAmount()));
 		ledger.setAfterFrozen(beforeFrozen);
 		ledgerEntryMapper.updateById(ledger);
 
-		log.info("Deposit completed successfully: accountId={}, symbol={}, amount={}, refId={}",
-				request.getAccountId(), request.getSymbol(), request.getAmount(), request.getRefId());
+		log.info("Deposit completed successfully: userId={}, accountId={}, symbol={}, amount={}, refId={}",
+				request.getUserId(), accountId, request.getSymbol(), request.getAmount(), request.getRefId());
 
-		// 5) Return updated balance
-		return getBalanceResponse(request.getAccountId(), assetId, request.getSymbol());
+		// 6) Return updated balance
+		return getBalanceResponse(accountId, assetId, request.getSymbol());
 	}
 
 	/**
 	 * Get asset ID by symbol
 	 */
 	private Long getAssetIdBySymbol(String symbol) {
-		VaultAsset asset = vaultAssetMapper.selectOne(Wrappers.<VaultAsset>lambdaQuery()
-			.eq(VaultAsset::getSymbol, symbol)
-			.eq(VaultAsset::getIsActive, true));
+		VaultAsset asset = vaultAssetMapper.selectOne(
+				Wrappers.<VaultAsset>lambdaQuery().eq(VaultAsset::getSymbol, symbol).eq(VaultAsset::getIsActive, true));
 
 		if (asset == null) {
 			throw new IllegalArgumentException("Asset not found or inactive for symbol: " + symbol);
@@ -212,9 +212,8 @@ public class VaultBalanceServiceImpl implements VaultBalanceService {
 		}
 
 		// 3) Convert symbol to assetId
-		VaultAsset asset = vaultAssetMapper.selectOne(Wrappers.<VaultAsset>lambdaQuery()
-			.eq(VaultAsset::getSymbol, symbol)
-			.eq(VaultAsset::getIsActive, true));
+		VaultAsset asset = vaultAssetMapper.selectOne(
+				Wrappers.<VaultAsset>lambdaQuery().eq(VaultAsset::getSymbol, symbol).eq(VaultAsset::getIsActive, true));
 
 		if (asset == null) {
 			throw new IllegalArgumentException("Asset not found or inactive for symbol: " + symbol);

@@ -50,7 +50,6 @@ public enum TimeInForce {
 	GTD(4, "GTD");
 
 	@EnumValue
-	@JsonValue
 	private final int code;
 
 	private final String description;

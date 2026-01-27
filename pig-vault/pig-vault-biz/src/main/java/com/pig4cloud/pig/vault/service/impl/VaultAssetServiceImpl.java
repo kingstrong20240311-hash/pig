@@ -125,17 +125,17 @@ public class VaultAssetServiceImpl implements VaultAssetService {
 
 	@Override
 	public List<AssetResponse> getAllAssets() {
-		List<VaultAsset> assets = vaultAssetMapper.selectList(Wrappers.<VaultAsset>lambdaQuery().orderByDesc(VaultAsset::getCreateTime));
+		List<VaultAsset> assets = vaultAssetMapper
+			.selectList(Wrappers.<VaultAsset>lambdaQuery().orderByDesc(VaultAsset::getCreateTime));
 
 		return assets.stream().map(this::toAssetResponse).collect(Collectors.toList());
 	}
 
 	@Override
 	public List<AssetResponse> getActiveAssets() {
-		List<VaultAsset> assets = vaultAssetMapper
-			.selectList(Wrappers.<VaultAsset>lambdaQuery()
-				.eq(VaultAsset::getIsActive, true)
-				.orderByDesc(VaultAsset::getCreateTime));
+		List<VaultAsset> assets = vaultAssetMapper.selectList(Wrappers.<VaultAsset>lambdaQuery()
+			.eq(VaultAsset::getIsActive, true)
+			.orderByDesc(VaultAsset::getCreateTime));
 
 		return assets.stream().map(this::toAssetResponse).collect(Collectors.toList());
 	}

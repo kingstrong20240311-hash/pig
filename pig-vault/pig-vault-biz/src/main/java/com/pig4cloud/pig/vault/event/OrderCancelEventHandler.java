@@ -32,7 +32,6 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.lang.reflect.Method;
 
-
 /**
  * Handle order cancellation events for vault operations
  *

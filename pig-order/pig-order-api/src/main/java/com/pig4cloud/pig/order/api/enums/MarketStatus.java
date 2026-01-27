@@ -36,7 +36,6 @@ public enum MarketStatus {
 	EXPIRED(2, "EXPIRED");
 
 	@EnumValue
-	@JsonValue
 	private final int code;
 
 	private final String description;

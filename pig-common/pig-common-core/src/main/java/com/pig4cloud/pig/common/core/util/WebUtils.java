@@ -109,9 +109,11 @@ public class WebUtils extends org.springframework.web.util.WebUtils {
 	public Optional<HttpServletRequest> getRequest() {
 		if (RequestContextHolder.getRequestAttributes() == null) {
 			return Optional.empty();
-		} else {
+		}
+		else {
 			return Optional
-					.of(((ServletRequestAttributes) Objects.requireNonNull(RequestContextHolder.getRequestAttributes())).getRequest());
+				.of(((ServletRequestAttributes) Objects.requireNonNull(RequestContextHolder.getRequestAttributes()))
+					.getRequest());
 		}
 	}
 

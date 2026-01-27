@@ -27,7 +27,9 @@ import com.pig4cloud.pig.order.api.entity.OrderCancel;
 import com.pig4cloud.pig.order.api.enums.OrderStatus;
 import com.pig4cloud.pig.order.api.enums.OrderType;
 import com.pig4cloud.pig.order.api.enums.Outcome;
+import com.pig4cloud.pig.order.api.enums.Side;
 import com.pig4cloud.pig.order.api.enums.TimeInForce;
+import com.pig4cloud.pig.order.match.MatchingEngineProperties;
 import com.pig4cloud.pig.order.mapper.OrderCancelMapper;
 import com.pig4cloud.pig.order.mapper.OrderMapper;
 import com.pig4cloud.pig.order.service.MarketService;
@@ -69,6 +71,8 @@ public class OrderServiceImpl implements OrderService {
 	private final VaultService vaultService;
 
 	private final MarketService marketService;
+
+	private final MatchingEngineProperties matchingEngineProperties;
 
 	@Value("${node-id:0}")
 	private long nodeId;
@@ -115,9 +119,12 @@ public class OrderServiceImpl implements OrderService {
 
 		// 5. Create freeze in Vault
 		CreateFreezeRequest freezeRequest = new CreateFreezeRequest();
-		freezeRequest.setAccountId(request.getUserId());
-		// TODO: get symbol from marketId mapping
-		freezeRequest.setSymbol("USDC");
+		freezeRequest.setUserId(request.getUserId());
+		// Determine freeze symbol based on side:
+		// BUY orders: freeze USDC (default asset)
+		// SELL orders: freeze the outcome token (YES or NO)
+		String freezeSymbol = determineFreezeSymbol(request.getSide(), request.getMarketId(), request.getOutcome());
+		freezeRequest.setSymbol(freezeSymbol);
 		freezeRequest.setAmount(calculateFreezeAmount(request));
 		freezeRequest.setRefType(RefType.ORDER);
 		freezeRequest.setRefId(String.valueOf(orderId));
@@ -188,7 +195,8 @@ public class OrderServiceImpl implements OrderService {
 		// 4. Check if order can be cancelled
 		if (!order.isCancellable()) {
 			log.warn("Order cannot be cancelled: orderId={}, status={}", order.getOrderId(), order.getStatus());
-			return buildCancelOrderResponse(order);
+			throw new IllegalStateException(
+					"Order cannot be cancelled: orderId=" + order.getOrderId() + ", status=" + order.getStatus());
 		}
 
 		// 5. Insert cancel record (idempotent anchor)
@@ -238,17 +246,55 @@ public class OrderServiceImpl implements OrderService {
 	}
 
 	/**
+	 * Determine which asset symbol to freeze based on order side
+	 * @param side order side (BUY/SELL)
+	 * @param marketId market ID
+	 * @param outcome outcome (YES/NO)
+	 * @return symbol name to freeze
+	 */
+	private String determineFreezeSymbol(Side side, Long marketId, Outcome outcome) {
+		if (side == Side.BUY) {
+			// BUY orders: freeze USDC (default asset) to purchase outcome tokens
+			return matchingEngineProperties.getAssetSymbol(matchingEngineProperties.getDefaultAsset());
+		}
+		else {
+			// SELL orders: freeze outcome tokens (YES or NO) to sell for USDC
+			// Symbol format matches MarketCreatedEventHandler: M{marketId}_{outcome}
+			return buildOutcomeSymbol(marketId, outcome.name());
+		}
+	}
+
+	/**
+	 * Build outcome asset symbol (must match format in MarketCreatedEventHandler)
+	 * @param marketId market ID
+	 * @param outcome outcome name (YES/NO)
+	 * @return symbol like "M1_YES" or "M1_NO"
+	 */
+	private String buildOutcomeSymbol(Long marketId, String outcome) {
+		return "M" + marketId + "_" + outcome;
+	}
+
+	/**
 	 * Calculate freeze amount based on order request
 	 */
 	private BigDecimal calculateFreezeAmount(CreateOrderRequest request) {
-		// For BUY orders: freeze = quantity * price
-		// For SELL orders: freeze = quantity
-		// TODO: adjust based on actual market requirements
-		if (request.getType() == OrderType.LIMIT) {
-			return request.getQuantity().multiply(request.getPrice());
+		// For BUY orders: freeze USDC amount = quantity * price
+		// For SELL orders: freeze token quantity = quantity
+		if (request.getSide() == Side.BUY) {
+			// BUY: need to freeze USDC to purchase tokens
+			if (request.getType() == OrderType.LIMIT) {
+				return request.getQuantity().multiply(request.getPrice());
+			}
+			else {
+				// MARKET order: freeze quantity * 1.0 (worst case price in prediction
+				// markets)
+				// Since max price is 1.0 in prediction markets, quantity equals the max
+				// USDC needed
+				return request.getQuantity();
+			}
 		}
 		else {
-			// MARKET order: use estimated amount
+			// SELL: need to freeze the outcome tokens (YES or NO)
 			return request.getQuantity();
 		}
 	}

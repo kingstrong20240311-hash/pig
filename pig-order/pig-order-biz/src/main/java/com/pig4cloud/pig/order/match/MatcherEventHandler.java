@@ -169,12 +169,16 @@ public class MatcherEventHandler implements OrderMatchService {
 				return;
 			}
 
-			// note: No need to check previous status, 
-			// because it has been checked before requesting cancel to matching engine 
+			// note: No need to check previous status,
+			// because it has been checked before requesting cancel to matching engine
 			// Update order status based on whether it's completed
 			if (reduceEvent.orderCompleted) {
 				order.setStatus(OrderStatus.CANCELLED);
-				order.setRemainingQuantity(BigDecimal.ZERO);
+				// DO NOT set remainingQuantity to ZERO!
+				// remainingQuantity should preserve the amount that was NOT filled when
+				// cancelled
+				// This is critical for calculating filledQuantity = quantity -
+				// remainingQuantity
 			}
 			else {
 				// Partial cancel - update remaining quantity
@@ -357,7 +361,12 @@ public class MatcherEventHandler implements OrderMatchService {
 				// Greater than 0: PARTIALLY_FILLED
 				makerOrder.setStatus(OrderStatus.PARTIALLY_FILLED);
 			}
-			orderMapper.updateById(makerOrder);
+			int rows = orderMapper.updateById(makerOrder);
+			if (rows != 1) {
+				throw new IllegalStateException("Failed to update maker order: orderId=" + makerOrder.getOrderId());
+			}
+			log.info("makerOrderId: {}, newMakerRemaining: {}, status: {}", makerOrder.getOrderId(), newMakerRemaining,
+					makerOrder.getStatus());
 
 			// Track maker order state
 			orderStates.put(makerOrder.getOrderId(), buildOrderStateDTO(makerOrder));
@@ -471,8 +480,8 @@ public class MatcherEventHandler implements OrderMatchService {
 	 * Publish OrderCancel event via DomainEventPublisher
 	 */
 	private void publishOrderCancelEvent(Order order, String reason) {
-		OrderCancelPayload payload = new OrderCancelPayload(order.getOrderId(), order.getUserId(),
-				order.getMarketId(), order.getStatus().name(), reason);
+		OrderCancelPayload payload = new OrderCancelPayload(order.getOrderId(), order.getUserId(), order.getMarketId(),
+				order.getStatus().name(), reason);
 
 		DomainEventEnvelope<OrderCancelPayload> event = new DomainEventEnvelope<>(IdUtil.randomUUID(), // eventId
 				DOMAIN_ORDER, // domain

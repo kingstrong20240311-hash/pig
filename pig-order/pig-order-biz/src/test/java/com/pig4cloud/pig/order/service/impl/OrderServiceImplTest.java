@@ -32,6 +32,7 @@ import com.pig4cloud.pig.order.api.enums.Side;
 import com.pig4cloud.pig.order.api.enums.TimeInForce;
 import com.pig4cloud.pig.order.mapper.OrderCancelMapper;
 import com.pig4cloud.pig.order.mapper.OrderMapper;
+import com.pig4cloud.pig.order.match.MatchingEngineProperties;
 import com.pig4cloud.pig.order.match.MatchingEngineSymbolService;
 import com.pig4cloud.pig.order.service.MarketService;
 import com.pig4cloud.pig.outbox.api.publisher.DomainEventPublisher;
@@ -53,6 +54,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.*;
+import static org.mockito.Mockito.lenient;
 
 /**
  * Unit tests for OrderServiceImpl
@@ -88,12 +90,21 @@ class OrderServiceImplTest {
 	@Mock
 	private MatchingEngineSymbolService matchingEngineSymbolService;
 
+	@Mock
+	private MatchingEngineProperties matchingEngineProperties;
+
 	@InjectMocks
 	private OrderServiceImpl orderService;
 
 	@BeforeEach
 	void setUp() {
 		ReflectionTestUtils.setField(orderService, "nodeId", 0L);
+
+		// Mock MatchingEngineProperties behavior (lenient for tests that don't use them)
+		lenient().when(matchingEngineProperties.getDefaultAsset()).thenReturn(1);
+		lenient().when(matchingEngineProperties.getAssetSymbol(1)).thenReturn("USDC");
+		lenient().when(matchingEngineProperties.getAssetSymbol(101)).thenReturn("M1_YES");
+		lenient().when(matchingEngineProperties.getAssetSymbol(102)).thenReturn("M1_NO");
 	}
 
 	/**

@@ -185,13 +185,14 @@ class VaultBalanceControllerTest {
 	@Transactional
 	void testDepositSuccess() throws Exception {
 		DepositRequest request = new DepositRequest();
-		request.setAccountId(ACCOUNT_ID);
+		request.setUserId(USER_ID);
 		request.setSymbol(SYMBOL);
 		request.setAmount(new BigDecimal("50.000000"));
 		request.setRefId("API-DEPOSIT-001");
 
 		mockMvc
-			.perform(post("/deposit").header(HttpHeaders.AUTHORIZATION, "Bearer " + TEST_TOKEN).contentType(MediaType.APPLICATION_JSON)
+			.perform(post("/deposit").header(HttpHeaders.AUTHORIZATION, "Bearer " + TEST_TOKEN)
+				.contentType(MediaType.APPLICATION_JSON)
 				.content(objectMapper.writeValueAsString(request)))
 			.andDo(print())
 			.andExpect(status().isOk())
@@ -231,33 +232,36 @@ class VaultBalanceControllerTest {
 		request1.setRefId("API-DEPOSIT-002");
 
 		mockMvc
-			.perform(post("/deposit").header(HttpHeaders.AUTHORIZATION, "Bearer " + TEST_TOKEN).contentType(MediaType.APPLICATION_JSON)
+			.perform(post("/deposit").header(HttpHeaders.AUTHORIZATION, "Bearer " + TEST_TOKEN)
+				.contentType(MediaType.APPLICATION_JSON)
 				.content(objectMapper.writeValueAsString(request1)))
 			.andDo(print())
 			.andExpect(status().is4xxClientError());
 
 		// Negative amount
 		DepositRequest request2 = new DepositRequest();
-		request2.setAccountId(ACCOUNT_ID);
+		request2.setUserId(USER_ID);
 		request2.setSymbol(SYMBOL);
 		request2.setAmount(new BigDecimal("-10.000000"));
 		request2.setRefId("API-DEPOSIT-003");
 
 		mockMvc
-			.perform(post("/deposit").header(HttpHeaders.AUTHORIZATION, "Bearer " + TEST_TOKEN).contentType(MediaType.APPLICATION_JSON)
+			.perform(post("/deposit").header(HttpHeaders.AUTHORIZATION, "Bearer " + TEST_TOKEN)
+				.contentType(MediaType.APPLICATION_JSON)
 				.content(objectMapper.writeValueAsString(request2)))
 			.andDo(print())
 			.andExpect(status().is4xxClientError());
 
 		// Blank refId
 		DepositRequest request3 = new DepositRequest();
-		request3.setAccountId(ACCOUNT_ID);
+		request3.setUserId(USER_ID);
 		request3.setSymbol(SYMBOL);
 		request3.setAmount(new BigDecimal("10.000000"));
 		request3.setRefId("");
 
 		mockMvc
-			.perform(post("/deposit").header(HttpHeaders.AUTHORIZATION, "Bearer " + TEST_TOKEN).contentType(MediaType.APPLICATION_JSON)
+			.perform(post("/deposit").header(HttpHeaders.AUTHORIZATION, "Bearer " + TEST_TOKEN)
+				.contentType(MediaType.APPLICATION_JSON)
 				.content(objectMapper.writeValueAsString(request3)))
 			.andDo(print())
 			.andExpect(status().is4xxClientError());
@@ -273,21 +277,23 @@ class VaultBalanceControllerTest {
 	@Transactional
 	void testDepositIdempotency() throws Exception {
 		DepositRequest request = new DepositRequest();
-		request.setAccountId(ACCOUNT_ID);
+		request.setUserId(USER_ID);
 		request.setSymbol(SYMBOL);
 		request.setAmount(new BigDecimal("30.000000"));
 		request.setRefId("API-DEPOSIT-004");
 
 		// First deposit
 		mockMvc
-			.perform(post("/deposit").header(HttpHeaders.AUTHORIZATION, "Bearer " + TEST_TOKEN).contentType(MediaType.APPLICATION_JSON)
+			.perform(post("/deposit").header(HttpHeaders.AUTHORIZATION, "Bearer " + TEST_TOKEN)
+				.contentType(MediaType.APPLICATION_JSON)
 				.content(objectMapper.writeValueAsString(request)))
 			.andExpect(status().isOk())
 			.andExpect(jsonPath("$.data.available").value(130.0));
 
 		// Second deposit with same refId
 		mockMvc
-			.perform(post("/deposit").header(HttpHeaders.AUTHORIZATION, "Bearer " + TEST_TOKEN).contentType(MediaType.APPLICATION_JSON)
+			.perform(post("/deposit").header(HttpHeaders.AUTHORIZATION, "Bearer " + TEST_TOKEN)
+				.contentType(MediaType.APPLICATION_JSON)
 				.content(objectMapper.writeValueAsString(request)))
 			.andExpect(status().isOk())
 			.andExpect(jsonPath("$.data.available").value(130.0));
@@ -306,8 +312,9 @@ class VaultBalanceControllerTest {
 	@Order(4)
 	@DisplayName("4. Get my balance successfully")
 	void testGetMyBalanceSuccess() throws Exception {
-		mockMvc.perform(get("/balance/me").header(HttpHeaders.AUTHORIZATION, "Bearer " + TEST_TOKEN)
-			.param("symbol", SYMBOL))
+		mockMvc
+			.perform(get("/balance/me").header(HttpHeaders.AUTHORIZATION, "Bearer " + TEST_TOKEN)
+				.param("symbol", SYMBOL))
 			.andDo(print())
 			.andExpect(status().isOk())
 			.andExpect(jsonPath("$.code").value(0))
@@ -324,8 +331,9 @@ class VaultBalanceControllerTest {
 	@Order(5)
 	@DisplayName("5. Get my balance with invalid symbol")
 	void testGetMyBalanceInvalidSymbol() throws Exception {
-		mockMvc.perform(get("/balance/me").header(HttpHeaders.AUTHORIZATION, "Bearer " + TEST_TOKEN)
-			.param("symbol", "INVALID"))
+		mockMvc
+			.perform(get("/balance/me").header(HttpHeaders.AUTHORIZATION, "Bearer " + TEST_TOKEN)
+				.param("symbol", "INVALID"))
 			.andDo(print())
 			.andExpect(status().isOk())
 			.andExpect(jsonPath("$.code").value(1))
@@ -342,19 +350,21 @@ class VaultBalanceControllerTest {
 	void testDepositAndCheckMyBalance() throws Exception {
 		// Deposit
 		DepositRequest depositRequest = new DepositRequest();
-		depositRequest.setAccountId(ACCOUNT_ID);
+		depositRequest.setUserId(USER_ID);
 		depositRequest.setSymbol(SYMBOL);
 		depositRequest.setAmount(new BigDecimal("75.500000"));
 		depositRequest.setRefId("API-DEPOSIT-006");
 
 		mockMvc
-			.perform(post("/deposit").header(HttpHeaders.AUTHORIZATION, "Bearer " + TEST_TOKEN).contentType(MediaType.APPLICATION_JSON)
+			.perform(post("/deposit").header(HttpHeaders.AUTHORIZATION, "Bearer " + TEST_TOKEN)
+				.contentType(MediaType.APPLICATION_JSON)
 				.content(objectMapper.writeValueAsString(depositRequest)))
 			.andExpect(status().isOk());
 
 		// Check my balance
-		mockMvc.perform(get("/balance/me").header(HttpHeaders.AUTHORIZATION, "Bearer " + TEST_TOKEN)
-			.param("symbol", SYMBOL))
+		mockMvc
+			.perform(get("/balance/me").header(HttpHeaders.AUTHORIZATION, "Bearer " + TEST_TOKEN)
+				.param("symbol", SYMBOL))
 			.andDo(print())
 			.andExpect(status().isOk())
 			.andExpect(jsonPath("$.code").value(0))
@@ -373,39 +383,42 @@ class VaultBalanceControllerTest {
 	void testMultipleDeposits() throws Exception {
 		// First deposit
 		DepositRequest request1 = new DepositRequest();
-		request1.setAccountId(ACCOUNT_ID);
+		request1.setUserId(USER_ID);
 		request1.setSymbol(SYMBOL);
 		request1.setAmount(new BigDecimal("20.000000"));
 		request1.setRefId("API-DEPOSIT-007-1");
 
 		mockMvc
-			.perform(post("/deposit").header(HttpHeaders.AUTHORIZATION, "Bearer " + TEST_TOKEN).contentType(MediaType.APPLICATION_JSON)
+			.perform(post("/deposit").header(HttpHeaders.AUTHORIZATION, "Bearer " + TEST_TOKEN)
+				.contentType(MediaType.APPLICATION_JSON)
 				.content(objectMapper.writeValueAsString(request1)))
 			.andExpect(status().isOk())
 			.andExpect(jsonPath("$.data.available").value(120.0));
 
 		// Second deposit
 		DepositRequest request2 = new DepositRequest();
-		request2.setAccountId(ACCOUNT_ID);
+		request2.setUserId(USER_ID);
 		request2.setSymbol(SYMBOL);
 		request2.setAmount(new BigDecimal("30.000000"));
 		request2.setRefId("API-DEPOSIT-007-2");
 
 		mockMvc
-			.perform(post("/deposit").header(HttpHeaders.AUTHORIZATION, "Bearer " + TEST_TOKEN).contentType(MediaType.APPLICATION_JSON)
+			.perform(post("/deposit").header(HttpHeaders.AUTHORIZATION, "Bearer " + TEST_TOKEN)
+				.contentType(MediaType.APPLICATION_JSON)
 				.content(objectMapper.writeValueAsString(request2)))
 			.andExpect(status().isOk())
 			.andExpect(jsonPath("$.data.available").value(150.0));
 
 		// Third deposit
 		DepositRequest request3 = new DepositRequest();
-		request3.setAccountId(ACCOUNT_ID);
+		request3.setUserId(USER_ID);
 		request3.setSymbol(SYMBOL);
 		request3.setAmount(new BigDecimal("50.000000"));
 		request3.setRefId("API-DEPOSIT-007-3");
 
 		mockMvc
-			.perform(post("/deposit").header(HttpHeaders.AUTHORIZATION, "Bearer " + TEST_TOKEN).contentType(MediaType.APPLICATION_JSON)
+			.perform(post("/deposit").header(HttpHeaders.AUTHORIZATION, "Bearer " + TEST_TOKEN)
+				.contentType(MediaType.APPLICATION_JSON)
 				.content(objectMapper.writeValueAsString(request3)))
 			.andExpect(status().isOk())
 			.andExpect(jsonPath("$.data.available").value(200.0));
@@ -432,18 +445,19 @@ class VaultBalanceControllerTest {
 	@DisplayName("8. Deposit with non-existent account")
 	void testDepositNonExistentAccount() throws Exception {
 		DepositRequest request = new DepositRequest();
-		request.setAccountId(99999L); // Non-existent account
+		request.setUserId(99999L); // Non-existent user
 		request.setSymbol(SYMBOL);
 		request.setAmount(new BigDecimal("10.000000"));
 		request.setRefId("API-DEPOSIT-008");
 
 		mockMvc
-			.perform(post("/deposit").header(HttpHeaders.AUTHORIZATION, "Bearer " + TEST_TOKEN).contentType(MediaType.APPLICATION_JSON)
+			.perform(post("/deposit").header(HttpHeaders.AUTHORIZATION, "Bearer " + TEST_TOKEN)
+				.contentType(MediaType.APPLICATION_JSON)
 				.content(objectMapper.writeValueAsString(request)))
 			.andDo(print())
 			.andExpect(status().isOk())
 			.andExpect(jsonPath("$.code").value(1))
-			.andExpect(jsonPath("$.msg").value("Account not found for accountId=99999"));
+			.andExpect(jsonPath("$.msg").value("Account not found for userId=99999"));
 	}
 
 }

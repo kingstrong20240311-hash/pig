@@ -260,8 +260,8 @@ class OrderEventHandlerTest {
 		// Given
 		Long orderId = 1001L;
 		Long marketId = 1L;
-		OrderCancelRequestedPayload payload = new OrderCancelRequestedPayload(orderId, 123L, marketId, "CANCEL_REQUESTED",
-				"idem-1");
+		OrderCancelRequestedPayload payload = new OrderCancelRequestedPayload(orderId, 123L, marketId,
+				"CANCEL_REQUESTED", "idem-1");
 		DomainEventEnvelope<OrderCancelRequestedPayload> event = new DomainEventEnvelope<>("event-1", "order", "Order",
 				"order-1001", "OrderCancelRequested", System.currentTimeMillis(), null, payload);
 
@@ -318,7 +318,8 @@ class OrderEventHandlerTest {
 	@Test
 	void testHandleOrderCancelRequested_OrderNotFound() {
 		// Given
-		OrderCancelRequestedPayload payload = new OrderCancelRequestedPayload(9999L, 123L, 1L, "CANCEL_REQUESTED", "idem-4");
+		OrderCancelRequestedPayload payload = new OrderCancelRequestedPayload(9999L, 123L, 1L, "CANCEL_REQUESTED",
+				"idem-4");
 		DomainEventEnvelope<OrderCancelRequestedPayload> event = new DomainEventEnvelope<>("event-1", "order", "Order",
 				"order-9999", "OrderCancelRequested", System.currentTimeMillis(), null, payload);
 

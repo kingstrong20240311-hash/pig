@@ -91,7 +91,8 @@ public class InProcessPublishStrategy implements EventPublishStrategy {
 		}
 
 		return new DomainEventEnvelope(event.getEventId(), event.getDomain(), event.getAggregateType(),
-				event.getAggregateId(), event.getEventType(), event.getCreatedAt().toEpochMilli(), headers, event.getPayloadJson());
+				event.getAggregateId(), event.getEventType(), event.getCreatedAt().toEpochMilli(), headers,
+				event.getPayloadJson());
 	}
 
 }

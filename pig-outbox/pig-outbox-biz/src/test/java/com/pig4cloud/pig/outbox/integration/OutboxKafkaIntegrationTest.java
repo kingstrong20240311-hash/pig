@@ -49,8 +49,8 @@ import java.util.*;
 import static org.assertj.core.api.Assertions.*;
 
 /**
- * Outbox Kafka 端到端集成测试 I-01: End-to-end publish - 启动 MySQL + Kafka 容器 - 插入 outbox
- * 事件到数据库 - 运行 dispatcher - 从 Kafka 消费 - 断言消息字段 (domain, eventType, aggregateId)
+ * Outbox Kafka 端到端集成测试 I-01: End-to-end publish - 启动 MySQL + Kafka 容器 - 插入 outbox 事件到数据库
+ * - 运行 dispatcher - 从 Kafka 消费 - 断言消息字段 (domain, eventType, aggregateId)
  *
  * @author pig4cloud
  * @date 2025-01-22
@@ -196,7 +196,9 @@ class OutboxKafkaIntegrationTest {
 		List<DomainEventEnvelope> envelopes = consumeAndFindEvents(topic, expectedEventIds);
 
 		assertThat(envelopes).hasSize(3);
-		Set<String> actualEventIds = envelopes.stream().map(DomainEventEnvelope::eventId).collect(java.util.stream.Collectors.toSet());
+		Set<String> actualEventIds = envelopes.stream()
+			.map(DomainEventEnvelope::eventId)
+			.collect(java.util.stream.Collectors.toSet());
 		assertThat(actualEventIds).containsExactlyInAnyOrderElementsOf(expectedEventIds);
 	}
 

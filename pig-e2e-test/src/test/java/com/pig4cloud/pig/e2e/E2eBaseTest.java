@@ -51,13 +51,7 @@ import static org.awaitility.Awaitility.await;
 import static org.junit.jupiter.api.Assertions.*;
 
 /**
- * E2E 测试基类
- * 提供：
- * - 环境变量读取
- * - HTTP 客户端配置
- * - 通用鉴权方法
- * - 公共断言方法
- * - 轮询查询工具
+ * E2E 测试基类 提供： - 环境变量读取 - HTTP 客户端配置 - 通用鉴权方法 - 公共断言方法 - 轮询查询工具
  *
  * @author pig4cloud
  */
@@ -102,6 +96,7 @@ public abstract class E2eBaseTest {
 	// ==================== HTTP 客户端 ====================
 
 	protected static RequestSpecification requestSpec;
+
 	protected static ObjectMapper objectMapper;
 
 	/** 当前测试的访问 Token */
@@ -203,8 +198,7 @@ public abstract class E2eBaseTest {
 			.objectMapperConfig(new ObjectMapperConfig().jackson2ObjectMapperFactory((cls, charset) -> objectMapper));
 
 		// 创建默认请求规范
-		requestSpec = new RequestSpecBuilder()
-			.setConfig(config)
+		requestSpec = new RequestSpecBuilder().setConfig(config)
 			.setContentType(ContentType.JSON)
 			.setAccept(ContentType.JSON)
 			.build();
@@ -223,21 +217,21 @@ public abstract class E2eBaseTest {
 		if (StringUtils.isNotBlank(adminToken)) {
 			accessToken = adminToken;
 			log.info("使用预配置的 Admin Token");
-		} else {
+		}
+		else {
 			// 否则执行登录获取 Token
 			accessToken = login(testUsername, testPassword);
 			log.info("登录成功，获取 Access Token: {}", maskToken(accessToken));
 		}
 
-		// 确保测试所需的Market存在
-		ensureMarketExists();
+		// 为每个测试用例创建一个新的市场
+		createNewMarketForTest();
 	}
 
 	// ==================== 鉴权方法 ====================
 
 	/**
 	 * 用户登录，获取访问令牌
-	 *
 	 * @param username 用户名
 	 * @param password 密码
 	 * @return 访问令牌
@@ -249,10 +243,11 @@ public abstract class E2eBaseTest {
 		String encryptedPassword = PasswordEncryptionUtil.encrypt(password, encodeKey);
 		log.debug("密码已加密，加密后长度: {}", encryptedPassword.length());
 
-		Response response = given()
-			.spec(requestSpec)
+		Response response = given().spec(requestSpec)
 			.contentType(ContentType.URLENC)
-			.auth().preemptive().basic(clientId, clientSecret)  // OAuth2 客户端凭证
+			.auth()
+			.preemptive()
+			.basic(clientId, clientSecret) // OAuth2 客户端凭证
 			.formParam("grant_type", "password")
 			.formParam("username", username)
 			.formParam("password", encryptedPassword)
@@ -270,8 +265,7 @@ public abstract class E2eBaseTest {
 
 		// 检查状态码
 		assertEquals(200, response.getStatusCode(),
-			String.format("登录失败，状态码: %d, 响应: %s",
-				response.getStatusCode(), response.getBody().asString()));
+				String.format("登录失败，状态码: %d, 响应: %s", response.getStatusCode(), response.getBody().asString()));
 
 		String token = response.jsonPath().getString("access_token");
 		assertNotNull(token, "登录失败：未获取到 access_token");
@@ -281,7 +275,6 @@ public abstract class E2eBaseTest {
 
 	/**
 	 * 用户注册
-	 *
 	 * @param username 用户名
 	 * @param password 密码
 	 * @return 注册响应
@@ -293,8 +286,7 @@ public abstract class E2eBaseTest {
 		registerRequest.put("username", username);
 		registerRequest.put("password", password);
 
-		Response response = given()
-			.spec(requestSpec)
+		Response response = given().spec(requestSpec)
 			.body(registerRequest)
 			.when()
 			.post("/auth/register")
@@ -308,11 +300,10 @@ public abstract class E2eBaseTest {
 
 	/**
 	 * 用户注册（带额外信息）
-	 *
 	 * @param username 用户名
 	 * @param password 密码
-	 * @param email    邮箱
-	 * @param phone    手机号
+	 * @param email 邮箱
+	 * @param phone 手机号
 	 * @return 注册响应
 	 */
 	protected Response register(String username, String password, String email, String phone) {
@@ -328,8 +319,7 @@ public abstract class E2eBaseTest {
 			registerRequest.put("phone", phone);
 		}
 
-		Response response = given()
-			.spec(requestSpec)
+		Response response = given().spec(requestSpec)
 			.body(registerRequest)
 			.when()
 			.post("/auth/register")
@@ -343,13 +333,10 @@ public abstract class E2eBaseTest {
 
 	/**
 	 * 使用当前 Token 创建已鉴权的请求
-	 *
 	 * @return 已配置 Authorization 的请求规范
 	 */
 	protected RequestSpecification authenticatedRequest() {
-		return given()
-			.spec(requestSpec)
-			.header("Authorization", "Bearer " + accessToken);
+		return given().spec(requestSpec).header("Authorization", "Bearer " + accessToken);
 	}
 
 	// ==================== 通用断言方法 ====================
@@ -384,31 +371,27 @@ public abstract class E2eBaseTest {
 	 */
 	protected void assertFieldEquals(Response response, String fieldPath, Object expectedValue) {
 		Object actualValue = response.jsonPath().get(fieldPath);
-		assertEquals(expectedValue, actualValue,
-				String.format("字段 '%s' 的值不匹配", fieldPath));
+		assertEquals(expectedValue, actualValue, String.format("字段 '%s' 的值不匹配", fieldPath));
 	}
 
 	// ==================== 轮询查询工具 ====================
 
 	/**
 	 * 轮询查询直到条件满足
-	 *
 	 * @param pollAction 轮询动作（返回 Response）
-	 * @param condition  条件判断（返回 true 表示满足）
-	 * @param message    超时错误消息
+	 * @param condition 条件判断（返回 true 表示满足）
+	 * @param message 超时错误消息
 	 * @return 最后一次查询的响应
 	 */
 	protected Response pollUntil(java.util.function.Supplier<Response> pollAction,
-								  java.util.function.Predicate<Response> condition,
-								  String message) {
-		await()
-			.atMost(Duration.ofSeconds(maxWaitSeconds))
+			java.util.function.Predicate<Response> condition, String message) {
+		await().atMost(Duration.ofSeconds(maxWaitSeconds))
 			.pollInterval(pollIntervalMillis, TimeUnit.MILLISECONDS)
 			.until(() -> {
 				Response response = pollAction.get();
 				boolean result = condition.test(response);
 				if (!result) {
-					log.debug("轮询条件未满足，继续等待...");
+					log.info("轮询条件未满足，继续等待...");
 				}
 				return result;
 			});
@@ -439,7 +422,8 @@ public abstract class E2eBaseTest {
 		}
 		try {
 			return Integer.parseInt(value);
-		} catch (NumberFormatException e) {
+		}
+		catch (NumberFormatException e) {
 			log.warn("环境变量 {} 的值 '{}' 不是有效整数，使用默认值 {}", key, value, defaultValue);
 			return defaultValue;
 		}
@@ -468,7 +452,8 @@ public abstract class E2eBaseTest {
 	protected void sleep(long millis) {
 		try {
 			Thread.sleep(millis);
-		} catch (InterruptedException e) {
+		}
+		catch (InterruptedException e) {
 			Thread.currentThread().interrupt();
 		}
 	}
@@ -477,26 +462,18 @@ public abstract class E2eBaseTest {
 
 	/**
 	 * 构建创建订单请求（完整版）
-	 *
-	 * @param marketId       市场 ID
-	 * @param outcome        订单结果（YES/NO）
-	 * @param side           订单方向
-	 * @param type           订单类型
-	 * @param quantity       数量
-	 * @param price          价格（LIMIT 订单必填，MARKET 订单可为空）
-	 * @param timeInForce    有效期类型（可选，默认 GTC）
+	 * @param marketId 市场 ID
+	 * @param outcome 订单结果（YES/NO）
+	 * @param side 订单方向
+	 * @param type 订单类型
+	 * @param quantity 数量
+	 * @param price 价格（LIMIT 订单必填，MARKET 订单可为空）
+	 * @param timeInForce 有效期类型（可选，默认 GTC）
 	 * @param idempotencyKey 幂等键
 	 * @return CreateOrderRequest DTO
 	 */
-	protected CreateOrderRequest buildCreateOrderRequest(
-			Long marketId,
-			Outcome outcome,
-			Side side,
-			OrderType type,
-			java.math.BigDecimal quantity,
-			java.math.BigDecimal price,
-			TimeInForce timeInForce,
-			String idempotencyKey) {
+	protected CreateOrderRequest buildCreateOrderRequest(Long marketId, Outcome outcome, Side side, OrderType type,
+			java.math.BigDecimal quantity, java.math.BigDecimal price, TimeInForce timeInForce, String idempotencyKey) {
 
 		CreateOrderRequest request = new CreateOrderRequest();
 		request.setMarketId(marketId);
@@ -513,132 +490,101 @@ public abstract class E2eBaseTest {
 
 	/**
 	 * 构建创建限价订单请求（简化版，默认 YES）
-	 *
 	 * @param marketId 市场 ID
-	 * @param side     订单方向
+	 * @param side 订单方向
 	 * @param quantity 数量
-	 * @param price    价格
+	 * @param price 价格
 	 * @return CreateOrderRequest DTO
 	 */
-	protected CreateOrderRequest buildLimitOrderRequest(
-			Long marketId,
-			Side side,
-			java.math.BigDecimal quantity,
+	protected CreateOrderRequest buildLimitOrderRequest(Long marketId, Side side, java.math.BigDecimal quantity,
 			java.math.BigDecimal price) {
 
-		return buildCreateOrderRequest(
-				marketId,
-				Outcome.YES, // 默认使用 YES
-				side,
-				OrderType.LIMIT,
-				quantity,
-				price,
-				TimeInForce.GTC,
-				java.util.UUID.randomUUID().toString()
-		);
+		return buildCreateOrderRequest(marketId, Outcome.YES, // 默认使用 YES
+				side, OrderType.LIMIT, quantity, price, TimeInForce.GTC, java.util.UUID.randomUUID().toString());
 	}
 
 	/**
 	 * 构建创建限价订单请求（完整版，支持指定 Outcome）
-	 *
 	 * @param marketId 市场 ID
-	 * @param outcome  订单结果（YES/NO）
-	 * @param side     订单方向
+	 * @param outcome 订单结果（YES/NO）
+	 * @param side 订单方向
 	 * @param quantity 数量
-	 * @param price    价格
+	 * @param price 价格
 	 * @return CreateOrderRequest DTO
 	 */
-	protected CreateOrderRequest buildLimitOrderRequest(
-			Long marketId,
-			Outcome outcome,
-			Side side,
-			java.math.BigDecimal quantity,
-			java.math.BigDecimal price) {
+	protected CreateOrderRequest buildLimitOrderRequest(Long marketId, Outcome outcome, Side side,
+			java.math.BigDecimal quantity, java.math.BigDecimal price) {
 
-		return buildCreateOrderRequest(
-				marketId,
-				outcome,
-				side,
-				OrderType.LIMIT,
-				quantity,
-				price,
-				TimeInForce.GTC,
-				java.util.UUID.randomUUID().toString()
-		);
+		return buildCreateOrderRequest(marketId, outcome, side, OrderType.LIMIT, quantity, price, TimeInForce.GTC,
+				java.util.UUID.randomUUID().toString());
 	}
 
 	/**
 	 * 构建创建市价订单请求（简化版，默认 YES）
-	 *
 	 * @param marketId 市场 ID
-	 * @param side     订单方向
+	 * @param side 订单方向
 	 * @param quantity 数量
 	 * @return CreateOrderRequest DTO
 	 */
-	protected CreateOrderRequest buildMarketOrderRequest(
-			Long marketId,
-			Side side,
-			java.math.BigDecimal quantity) {
+	protected CreateOrderRequest buildMarketOrderRequest(Long marketId, Side side, java.math.BigDecimal quantity) {
 
-		return buildCreateOrderRequest(
-				marketId,
-				Outcome.YES, // 默认使用 YES
-				side,
-				OrderType.MARKET,
-				quantity,
-				null,  // 市价单无需价格
-				TimeInForce.IOC,  // 市价单通常使用 IOC
-				java.util.UUID.randomUUID().toString()
-		);
+		return buildCreateOrderRequest(marketId, Outcome.YES, // 默认使用 YES
+				side, OrderType.MARKET, quantity, null, // 市价单无需价格
+				TimeInForce.IOC, // 市价单通常使用 IOC
+				java.util.UUID.randomUUID().toString());
 	}
 
 	/**
 	 * 构建创建市价订单请求（完整版，支持指定 Outcome）
-	 *
 	 * @param marketId 市场 ID
-	 * @param outcome  订单结果（YES/NO）
-	 * @param side     订单方向
+	 * @param outcome 订单结果（YES/NO）
+	 * @param side 订单方向
 	 * @param quantity 数量
 	 * @return CreateOrderRequest DTO
 	 */
-	protected CreateOrderRequest buildMarketOrderRequest(
-			Long marketId,
-			Outcome outcome,
-			Side side,
+	protected CreateOrderRequest buildMarketOrderRequest(Long marketId, Outcome outcome, Side side,
 			java.math.BigDecimal quantity) {
 
-		return buildCreateOrderRequest(
-				marketId,
-				outcome,
-				side,
-				OrderType.MARKET,
-				quantity,
-				null,  // 市价单无需价格
-				TimeInForce.IOC,  // 市价单通常使用 IOC
-				java.util.UUID.randomUUID().toString()
-		);
+		return buildCreateOrderRequest(marketId, outcome, side, OrderType.MARKET, quantity, null, // 市价单无需价格
+				TimeInForce.IOC, // 市价单通常使用 IOC
+				java.util.UUID.randomUUID().toString());
 	}
 
 	// ==================== Market 相关方法 ====================
 
 	/**
-	 * 确保测试所需的 Market 存在
-	 * 策略：
-	 * 1. 先查询 Market ID 1 是否存在且有效
-	 * 2. 如果不存在，查询有效的 Market 列表
-	 * 3. 如果列表为空，创建一个新的 Market
-	 * 4. 更新 TEST_MARKET_ID
+	 * 为每个测试用例创建一个新的市场 确保测试之间的隔离性
 	 */
+	protected void createNewMarketForTest() {
+		log.info("为当前测试用例创建新的市场");
+		try {
+			Long createdMarketId = createMarket();
+			TEST_MARKET_ID = createdMarketId;
+			waitForMarketReady(TEST_MARKET_ID);
+			log.info("Market 创建成功，ID: {}，测试将使用此 Market", TEST_MARKET_ID);
+		}
+		catch (Exception e) {
+			log.error("创建 Market 失败", e);
+			throw new IllegalStateException(
+					"无法创建测试所需的 Market。请确保：\n" + "1. 用户具有 market_create 权限\n" + "2. 数据库连接正常\n" + "3. Market 服务运行正常", e);
+		}
+	}
+
+	/**
+	 * 确保测试所需的 Market 存在 策略： 1. 先查询 Market ID 1 是否存在且有效 2. 如果不存在，查询有效的 Market 列表 3.
+	 * 如果列表为空，创建一个新的 Market 4. 更新 TEST_MARKET_ID
+	 * @deprecated 使用 {@link #createNewMarketForTest()} 代替，确保测试隔离性
+	 */
+	@Deprecated
 	protected void ensureMarketExists() {
 		log.info("开始检查测试所需的 Market");
 
-		// 策略1: 先查询 Market ID  是否存在
-		Response queryResponse = authenticatedRequest()
-				.when()
-				.get("/order/market/" + TEST_MARKET_ID)
-				.then()
-				.extract()
-				.response();
+		// 策略1: 先查询 Market ID 是否存在
+		Response queryResponse = authenticatedRequest().when()
+			.get("/order/market/" + TEST_MARKET_ID)
+			.then()
+			.extract()
+			.response();
 
 		if (queryResponse.getStatusCode() == 200) {
 			Object data = queryResponse.jsonPath().get("data");
@@ -646,8 +592,8 @@ public abstract class E2eBaseTest {
 				// 检查Market状态是否为ACTIVE
 				Object statusObj = queryResponse.jsonPath().get("data.status");
 				if (statusObj != null) {
-					int status = statusObj instanceof Integer ? (Integer) statusObj : Integer.parseInt(statusObj.toString());
-					if (status == 1) { // ACTIVE
+					String status = statusObj.toString();
+					if ("ACTIVE".equals(status)) {
 						if (isMarketSymbolsReady(queryResponse)) {
 							log.info("Market ID {} 已存在且为有效状态", TEST_MARKET_ID);
 							return;
@@ -663,12 +609,11 @@ public abstract class E2eBaseTest {
 		log.info("Market ID {} 不存在或无效，尝试查询有效的 Market 列表", TEST_MARKET_ID);
 
 		// 策略2: 查询有效的 Market 列表
-		Response activeMarketsResponse = authenticatedRequest()
-				.when()
-				.get("/order/market/active")
-				.then()
-				.extract()
-				.response();
+		Response activeMarketsResponse = authenticatedRequest().when()
+			.get("/order/market/active")
+			.then()
+			.extract()
+			.response();
 
 		if (activeMarketsResponse.getStatusCode() == 200) {
 			java.util.List<Map<String, Object>> markets = activeMarketsResponse.jsonPath().getList("data");
@@ -699,19 +644,16 @@ public abstract class E2eBaseTest {
 			TEST_MARKET_ID = createdMarketId;
 			waitForMarketReady(TEST_MARKET_ID);
 			log.info("Market 创建成功，ID: {}，测试将使用此 Market", TEST_MARKET_ID);
-		} catch (Exception e) {
+		}
+		catch (Exception e) {
 			log.error("创建 Market 失败，可能是权限问题", e);
-			throw new IllegalStateException(
-				"无法创建测试所需的 Market。请确保：\n" +
-				"1. 用户具有 market_create 权限\n" +
-				"2. 或手动在数据库中创建一个有效的 Market\n" +
-				"3. 或在数据库初始化脚本中添加 Market 数据", e);
+			throw new IllegalStateException("无法创建测试所需的 Market。请确保：\n" + "1. 用户具有 market_create 权限\n"
+					+ "2. 或手动在数据库中创建一个有效的 Market\n" + "3. 或在数据库初始化脚本中添加 Market 数据", e);
 		}
 	}
 
 	/**
 	 * 创建Market
-	 *
 	 * @return 创建的Market ID
 	 */
 	private Long createMarket() {
@@ -720,15 +662,14 @@ public abstract class E2eBaseTest {
 		request.setStatus(MarketStatus.ACTIVE);
 		request.setExpireAt(System.currentTimeMillis() + 86400L * 365 * 1000); // 1年后过期（Unix时间戳，毫秒）
 
-		Response response = authenticatedRequest()
-				.contentType(ContentType.JSON)
-				.accept(ContentType.JSON)
-				.body(request)
-				.when()
-				.post("/order/market")
-				.then()
-				.extract()
-				.response();
+		Response response = authenticatedRequest().contentType(ContentType.JSON)
+			.accept(ContentType.JSON)
+			.body(request)
+			.when()
+			.post("/order/market")
+			.then()
+			.extract()
+			.response();
 
 		if (response.getStatusCode() == 200) {
 			Object data = response.jsonPath().get("data");
@@ -745,14 +686,8 @@ public abstract class E2eBaseTest {
 	}
 
 	private void waitForMarketReady(Long marketId) {
-		pollUntil(() -> authenticatedRequest()
-				.when()
-				.get("/order/market/" + marketId)
-				.then()
-				.extract()
-				.response(),
-			this::isMarketSymbolsReady,
-			"Market 未就绪：状态不为 ACTIVE 或 symbol 未就绪");
+		pollUntil(() -> authenticatedRequest().when().get("/order/market/" + marketId).then().extract().response(),
+				this::isMarketSymbolsReady, "Market 未就绪：状态不为 ACTIVE 或 symbol 未就绪");
 	}
 
 	private boolean isMarketSymbolsReady(Response response) {
@@ -763,46 +698,39 @@ public abstract class E2eBaseTest {
 		if (statusObj == null) {
 			return false;
 		}
-		int status = statusObj instanceof Integer ? (Integer) statusObj : Integer.parseInt(statusObj.toString());
-		if (status != 1) {
+		String status = statusObj.toString();
+		if (!"ACTIVE".equals(status)) {
 			return false;
 		}
-		return response.jsonPath().get("data.symbolIdYes") != null && response.jsonPath().get("data.symbolIdNo") != null;
+		return response.jsonPath().get("data.symbolIdYes") != null
+				&& response.jsonPath().get("data.symbolIdNo") != null;
 	}
 
 	/**
 	 * 查询Market详情
-	 *
 	 * @param marketId 市场 ID
 	 * @return 响应
 	 */
 	protected Response getMarket(Long marketId) {
-		return authenticatedRequest()
-				.when()
-				.get("/order/market/" + marketId)
-				.then()
-				.extract()
-				.response();
+		return authenticatedRequest().when().get("/order/market/" + marketId).then().extract().response();
 	}
 
 	// ==================== Vault（金库）相关方法 ====================
 
 	/**
 	 * 查询账户余额
-	 *
 	 * @param accountId 账户 ID
-	 * @param symbol    资产符号（如 USDC）
+	 * @param symbol 资产符号（如 USDC）
 	 * @return 余额（如果不存在返回 0）
 	 */
 	protected BigDecimal getBalance(Long accountId, String symbol) {
-		Response response = authenticatedRequest()
-				.queryParam("accountId", accountId)
-				.queryParam("symbol", symbol)
-				.when()
-				.get("/vault/balance")
-				.then()
-				.extract()
-				.response();
+		Response response = authenticatedRequest().queryParam("accountId", accountId)
+			.queryParam("symbol", symbol)
+			.when()
+			.get("/vault/balance")
+			.then()
+			.extract()
+			.response();
 
 		if (response.getStatusCode() == 200) {
 			Object data = response.jsonPath().get("data");
@@ -820,20 +748,18 @@ public abstract class E2eBaseTest {
 
 	/**
 	 * 检查资产是否存在，不存在则创建
-	 *
-	 * @param symbol   资产符号
+	 * @param symbol 资产符号
 	 * @param decimals 小数位数
 	 */
 	protected void ensureAssetExists(String symbol, Integer decimals) {
 		log.info("检查资产是否存在：symbol={}", symbol);
 
 		// 1. 尝试查询资产
-		Response getResponse = authenticatedRequest()
-				.when()
-				.get("/vault/asset/symbol/" + symbol)
-				.then()
-				.extract()
-				.response();
+		Response getResponse = authenticatedRequest().when()
+			.get("/vault/asset/symbol/" + symbol)
+			.then()
+			.extract()
+			.response();
 
 		// 2. 如果资产存在，直接返回
 		if (getResponse.getStatusCode() == 200) {
@@ -852,18 +778,18 @@ public abstract class E2eBaseTest {
 		createRequest.put("decimals", decimals);
 		createRequest.put("isActive", true);
 
-		Response createResponse = authenticatedRequest()
-				.body(createRequest)
-				.when()
-				.post("/vault/asset")
-				.then()
-				.extract()
-				.response();
+		Response createResponse = authenticatedRequest().body(createRequest)
+			.when()
+			.post("/vault/asset")
+			.then()
+			.extract()
+			.response();
 
 		if (createResponse.getStatusCode() == 200) {
 			assertSuccess(createResponse);
 			log.info("资产创建成功：symbol={}, decimals={}", symbol, decimals);
-		} else {
+		}
+		else {
 			String errorMsg = createResponse.getBody().asString();
 			log.error("资产创建失败，状态码: {}, 响应: {}", createResponse.getStatusCode(), errorMsg);
 			throw new IllegalStateException("资产创建失败: " + errorMsg);
@@ -871,38 +797,35 @@ public abstract class E2eBaseTest {
 	}
 
 	/**
-	 * 充值（增加账户余额）
-	 * 在充值前会自动检查并创建资产（如果不存在）
-	 *
+	 * 充值（增加账户余额） 在充值前会自动检查并创建资产（如果不存在）
 	 * @param accountId 账户 ID
-	 * @param symbol    资产符号
-	 * @param amount    充值金额
+	 * @param symbol 资产符号
+	 * @param amount 充值金额
 	 * @return 充值后的余额
 	 */
-	protected BigDecimal deposit(Long accountId, String symbol, BigDecimal amount) {
-		log.info("开始充值：accountId={}, symbol={}, amount={}", accountId, symbol, amount);
+	protected BigDecimal deposit(Long userId, String symbol, BigDecimal amount) {
+		log.info("开始充值：userId={}, symbol={}, amount={}", userId, symbol, amount);
 
 		// 在充值前确保资产存在（默认使用 6 位小数，适用于 USDC 等稳定币）
 		ensureAssetExists(symbol, 6);
 
 		DepositRequest request = new DepositRequest();
-		request.setAccountId(accountId);
+		request.setUserId(userId);
 		request.setSymbol(symbol);
 		request.setAmount(amount);
 		request.setRefId("e2e-deposit-" + System.currentTimeMillis());
 
-		Response response = authenticatedRequest()
-				.body(request)
-				.when()
-				.post("/vault/deposit")
-				.then()
-				.extract()
-				.response();
+		Response response = authenticatedRequest().body(request)
+			.when()
+			.post("/vault/deposit")
+			.then()
+			.extract()
+			.response();
 
 		if (response.getStatusCode() == 200) {
 			assertSuccess(response);
 			Object newBalanceObj = response.jsonPath().get("data.available");
-			
+
 			if (newBalanceObj != null) {
 				BigDecimal newBalance = new BigDecimal(newBalanceObj.toString());
 				log.info("充值成功，新余额: {}", newBalance);
@@ -917,17 +840,16 @@ public abstract class E2eBaseTest {
 
 	/**
 	 * 确保账户有足够余额（不够则充值）
-	 *
-	 * @param accountId       账户 ID
-	 * @param symbol          资产符号
-	 * @param requiredAmount  所需金额
+	 * @param accountId 账户 ID
+	 * @param symbol 资产符号
+	 * @param requiredAmount 所需金额
 	 * @return 充值后的余额
 	 */
-	protected BigDecimal ensureSufficientBalance(Long accountId, String symbol, BigDecimal requiredAmount) {
-		log.info("检查账户余额是否充足：accountId={}, symbol={}, 所需金额={}", accountId, symbol, requiredAmount);
+	protected BigDecimal ensureSufficientBalance(Long userId, String symbol, BigDecimal requiredAmount) {
+		log.info("检查账户余额是否充足：userId={}, symbol={}, 所需金额={}", userId, symbol, requiredAmount);
 
 		// 查询当前余额
-		BigDecimal currentBalance = getBalance(accountId, symbol);
+		BigDecimal currentBalance = getBalance(userId, symbol);
 		log.info("当前余额: {}", currentBalance);
 
 		// 如果余额充足，直接返回
@@ -942,15 +864,14 @@ public abstract class E2eBaseTest {
 		log.info("余额不足，需要充值: {}", depositAmount);
 
 		// 执行充值
-		return deposit(accountId, symbol, depositAmount);
+		return deposit(userId, symbol, depositAmount);
 	}
 
 	/**
 	 * 计算订单所需的资金
-	 *
-	 * @param side     订单方向
+	 * @param side 订单方向
 	 * @param quantity 数量
-	 * @param price    价格（如果是市价单可为 null）
+	 * @param price 价格（如果是市价单可为 null）
 	 * @return 所需资金
 	 */
 	protected BigDecimal calculateRequiredFunds(Side side, BigDecimal quantity, BigDecimal price) {
@@ -958,14 +879,50 @@ public abstract class E2eBaseTest {
 			// 买单需要支付 quantity * price 的资金
 			if (price != null) {
 				return quantity.multiply(price);
-			} else {
+			}
+			else {
 				// 市价买单，按最大可能价格估算（这里简单估算为一个较大值）
 				return quantity.multiply(BigDecimal.valueOf(100000)); // 预估一个较大值
 			}
-		} else {
+		}
+		else {
 			// 卖单需要持有相应数量的资产（这里简化处理，暂不实现卖单的资产检查）
 			return BigDecimal.ZERO;
 		}
+	}
+
+	/**
+	 * 确保账户有足够的 outcome 资产（用于 SELL 订单）
+	 * @param accountId 账户 ID
+	 * @param marketId 市场 ID
+	 * @param outcome 结果（YES/NO）
+	 * @param requiredAmount 所需数量
+	 * @return 充值后的余额
+	 */
+	protected BigDecimal ensureSufficientOutcomeAsset(Long userId, Long marketId, Outcome outcome,
+			BigDecimal requiredAmount) {
+		// 构建 outcome 资产符号：格式 "M{marketId}_{outcome}"，例如 "M1_YES" 或 "M1_NO"
+		// 必须与 MarketCreatedEventHandler 和 OrderServiceImpl 中的格式保持一致
+		String assetSymbol = String.format("M%d_%s", marketId, outcome.name());
+		log.info("检查 outcome 资产余额：userId={}, symbol={}, 所需数量={}", userId, assetSymbol, requiredAmount);
+
+		// 查询当前余额
+		BigDecimal currentBalance = getBalance(userId, assetSymbol);
+		log.info("当前 {} 资产余额: {}", assetSymbol, currentBalance);
+
+		// 如果余额充足，直接返回
+		if (currentBalance.compareTo(requiredAmount) >= 0) {
+			log.info("outcome 资产余额充足，无需充值");
+			return currentBalance;
+		}
+
+		// 计算需要充值的数量（多充值一些，避免边界问题）
+		BigDecimal shortfall = requiredAmount.subtract(currentBalance);
+		BigDecimal depositAmount = shortfall.multiply(BigDecimal.valueOf(1.5)); // 多充值 50%
+		log.info("outcome 资产余额不足，需要充值: {}", depositAmount);
+
+		// 执行充值
+		return deposit(userId, assetSymbol, depositAmount);
 	}
 
 }

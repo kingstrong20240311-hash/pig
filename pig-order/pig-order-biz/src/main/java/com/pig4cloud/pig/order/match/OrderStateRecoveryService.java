@@ -211,8 +211,8 @@ public class OrderStateRecoveryService {
 	}
 
 	private void publishOrderCancelEvent(Order order, String reason) {
-		OrderCancelPayload payload = new OrderCancelPayload(order.getOrderId(), order.getUserId(),
-				order.getMarketId(), order.getStatus().name(), reason);
+		OrderCancelPayload payload = new OrderCancelPayload(order.getOrderId(), order.getUserId(), order.getMarketId(),
+				order.getStatus().name(), reason);
 
 		DomainEventEnvelope<OrderCancelPayload> event = new DomainEventEnvelope<>(IdUtil.randomUUID(), // eventId
 				DOMAIN_ORDER, // domain

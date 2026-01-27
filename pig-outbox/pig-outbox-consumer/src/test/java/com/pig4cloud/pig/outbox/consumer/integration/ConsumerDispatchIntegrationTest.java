@@ -72,7 +72,8 @@ import static org.awaitility.Awaitility.await;
 @SpringBootTest
 @Testcontainers
 @DisplayName("I-02: Consumer Dispatch Integration")
-@Import({ EventHandlerAutoConfiguration.class, EventHandlerScannerConfiguration.class, OutboxConsumerAutoConfiguration.class })
+@Import({ EventHandlerAutoConfiguration.class, EventHandlerScannerConfiguration.class,
+		OutboxConsumerAutoConfiguration.class })
 class ConsumerDispatchIntegrationTest {
 
 	@Container
@@ -97,10 +98,10 @@ class ConsumerDispatchIntegrationTest {
 		// Clear test handler invocations
 		TestOrderEventHandler.invocations.clear();
 		TestVaultEventHandler.invocations.clear();
-		
+
 		// 确保 topics 存在
 		ensureTopicsExist("domain.order", "domain.vault");
-		
+
 		// 等待 Kafka 监听器发现并订阅 topics
 		TimeUnit.SECONDS.sleep(3);
 	}
@@ -113,8 +114,8 @@ class ConsumerDispatchIntegrationTest {
 
 		// Given - Create DomainEventEnvelope
 		Map<String, String> headers = Map.of("userId", "user-1", "traceId", "trace-123");
-		DomainEventEnvelope envelope = new DomainEventEnvelope("evt-001", "order", "Order", "order-123",
-				"OrderCreated", System.currentTimeMillis(), headers, "{\"amount\":100}");
+		DomainEventEnvelope envelope = new DomainEventEnvelope("evt-001", "order", "Order", "order-123", "OrderCreated",
+				System.currentTimeMillis(), headers, "{\"amount\":100}");
 
 		// When - Produce message to Kafka
 		String topic = "domain.order";
@@ -163,10 +164,13 @@ class ConsumerDispatchIntegrationTest {
 
 	@Autowired
 	ApplicationContext applicationContext;
+
 	@Autowired
 	EventHandlerRegistry registry;
 
-	@Autowired ApplicationContext ctx;
+	@Autowired
+	ApplicationContext ctx;
+
 	@Autowired
 	KafkaListenerEndpointRegistry kafkaRegistry;
 
@@ -247,19 +251,19 @@ class ConsumerDispatchIntegrationTest {
 	private void ensureTopicsExist(String... topicNames) throws Exception {
 		Map<String, Object> adminConfig = new HashMap<>();
 		adminConfig.put(AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG, kafka.getBootstrapServers());
-		
+
 		try (AdminClient adminClient = AdminClient.create(adminConfig)) {
 			Set<String> existingTopics = adminClient.listTopics().names().get();
-			
+
 			List<NewTopic> topicsToCreate = Arrays.stream(topicNames)
 				.filter(name -> !existingTopics.contains(name))
 				.map(name -> new NewTopic(name, 1, (short) 1))
 				.collect(Collectors.toList());
-			
+
 			if (!topicsToCreate.isEmpty()) {
 				adminClient.createTopics(topicsToCreate).all().get();
-				System.out.println("Created topics: " + topicsToCreate.stream()
-					.map(NewTopic::name).collect(Collectors.toList()));
+				System.out.println(
+						"Created topics: " + topicsToCreate.stream().map(NewTopic::name).collect(Collectors.toList()));
 			}
 		}
 	}

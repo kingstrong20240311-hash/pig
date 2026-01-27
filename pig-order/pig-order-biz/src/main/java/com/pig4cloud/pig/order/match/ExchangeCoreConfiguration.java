@@ -202,10 +202,14 @@ public class ExchangeCoreConfiguration {
 				if (market.getSymbolIdYes() != null) {
 					matchingEngineSymbolService.ensureSymbol(market.getSymbolIdYes(), market.getSymbolIdYes(),
 							matchingEngineProperties.getDefaultAsset());
+					// Fund system user with YES asset
+					fundSystemUserWithAsset(market.getSymbolIdYes(), market.getMarketId(), "YES");
 				}
 				if (market.getSymbolIdNo() != null) {
 					matchingEngineSymbolService.ensureSymbol(market.getSymbolIdNo(), market.getSymbolIdNo(),
 							matchingEngineProperties.getDefaultAsset());
+					// Fund system user with NO asset
+					fundSystemUserWithAsset(market.getSymbolIdNo(), market.getMarketId(), "NO");
 				}
 			}
 			log.info("Registered {} active markets in matching engine", activeMarkets.size());
@@ -222,7 +226,7 @@ public class ExchangeCoreConfiguration {
 				throw new IllegalStateException("Failed to register system user: " + addUserResult);
 			}
 
-			// TODO: Replace with real balance provisioning for the system user.
+			// Fund system user with default asset (USDC)
 			long maxBalance = Long.MAX_VALUE / 4;
 			CommandResultCode balanceResult = exchangeApi
 				.submitCommandAsync(ApiAdjustUserBalance.builder()
@@ -235,7 +239,42 @@ public class ExchangeCoreConfiguration {
 				.join();
 
 			if (balanceResult != CommandResultCode.SUCCESS) {
-				throw new IllegalStateException("Failed to fund system user: " + balanceResult);
+				throw new IllegalStateException("Failed to fund system user with default asset: " + balanceResult);
+			}
+
+			log.info("System user initialized with default asset: uid={}, currency={}, amount={}", SYSTEM_UID,
+					matchingEngineProperties.getDefaultAsset(), maxBalance);
+		}
+
+		/**
+		 * Fund system user with initial balance for a specific asset
+		 * @param currencyId asset currency ID
+		 * @param marketId market ID for logging
+		 * @param assetType asset type (YES/NO/USDC) for logging
+		 */
+		private void fundSystemUserWithAsset(int currencyId, Long marketId, String assetType) {
+			// Use marketId as part of transaction ID to ensure uniqueness
+			// Transaction ID format: base(1) + marketId * 1000 + offset(1 for YES, 2 for
+			// NO)
+			long transactionId = SYSTEM_UID + marketId * 1000 + (assetType.equals("YES") ? 1 : 2);
+
+			long amount = Long.MAX_VALUE / 4;
+			CommandResultCode result = exchangeApi
+				.submitCommandAsync(ApiAdjustUserBalance.builder()
+					.uid(SYSTEM_UID)
+					.currency(currencyId)
+					.amount(amount)
+					.transactionId(transactionId)
+					.build())
+				.join();
+
+			if (result != CommandResultCode.SUCCESS) {
+				log.warn("Failed to fund system user with {} asset for market {}: {}", assetType, marketId, result);
+				// Don't throw exception - this is not critical for initialization
+			}
+			else {
+				log.info("System user funded with {} asset: marketId={}, currencyId={}, amount={}", assetType, marketId,
+						currencyId, amount);
 			}
 		}
 

@@ -50,9 +50,7 @@ public class PermissionService {
 		Collection<? extends GrantedAuthority> authorities = authentication.getAuthorities();
 
 		// ROLE_ADMIN(ROLE_1) 拥有所有权限
-		boolean isAdmin = authorities.stream()
-			.map(GrantedAuthority::getAuthority)
-			.anyMatch("ROLE_1"::equals); 
+		boolean isAdmin = authorities.stream().map(GrantedAuthority::getAuthority).anyMatch("ROLE_1"::equals);
 		if (isAdmin) {
 			return true;
 		}

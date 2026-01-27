@@ -192,7 +192,7 @@ class VaultControllerTest {
 	@Transactional
 	void testCreateFreezeSuccess() throws Exception {
 		CreateFreezeRequest request = new CreateFreezeRequest();
-		request.setAccountId(ACCOUNT_ID);
+		request.setUserId(USER_ID);
 		request.setSymbol(SYMBOL);
 		request.setAmount(new BigDecimal("10.000000"));
 		request.setRefType(RefType.ORDER);
@@ -240,7 +240,7 @@ class VaultControllerTest {
 	void testCreateFreezeIdempotency() throws Exception {
 		// First request
 		CreateFreezeRequest request = new CreateFreezeRequest();
-		request.setAccountId(ACCOUNT_ID);
+		request.setUserId(USER_ID);
 		request.setSymbol(SYMBOL);
 		request.setAmount(new BigDecimal("15.000000"));
 		request.setRefType(RefType.ORDER);
@@ -290,7 +290,7 @@ class VaultControllerTest {
 	@DisplayName("3. Create freeze with insufficient balance")
 	void testCreateFreezeInsufficientBalance() throws Exception {
 		CreateFreezeRequest request = new CreateFreezeRequest();
-		request.setAccountId(ACCOUNT_ID);
+		request.setUserId(USER_ID);
 		request.setSymbol(SYMBOL);
 		request.setAmount(new BigDecimal("200.000000")); // More than available
 		request.setRefType(RefType.ORDER);
@@ -341,7 +341,7 @@ class VaultControllerTest {
 
 		// Negative amount
 		CreateFreezeRequest request2 = new CreateFreezeRequest();
-		request2.setAccountId(ACCOUNT_ID);
+		request2.setUserId(USER_ID);
 		request2.setSymbol(SYMBOL);
 		request2.setAmount(new BigDecimal("-10.000000"));
 		request2.setRefType(RefType.ORDER);
@@ -366,7 +366,7 @@ class VaultControllerTest {
 	void testReleaseFreezeSuccess() throws Exception {
 		// First create a freeze
 		CreateFreezeRequest createRequest = new CreateFreezeRequest();
-		createRequest.setAccountId(ACCOUNT_ID);
+		createRequest.setUserId(USER_ID);
 		createRequest.setSymbol(SYMBOL);
 		createRequest.setAmount(new BigDecimal("20.000000"));
 		createRequest.setRefType(RefType.ORDER);
@@ -416,7 +416,7 @@ class VaultControllerTest {
 	void testReleaseFreezeIdempotency() throws Exception {
 		// Create a freeze
 		CreateFreezeRequest createRequest = new CreateFreezeRequest();
-		createRequest.setAccountId(ACCOUNT_ID);
+		createRequest.setUserId(USER_ID);
 		createRequest.setSymbol(SYMBOL);
 		createRequest.setAmount(new BigDecimal("25.000000"));
 		createRequest.setRefType(RefType.ORDER);
@@ -472,7 +472,7 @@ class VaultControllerTest {
 	void testClaimFreezeSuccess() throws Exception {
 		// Create a freeze
 		CreateFreezeRequest createRequest = new CreateFreezeRequest();
-		createRequest.setAccountId(ACCOUNT_ID);
+		createRequest.setUserId(USER_ID);
 		createRequest.setSymbol(SYMBOL);
 		createRequest.setAmount(new BigDecimal("30.000000"));
 		createRequest.setRefType(RefType.SETTLEMENT);
@@ -524,7 +524,7 @@ class VaultControllerTest {
 	void testClaimFreezeInvalidStatus() throws Exception {
 		// Create and release a freeze
 		CreateFreezeRequest createRequest = new CreateFreezeRequest();
-		createRequest.setAccountId(ACCOUNT_ID);
+		createRequest.setUserId(USER_ID);
 		createRequest.setSymbol(SYMBOL);
 		createRequest.setAmount(new BigDecimal("35.000000"));
 		createRequest.setRefType(RefType.SETTLEMENT);
@@ -577,7 +577,7 @@ class VaultControllerTest {
 	void testConsumeFreezeFromHeld() throws Exception {
 		// Create a freeze
 		CreateFreezeRequest createRequest = new CreateFreezeRequest();
-		createRequest.setAccountId(ACCOUNT_ID);
+		createRequest.setUserId(USER_ID);
 		createRequest.setSymbol(SYMBOL);
 		createRequest.setAmount(new BigDecimal("40.000000"));
 		createRequest.setRefType(RefType.ORDER);
@@ -622,7 +622,7 @@ class VaultControllerTest {
 	void testConsumeFreezeFromClaimed() throws Exception {
 		// Create a freeze
 		CreateFreezeRequest createRequest = new CreateFreezeRequest();
-		createRequest.setAccountId(ACCOUNT_ID);
+		createRequest.setUserId(USER_ID);
 		createRequest.setSymbol(SYMBOL);
 		createRequest.setAmount(new BigDecimal("50.000000"));
 		createRequest.setRefType(RefType.SETTLEMENT);
@@ -695,9 +695,10 @@ class VaultControllerTest {
 	@WithMockUser(username = "testuser", roles = "USER")
 	@DisplayName("12. Get balance with invalid symbol")
 	void testGetBalanceInvalidSymbol() throws Exception {
-		mockMvc.perform(get("/balance").header(HttpHeaders.AUTHORIZATION, "Bearer " + TEST_TOKEN)
-			.param("accountId", ACCOUNT_ID.toString())
-			.param("symbol", "INVALID"))
+		mockMvc
+			.perform(get("/balance").header(HttpHeaders.AUTHORIZATION, "Bearer " + TEST_TOKEN)
+				.param("accountId", ACCOUNT_ID.toString())
+				.param("symbol", "INVALID"))
 			.andDo(print())
 			.andExpect(status().isOk())
 			.andExpect(jsonPath("$.code").value(1))

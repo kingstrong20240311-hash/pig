@@ -32,17 +32,15 @@ import org.springframework.stereotype.Component;
 @Slf4j
 @Component
 @RequiredArgsConstructor
-@ConditionalOnProperty(prefix = "pig.outbox.dispatcher", name = "enabled", havingValue = "true",
-		matchIfMissing = true)
+@ConditionalOnProperty(prefix = "pig.outbox.dispatcher", name = "enabled", havingValue = "true", matchIfMissing = true)
 public class OutboxDispatchScheduler {
 
 	private final OutboxEventDispatcher dispatcher;
 
-	@Scheduled(scheduler = "outboxScheduler",
-			fixedDelayString = "${pig.outbox.dispatcher.dispatch-interval-ms:1000}",
+	@Scheduled(scheduler = "outboxScheduler", fixedDelayString = "${pig.outbox.dispatcher.dispatch-interval-ms:1000}",
 			initialDelayString = "${pig.outbox.dispatcher.initial-delay-ms:1000}")
 	public void dispatch() {
 		dispatcher.dispatch();
 	}
-}
 
+}

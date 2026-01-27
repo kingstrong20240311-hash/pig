@@ -159,7 +159,7 @@ class VaultBalanceServiceTest {
 	void testDepositSuccess() {
 		// Given
 		DepositRequest request = new DepositRequest();
-		request.setAccountId(ACCOUNT_ID);
+		request.setUserId(USER_ID);
 		request.setSymbol(SYMBOL);
 		request.setAmount(new BigDecimal("50.000000"));
 		request.setRefId("DEPOSIT-001");
@@ -203,7 +203,7 @@ class VaultBalanceServiceTest {
 	void testDepositIdempotency() {
 		// Given
 		DepositRequest request = new DepositRequest();
-		request.setAccountId(ACCOUNT_ID);
+		request.setUserId(USER_ID);
 		request.setSymbol(SYMBOL);
 		request.setAmount(new BigDecimal("30.000000"));
 		request.setRefId("DEPOSIT-002");
@@ -239,14 +239,13 @@ class VaultBalanceServiceTest {
 	void testDepositInvalidSymbol() {
 		// Given
 		DepositRequest request = new DepositRequest();
-		request.setAccountId(ACCOUNT_ID);
+		request.setUserId(USER_ID);
 		request.setSymbol("INVALID");
 		request.setAmount(new BigDecimal("10.000000"));
 		request.setRefId("DEPOSIT-003");
 
 		// When & Then
-		assertThatThrownBy(() -> vaultBalanceService.deposit(request))
-			.isInstanceOf(IllegalArgumentException.class)
+		assertThatThrownBy(() -> vaultBalanceService.deposit(request)).isInstanceOf(IllegalArgumentException.class)
 			.hasMessageContaining("Asset not found or inactive");
 	}
 
@@ -259,14 +258,13 @@ class VaultBalanceServiceTest {
 	void testDepositInvalidAccount() {
 		// Given
 		DepositRequest request = new DepositRequest();
-		request.setAccountId(99999L); // Non-existent account
+		request.setUserId(99999L); // Non-existent user
 		request.setSymbol(SYMBOL);
 		request.setAmount(new BigDecimal("10.000000"));
 		request.setRefId("DEPOSIT-004");
 
 		// When & Then
-		assertThatThrownBy(() -> vaultBalanceService.deposit(request))
-			.isInstanceOf(IllegalStateException.class)
+		assertThatThrownBy(() -> vaultBalanceService.deposit(request)).isInstanceOf(IllegalStateException.class)
 			.hasMessageContaining("Account not found");
 	}
 
@@ -280,7 +278,7 @@ class VaultBalanceServiceTest {
 	void testMultipleDeposits() {
 		// First deposit
 		DepositRequest request1 = new DepositRequest();
-		request1.setAccountId(ACCOUNT_ID);
+		request1.setUserId(USER_ID);
 		request1.setSymbol(SYMBOL);
 		request1.setAmount(new BigDecimal("20.000000"));
 		request1.setRefId("DEPOSIT-005-1");
@@ -288,7 +286,7 @@ class VaultBalanceServiceTest {
 
 		// Second deposit
 		DepositRequest request2 = new DepositRequest();
-		request2.setAccountId(ACCOUNT_ID);
+		request2.setUserId(USER_ID);
 		request2.setSymbol(SYMBOL);
 		request2.setAmount(new BigDecimal("30.000000"));
 		request2.setRefId("DEPOSIT-005-2");
@@ -296,7 +294,7 @@ class VaultBalanceServiceTest {
 
 		// Third deposit
 		DepositRequest request3 = new DepositRequest();
-		request3.setAccountId(ACCOUNT_ID);
+		request3.setUserId(USER_ID);
 		request3.setSymbol(SYMBOL);
 		request3.setAmount(new BigDecimal("50.000000"));
 		request3.setRefId("DEPOSIT-005-3");
@@ -380,7 +378,8 @@ class VaultBalanceServiceTest {
 		mockSecurityContext(USER_ID);
 
 		// When & Then
-		assertThatThrownBy(() -> vaultBalanceService.getMyBalance("INVALID")).isInstanceOf(IllegalArgumentException.class)
+		assertThatThrownBy(() -> vaultBalanceService.getMyBalance("INVALID"))
+			.isInstanceOf(IllegalArgumentException.class)
 			.hasMessageContaining("Asset not found or inactive");
 
 		// Cleanup
@@ -400,7 +399,7 @@ class VaultBalanceServiceTest {
 
 		// Deposit
 		DepositRequest depositRequest = new DepositRequest();
-		depositRequest.setAccountId(ACCOUNT_ID);
+		depositRequest.setUserId(USER_ID);
 		depositRequest.setSymbol(SYMBOL);
 		depositRequest.setAmount(new BigDecimal("75.500000"));
 		depositRequest.setRefId("DEPOSIT-010");

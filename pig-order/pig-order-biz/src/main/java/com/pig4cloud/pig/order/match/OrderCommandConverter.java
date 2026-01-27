@@ -41,8 +41,8 @@ public class OrderCommandConverter {
 	 * @return ApiPlaceOrder command
 	 */
 	public static ApiPlaceOrder toApiPlaceOrder(Order order, int symbolId) {
-		long price = convertPriceToLong(order.getPrice());
 		OrderAction action = convertSide(order.getSide());
+		long price = convertPriceToLong(order.getPrice(), order.getOrderType(), action);
 
 		// Calculate reserve price: +20% for BUY, -20% for SELL
 		long reservePrice = calculateReservePrice(price, action);
@@ -116,13 +116,32 @@ public class OrderCommandConverter {
 	}
 
 	/**
-	 * Convert BigDecimal price to long (scaled by 100 for 2 decimal places) TODO: Make
-	 * scaling factor configurable per market
+	 * Convert BigDecimal price to long (scaled by 100 for 2 decimal places)
+	 * <p>
+	 * For MARKET orders (price is null), use extreme prices to ensure immediate
+	 * execution: - BUY (BID): use maximum price (10000 = 100.00 after scaling) - SELL
+	 * (ASK): use minimum price (1 = 0.01 after scaling)
+	 * <p>
+	 * TODO: Make scaling factor and max price configurable per market
+	 * @param price order price (can be null for MARKET orders)
+	 * @param orderType order type (MARKET or LIMIT)
+	 * @param action order action (BID or ASK)
+	 * @return scaled price as long
 	 */
-	private static long convertPriceToLong(java.math.BigDecimal price) {
-		if (price == null) {
-			return 0L;
+	private static long convertPriceToLong(java.math.BigDecimal price,
+			com.pig4cloud.pig.order.api.enums.OrderType orderType, OrderAction action) {
+		// For MARKET orders, use extreme prices
+		if (price == null || orderType == com.pig4cloud.pig.order.api.enums.OrderType.MARKET) {
+			if (action == OrderAction.BID) {
+				// Market BUY: use maximum price (100.00 in prediction markets)
+				return 10000L; // 100.00 * 100
+			}
+			else {
+				// Market SELL: use minimum price (0.01 to ensure positive value)
+				return 1L; // 0.01 * 100
+			}
 		}
+
 		// Scale by 100 to preserve 2 decimal places
 		// For example: 10.50 -> 1050
 		return price.multiply(java.math.BigDecimal.valueOf(100)).longValue();

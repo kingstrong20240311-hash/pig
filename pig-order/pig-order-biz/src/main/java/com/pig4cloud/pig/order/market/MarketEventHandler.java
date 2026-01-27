@@ -24,6 +24,9 @@ import com.pig4cloud.pig.order.service.MarketService;
 import com.pig4cloud.pig.outbox.api.annotation.DomainEventHandler;
 import com.pig4cloud.pig.outbox.api.model.DomainEventEnvelope;
 import com.pig4cloud.pig.outbox.api.payload.market.MarketAssetsReadyPayload;
+import exchange.core2.core.ExchangeApi;
+import exchange.core2.core.common.api.ApiAdjustUserBalance;
+import exchange.core2.core.common.cmd.CommandResultCode;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -40,11 +43,17 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 public class MarketEventHandler {
 
+	private static final long SYSTEM_UID = 0L;
+
+	private static final long INITIAL_ASSET_BALANCE = Long.MAX_VALUE / 4;
+
 	private final MarketService marketService;
 
 	private final MatchingEngineSymbolService matchingEngineSymbolService;
 
 	private final MatchingEngineProperties matchingEngineProperties;
+
+	private final ExchangeApi exchangeApi;
 
 	private final ObjectMapper objectMapper;
 
@@ -72,8 +81,42 @@ public class MarketEventHandler {
 		matchingEngineSymbolService.ensureSymbol(symbolIdYes, symbolIdYes, quoteCurrency);
 		matchingEngineSymbolService.ensureSymbol(symbolIdNo, symbolIdNo, quoteCurrency);
 
+		// Fund system user with YES and NO assets for market making
+		fundSystemUserWithAsset(symbolIdYes, marketId, "YES");
+		fundSystemUserWithAsset(symbolIdNo, marketId, "NO");
+
 		log.info("Market assets ready handled: marketId={}, symbolIdYes={}, symbolIdNo={}", marketId, symbolIdYes,
 				symbolIdNo);
+	}
+
+	/**
+	 * Fund system user with initial balance for a specific asset
+	 * @param currencyId asset currency ID
+	 * @param marketId market ID for logging
+	 * @param assetType asset type (YES/NO) for logging
+	 */
+	private void fundSystemUserWithAsset(int currencyId, Long marketId, String assetType) {
+		// Use marketId as part of transaction ID to ensure uniqueness
+		long transactionId = SYSTEM_UID + marketId * 1000 + (assetType.equals("YES") ? 1 : 2);
+
+		CommandResultCode result = exchangeApi
+			.submitCommandAsync(ApiAdjustUserBalance.builder()
+				.uid(SYSTEM_UID)
+				.currency(currencyId)
+				.amount(INITIAL_ASSET_BALANCE)
+				.transactionId(transactionId)
+				.build())
+			.join();
+
+		if (result != CommandResultCode.SUCCESS) {
+			log.warn("Failed to fund system user with {} asset for market {}: {}", assetType, marketId, result);
+			// Don't throw exception - this is not critical, trading can still proceed
+			// The system user balance is mainly for internal accounting
+		}
+		else {
+			log.info("System user funded with {} asset: marketId={}, currencyId={}, amount={}", assetType, marketId,
+					currencyId, INITIAL_ASSET_BALANCE);
+		}
 	}
 
 }

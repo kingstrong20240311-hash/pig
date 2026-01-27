@@ -31,8 +31,7 @@ import com.pig4cloud.pig.vault.api.dto.DepositRequest;
 public interface VaultBalanceService {
 
 	/**
-	 * Deposit funds to an account (increase available balance) Idempotent based on
-	 * refId
+	 * Deposit funds to an account (increase available balance) Idempotent based on refId
 	 * @param request deposit request
 	 * @return balance response
 	 */

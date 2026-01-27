@@ -227,7 +227,6 @@ class MatcherEventHandlerTest {
 		assertThat(updatedOrder.getRemainingQuantity()).isEqualTo(BigDecimal.ZERO);
 	}
 
-
 	@Test
 	void testHandleReduceEvent_OrderNotFound() {
 		// Given

@@ -282,8 +282,8 @@ class DomainEventRouterTest {
 
 	// Helper method to create test envelope
 	private DomainEventEnvelope createTestEnvelope(String domain, String eventType) {
-		return new DomainEventEnvelope("evt-001", domain, "Order", "order-123", eventType, System.currentTimeMillis(), null,
-				"{\"amount\":100}");
+		return new DomainEventEnvelope("evt-001", domain, "Order", "order-123", eventType, System.currentTimeMillis(),
+				null, "{\"amount\":100}");
 	}
 
 	// Test helper classes

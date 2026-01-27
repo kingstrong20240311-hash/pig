@@ -102,6 +102,7 @@
 		<module>pig-vault</module>
 		<module>pig-outbox</module>
 		<module>pig-order</module>
+		<module>pig-e2e-test</module>
 	</modules>
 
 	<profiles>

@@ -25,8 +25,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.Base64;
 
 /**
- * 密码加密工具类
- * 使用 AES-128-CFB 算法加密密码
+ * 密码加密工具类 使用 AES-128-CFB 算法加密密码
  *
  * @author pig4cloud
  */
@@ -45,7 +44,6 @@ public class PasswordEncryptionUtil {
 
 	/**
 	 * 使用指定的密钥加密密码
-	 *
 	 * @param password 明文密码
 	 * @param encodeKey 加密密钥（同时用作 Key 和 IV）
 	 * @return Base64 编码的加密后密码
@@ -87,7 +85,6 @@ public class PasswordEncryptionUtil {
 
 	/**
 	 * 使用指定的密钥解密密码（用于测试验证）
-	 *
 	 * @param encryptedPassword Base64 编码的加密密码
 	 * @param encodeKey 解密密钥（同时用作 Key 和 IV）
 	 * @return 明文密码

@@ -93,7 +93,8 @@ public class DomainEventRouter {
 
 	private void validateEnvelope(DomainEventEnvelope<?> envelope) {
 		if (envelope.domain() == null || envelope.domain().isBlank() || envelope.eventType() == null
-				|| envelope.eventType().isBlank() || envelope.aggregateId() == null || envelope.aggregateId().isBlank()) {
+				|| envelope.eventType().isBlank() || envelope.aggregateId() == null
+				|| envelope.aggregateId().isBlank()) {
 			throw new IllegalArgumentException("Missing required event metadata: domain/eventType/aggregateId");
 		}
 	}
