@@ -30,6 +30,9 @@
 	<artifactId>pig-order-biz</artifactId>
 	<packaging>jar</packaging>
 	<description>pig order 订单管理系统业务处理模块</description>
+	<properties>
+		<docker.image.name>pig-order</docker.image.name>
+	</properties>
 
 	<dependencies>
 		<!-- order api、model 模块 -->
@@ -182,6 +185,9 @@
 					<plugin>
 						<groupId>io.fabric8</groupId>
 						<artifactId>docker-maven-plugin</artifactId>
+						<configuration>
+							<skip>false</skip>
+						</configuration>
 					</plugin>
 				</plugins>
 			</build>
