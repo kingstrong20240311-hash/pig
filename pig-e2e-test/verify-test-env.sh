@@ -101,6 +101,7 @@ echo "━━━━━━━━━━━━━━━━━━━━━━━━�
 
 check "主题 domain.order 存在" "docker exec pig-e2e-kafka kafka-topics --list --bootstrap-server localhost:9093 2>/dev/null | grep -q 'domain.order'"
 check "主题 domain.vault 存在" "docker exec pig-e2e-kafka kafka-topics --list --bootstrap-server localhost:9093 2>/dev/null | grep -q 'domain.vault'"
+check "主题 domain.market 存在" "docker exec pig-e2e-kafka kafka-topics --list --bootstrap-server localhost:9093 2>/dev/null | grep -q 'domain.market'"
 
 echo ""
 

@@ -138,3 +138,11 @@ CREATE TABLE `outbox_event` (
 -- Create vault account for admin user (user_id=1 from pig.sys_user)
 INSERT INTO vault_account (account_id, user_id, account_type, status, create_time, update_time)
 VALUES (1000000, 1, 1, 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP);
+
+-- Insert USDC asset (currency_id=100, decimals=6 for standard stablecoin precision)
+INSERT INTO vault_asset (asset_id, symbol, currency_id, decimals, is_active, create_time)
+VALUES (1, 'USDC', 100, 6, TRUE, CURRENT_TIMESTAMP)
+ON DUPLICATE KEY UPDATE 
+    currency_id = VALUES(currency_id),
+    decimals = VALUES(decimals),
+    is_active = VALUES(is_active);
