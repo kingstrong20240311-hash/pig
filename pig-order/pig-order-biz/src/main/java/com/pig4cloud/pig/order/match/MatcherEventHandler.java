@@ -34,7 +34,7 @@ import com.pig4cloud.pig.order.match.dto.FailedRejectEventDTO;
 import com.pig4cloud.pig.order.match.dto.FailedTradeEventDTO;
 import com.pig4cloud.pig.order.match.dto.MatchCommittedPayload;
 import com.pig4cloud.pig.outbox.api.model.DomainEventEnvelope;
-import com.pig4cloud.pig.outbox.api.payload.order.OrderCancelPayload;
+import com.pig4cloud.pig.outbox.api.payload.order.OrderReducedPayload;
 import com.pig4cloud.pig.outbox.api.publisher.DomainEventPublisher;
 import exchange.core2.core.IEventsHandler;
 import lombok.RequiredArgsConstructor;
@@ -70,7 +70,7 @@ public class MatcherEventHandler implements OrderMatchService {
 
 	private static final String AGG_TYPE_ORDER = "Order";
 
-	private static final String EVENT_ORDER_CANCEL = "OrderCancel";
+	private static final String EVENT_ORDER_REDUCED = "OrderReduced";
 
 	private final OrderMapper orderMapper;
 
@@ -189,7 +189,11 @@ public class MatcherEventHandler implements OrderMatchService {
 
 			orderMapper.updateById(order);
 			if (reduceEvent.orderCompleted) {
-				publishOrderCancelEvent(order, "Order cancelled");
+				publishOrderReducedEvent(order);
+			}
+			else {
+				BigDecimal reducedAmount = convertLongToDecimal(reduceEvent.reducedVolume).multiply(order.getPrice());
+				publishOrderReducedEvent(order, reducedAmount);
 			}
 			log.info("Reduce event processed successfully: orderId={}, newStatus={}", reduceEvent.orderId,
 					order.getStatus());
@@ -238,7 +242,7 @@ public class MatcherEventHandler implements OrderMatchService {
 			order.setRejectReason("IOC order could not be filled at specified price");
 
 			orderMapper.updateById(order);
-			publishOrderCancelEvent(order, order.getRejectReason());
+			publishOrderReducedEvent(order);
 			log.info("Reject event processed successfully: orderId={}", rejectEvent.orderId);
 		}
 		catch (Exception e) {
@@ -477,17 +481,24 @@ public class MatcherEventHandler implements OrderMatchService {
 	}
 
 	/**
-	 * Publish OrderCancel event via DomainEventPublisher
+	 * Publish OrderReduced event (full remaining amount)
 	 */
-	private void publishOrderCancelEvent(Order order, String reason) {
-		OrderCancelPayload payload = new OrderCancelPayload(order.getOrderId(), order.getUserId(), order.getMarketId(),
-				order.getStatus().name(), reason);
+	private void publishOrderReducedEvent(Order order) {
+		BigDecimal amount = order.getRemainingQuantity().multiply(order.getPrice());
+		publishOrderReducedEvent(order, amount);
+	}
 
-		DomainEventEnvelope<OrderCancelPayload> event = new DomainEventEnvelope<>(IdUtil.randomUUID(), // eventId
+	/**
+	 * Publish OrderReduced event with given amount
+	 */
+	private void publishOrderReducedEvent(Order order, BigDecimal amount) {
+		OrderReducedPayload payload = new OrderReducedPayload(order.getOrderId(), amount);
+
+		DomainEventEnvelope<OrderReducedPayload> event = new DomainEventEnvelope<>(IdUtil.randomUUID(), // eventId
 				DOMAIN_ORDER, // domain
 				AGG_TYPE_ORDER, // aggregateType
 				String.valueOf(order.getOrderId()), // aggregateId
-				EVENT_ORDER_CANCEL, // eventType
+				EVENT_ORDER_REDUCED, // eventType
 				System.currentTimeMillis(), // occurredAt
 				null, // headers
 				payload // payload

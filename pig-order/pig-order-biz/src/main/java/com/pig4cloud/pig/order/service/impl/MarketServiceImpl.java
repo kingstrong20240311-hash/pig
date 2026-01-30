@@ -29,7 +29,7 @@ import com.pig4cloud.pig.order.mapper.OrderMapper;
 import com.pig4cloud.pig.outbox.api.payload.market.MarketCreatedPayload;
 import com.pig4cloud.pig.order.service.MarketService;
 import com.pig4cloud.pig.outbox.api.model.DomainEventEnvelope;
-import com.pig4cloud.pig.outbox.api.payload.order.OrderCancelPayload;
+import com.pig4cloud.pig.outbox.api.payload.order.OrderReducedPayload;
 import com.pig4cloud.pig.order.event.MarketClosedPayload;
 import com.pig4cloud.pig.outbox.api.publisher.DomainEventPublisher;
 import com.pig4cloud.pig.outbox.entity.OutboxEvent;
@@ -40,6 +40,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.List;
 
@@ -62,7 +63,7 @@ public class MarketServiceImpl implements MarketService {
 
 	private static final String AGG_TYPE_ORDER = "Order";
 
-	private static final String EVENT_ORDER_CANCEL = "OrderCancel";
+	private static final String EVENT_ORDER_REDUCED = "OrderReduced";
 
 	private static final String EVENT_MARKET_CREATED = "MarketCreated";
 
@@ -160,7 +161,7 @@ public class MarketServiceImpl implements MarketService {
 		for (Order order : expiringOrders) {
 			order.setStatus(OrderStatus.EXPIRED);
 			orderMapper.updateById(order);
-			publishOrderCancelEvent(order, "Market expired");
+			publishOrderReducedEvent(order);
 		}
 	}
 
@@ -185,15 +186,15 @@ public class MarketServiceImpl implements MarketService {
 		outboxEventService.save(event);
 	}
 
-	private void publishOrderCancelEvent(Order order, String reason) {
-		OrderCancelPayload payload = new OrderCancelPayload(order.getOrderId(), order.getUserId(), order.getMarketId(),
-				order.getStatus().name(), reason);
+	private void publishOrderReducedEvent(Order order) {
+		BigDecimal amount = order.getRemainingQuantity().multiply(order.getPrice());
+		OrderReducedPayload payload = new OrderReducedPayload(order.getOrderId(), amount);
 
-		DomainEventEnvelope<OrderCancelPayload> event = new DomainEventEnvelope<>(IdUtil.randomUUID(), // eventId
+		DomainEventEnvelope<OrderReducedPayload> event = new DomainEventEnvelope<>(IdUtil.randomUUID(), // eventId
 				DOMAIN_ORDER, // domain
 				AGG_TYPE_ORDER, // aggregateType
 				String.valueOf(order.getOrderId()), // aggregateId
-				EVENT_ORDER_CANCEL, // eventType
+				EVENT_ORDER_REDUCED, // eventType
 				System.currentTimeMillis(), // occurredAt
 				null, // headers
 				payload // payload

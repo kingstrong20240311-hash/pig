@@ -58,6 +58,7 @@ class OrderStateRecoveryIntegrationTest {
 
 	@DynamicPropertySource
 	static void configureProperties(DynamicPropertyRegistry registry) {
+		registry.add("spring.main.allow-bean-definition-overriding", () -> "true");
 		registry.add("spring.datasource.url", mysql::getJdbcUrl);
 		registry.add("spring.datasource.username", mysql::getUsername);
 		registry.add("spring.datasource.password", mysql::getPassword);

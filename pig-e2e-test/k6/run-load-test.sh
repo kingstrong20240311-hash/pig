@@ -15,7 +15,7 @@ P95_MS="${K6_P95_MS:-500}"
 P99_MS="${K6_P99_MS:-1000}"
 CLIENT_ID="${K6_CLIENT_ID:-test}"
 CLIENT_SECRET="${K6_CLIENT_SECRET:-test}"
-ENCODE_KEY="${K6_ENCODE_KEY:-testencryptkey}"
+ENCODE_KEY="${K6_ENCODE_KEY:-thanks,pig4cloud}"
 
 # Colors
 RED='\033[0;31m'
@@ -173,12 +173,15 @@ if [ "$TEST_ONLY" = false ]; then
             -e K6_ENCODE_KEY="$ENCODE_KEY" \
             --quiet | tee /tmp/k6-setup.log
 
-        # Extract JSON from output (last JSON object in output)
-        if grep -q '"users"' /tmp/k6-setup.log; then
-            grep -o '\{.*\}' /tmp/k6-setup.log | tail -1 > "$DATA_FILE"
+        # Extract JSON from k6 output (between TEST_DATA_JSON_START and END; unescape msg= quotes)
+        if grep -q 'TEST_DATA_JSON_START' /tmp/k6-setup.log; then
+            JSON_LINE=$(sed -n '/TEST_DATA_JSON_START/,/TEST_DATA_JSON_END/p' /tmp/k6-setup.log | sed -n '2p')
+            if [ -n "$JSON_LINE" ]; then
+                echo "$JSON_LINE" | sed 's/.*msg="//; s/" source=.*//' | sed 's/\\"/"/g' > "$DATA_FILE"
+            fi
+        fi
+        if [ -f "$DATA_FILE" ] && jq -e '.users | length' "$DATA_FILE" >/dev/null 2>&1; then
             echo -e "${GREEN}Test data saved to $DATA_FILE${NC}"
-
-            # Show summary
             ACTUAL_MARKETS=$(jq '.markets | length' "$DATA_FILE")
             ACTUAL_USERS=$(jq '.users | length' "$DATA_FILE")
             echo -e "${GREEN}Created: $ACTUAL_USERS users, $ACTUAL_MARKETS markets${NC}"

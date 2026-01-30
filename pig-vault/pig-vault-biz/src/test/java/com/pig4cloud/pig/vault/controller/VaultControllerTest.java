@@ -462,6 +462,64 @@ class VaultControllerTest {
 	}
 
 	/**
+	 * Test Case 6b: Release freeze partial amount
+	 */
+	@Test
+	@Order(56)
+	@WithMockUser(username = "testuser", roles = "USER")
+	@DisplayName("6b. Release freeze partial amount")
+	@Transactional
+	void testReleaseFreezePartialAmount() throws Exception {
+		// Create a freeze
+		CreateFreezeRequest createRequest = new CreateFreezeRequest();
+		createRequest.setUserId(USER_ID);
+		createRequest.setSymbol(SYMBOL);
+		createRequest.setAmount(new BigDecimal("30.000000"));
+		createRequest.setRefType(RefType.ORDER);
+		createRequest.setRefId("ORD-006b");
+
+		mockMvc
+			.perform(post("/freeze/create").header(HttpHeaders.AUTHORIZATION, "Bearer " + TEST_TOKEN)
+				.contentType(MediaType.APPLICATION_JSON)
+				.content(objectMapper.writeValueAsString(createRequest)))
+			.andExpect(status().isOk());
+
+		// Partial release: 10
+		FreezeLookupRequest partialRequest = new FreezeLookupRequest();
+		partialRequest.setRefType(RefType.ORDER);
+		partialRequest.setRefId("ORD-006b");
+		partialRequest.setAmount(new BigDecimal("10.000000"));
+
+		mockMvc
+			.perform(post("/freeze/release").header(HttpHeaders.AUTHORIZATION, "Bearer " + TEST_TOKEN)
+				.contentType(MediaType.APPLICATION_JSON)
+				.content(objectMapper.writeValueAsString(partialRequest)))
+			.andExpect(status().isOk());
+
+		Freeze freezeAfterPartial = freezeMapper.selectOne(
+				Wrappers.<Freeze>lambdaQuery().eq(Freeze::getRefType, RefType.ORDER).eq(Freeze::getRefId, "ORD-006b"));
+		assertThat(freezeAfterPartial.getAmount()).isEqualByComparingTo(new BigDecimal("20.000000"));
+		assertThat(freezeAfterPartial.getStatus()).isEqualTo(FreezeStatus.HELD);
+
+		// Release remaining: 20 -> status RELEASED
+		FreezeLookupRequest remainingRequest = new FreezeLookupRequest();
+		remainingRequest.setRefType(RefType.ORDER);
+		remainingRequest.setRefId("ORD-006b");
+		remainingRequest.setAmount(new BigDecimal("20.000000"));
+
+		mockMvc
+			.perform(post("/freeze/release").header(HttpHeaders.AUTHORIZATION, "Bearer " + TEST_TOKEN)
+				.contentType(MediaType.APPLICATION_JSON)
+				.content(objectMapper.writeValueAsString(remainingRequest)))
+			.andExpect(status().isOk());
+
+		Freeze freezeFinal = freezeMapper.selectOne(
+				Wrappers.<Freeze>lambdaQuery().eq(Freeze::getRefType, RefType.ORDER).eq(Freeze::getRefId, "ORD-006b"));
+		assertThat(freezeFinal.getAmount()).isEqualByComparingTo(BigDecimal.ZERO);
+		assertThat(freezeFinal.getStatus()).isEqualTo(FreezeStatus.RELEASED);
+	}
+
+	/**
 	 * Test Case 7: Claim freeze successfully
 	 */
 	@Test

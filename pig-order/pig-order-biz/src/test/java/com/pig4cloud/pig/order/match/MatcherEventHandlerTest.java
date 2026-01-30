@@ -220,11 +220,12 @@ class MatcherEventHandlerTest {
 		// When
 		matcherEventHandler.handleReduceEvent(reduceEvent);
 
-		// Then
+		// Then - status CANCELLED; remainingQuantity preserved (amount not filled when
+		// cancelled)
 		verify(orderMapper).updateById(orderCaptor.capture());
 		Order updatedOrder = orderCaptor.getValue();
 		assertThat(updatedOrder.getStatus()).isEqualTo(OrderStatus.CANCELLED);
-		assertThat(updatedOrder.getRemainingQuantity()).isEqualTo(BigDecimal.ZERO);
+		assertThat(updatedOrder.getRemainingQuantity()).isEqualByComparingTo(BigDecimal.valueOf(10));
 	}
 
 	@Test

@@ -1,0 +1,13 @@
+---
+description: 日志目录与文件说明（logs/{service}/ 下 debug 与 error.log）
+alwaysApply: true
+---
+
+# 日志位置
+
+- 各服务日志目录：`logs/{service}/`
+  - 示例：`logs/pig-order-biz/`、`logs/pig-gateway/`
+- **debug**：运行日志（应用运行时的常规日志）
+- **error.log**：错误日志（错误与异常）
+
+排查问题时优先看 `error.log`，需要完整上下文时结合 `debug`。

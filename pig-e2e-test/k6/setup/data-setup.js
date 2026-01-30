@@ -189,19 +189,50 @@ function waitForMarketReady(token, marketId) {
 	return null;
 }
 
-function registerUser(token, username, password) {
-	const res = authPost('/auth/register', token, {
+// Resolve numeric userId (Long) for vault deposit. /user/info/query is @Inner (403 from gateway).
+// Use GET /admin/user/info with the user's own token (current-user info) to get userId.
+function getUserIdByUserToken(userToken) {
+	const res = authGet('/admin/user/info', userToken);
+	if (res.status !== 200) {
+		return null;
+	}
+	const body = res.json();
+	if (!body || body.code !== 0 || !body.data) {
+		return null;
+	}
+	const d = body.data;
+	const id = d.userId != null ? d.userId : d.id;
+	if (id != null) {
+		const n = typeof id === 'number' ? id : Number(id);
+		if (Number.isSafeInteger(n)) {
+			return n;
+		}
+	}
+	return null;
+}
+
+// Register is in pig-upms-biz; gateway /admin/** -> upms, StripPrefix=1 -> /register/user
+function registerUser(adminToken, username, password) {
+	const res = authPost('/admin/register/user', adminToken, {
 		username: username,
 		password: password,
 	});
-	if (res.status === 200) {
-		const body = res.json();
-		if (body && body.code === 0) {
-			return body.data || { userId: username };
+	if (res.status !== 200) {
+		return { username, userId: username };
+	}
+	const body = res.json();
+	if (!body || body.code !== 0) {
+		// User may already exist
+	}
+	// Login as this user and get /admin/user/info to read numeric userId (deposit expects Long).
+	const userToken = login(username, password);
+	if (userToken) {
+		const userId = getUserIdByUserToken(userToken);
+		if (userId != null) {
+			return { username, userId };
 		}
 	}
-	// User may already exist, try to get userId by logging in
-	return { userId: username };
+	return { username, userId: username };
 }
 
 function deposit(token, userId, symbol, amount) {

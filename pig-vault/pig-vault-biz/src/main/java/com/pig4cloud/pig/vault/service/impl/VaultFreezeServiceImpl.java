@@ -39,7 +39,6 @@ import com.pig4cloud.pig.vault.mapper.VaultAccountMapper;
 import com.pig4cloud.pig.vault.mapper.VaultAssetMapper;
 import com.pig4cloud.pig.vault.service.VaultFreezeService;
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.dao.DuplicateKeyException;
@@ -167,11 +166,15 @@ public class VaultFreezeServiceImpl implements VaultFreezeService {
 			return toFreezeResponse(freeze);
 		}
 
-		// 2) Update freeze status to RELEASED
-		freeze.setStatus(FreezeStatus.RELEASED);
-		freezeMapper.updateById(freeze);
+		BigDecimal releaseAmount = (request.getAmount() != null && request.getAmount().compareTo(BigDecimal.ZERO) > 0)
+				? request.getAmount() : freeze.getAmount();
 
-		// 3) Get balance and update (frozen -> available)
+		if (releaseAmount.compareTo(freeze.getAmount()) > 0) {
+			throw new IllegalArgumentException("Release amount " + releaseAmount + " exceeds freeze amount "
+					+ freeze.getAmount() + " for refId=" + request.getRefId());
+		}
+
+		// 2) Get balance and update (frozen -> available)
 		Balance balance = balanceMapper.selectOne(Wrappers.<Balance>lambdaQuery()
 			.eq(Balance::getAccountId, freeze.getAccountId())
 			.eq(Balance::getAssetId, freeze.getAssetId())
@@ -182,12 +185,19 @@ public class VaultFreezeServiceImpl implements VaultFreezeService {
 					"Balance not found for accountId=" + freeze.getAccountId() + ", assetId=" + freeze.getAssetId());
 		}
 
-		int rows = balanceMapper.unfreezeBalance(freeze.getAccountId(), freeze.getAssetId(), freeze.getAmount(),
+		int rows = balanceMapper.unfreezeBalance(freeze.getAccountId(), freeze.getAssetId(), releaseAmount,
 				balance.getVersion());
 
 		if (rows != 1) {
 			throw new IllegalStateException("Concurrency conflict when unfreezing balance");
 		}
+
+		// 3) Update freeze: reduce amount; if 0 -> status RELEASED
+		freeze.setAmount(freeze.getAmount().subtract(releaseAmount));
+		if (freeze.getAmount().compareTo(BigDecimal.ZERO) == 0) {
+			freeze.setStatus(FreezeStatus.RELEASED);
+		}
+		freezeMapper.updateById(freeze);
 
 		// 4) Write ledger entry
 		LedgerEntry ledger = new LedgerEntry();
@@ -195,19 +205,19 @@ public class VaultFreezeServiceImpl implements VaultFreezeService {
 		ledger.setAssetId(freeze.getAssetId());
 		ledger.setEntryType(LedgerType.UNFREEZE);
 		ledger.setDirection(Direction.CREDIT);
-		ledger.setAmount(freeze.getAmount());
+		ledger.setAmount(releaseAmount);
 		ledger.setIdempotencyKey(buildIdempotencyKey(LedgerType.UNFREEZE, request.getRefType(), request.getRefId()));
 		ledger.setRefType(request.getRefType());
 		ledger.setRefId(request.getRefId());
 		ledger.setBeforeAvailable(balance.getAvailable());
 		ledger.setBeforeFrozen(balance.getFrozen());
-		ledger.setAfterAvailable(balance.getAvailable().add(freeze.getAmount()));
-		ledger.setAfterFrozen(balance.getFrozen().subtract(freeze.getAmount()));
+		ledger.setAfterAvailable(balance.getAvailable().add(releaseAmount));
+		ledger.setAfterFrozen(balance.getFrozen().subtract(releaseAmount));
 
 		ledgerEntryMapper.insert(ledger);
 
-		log.info("Freeze released successfully: freezeId={}, refType={}, refId={}", freeze.getFreezeId(),
-				request.getRefType(), request.getRefId());
+		log.info("Freeze released successfully: freezeId={}, refType={}, refId={}, amount={}", freeze.getFreezeId(),
+				request.getRefType(), request.getRefId(), releaseAmount);
 
 		return toFreezeResponse(freeze);
 	}

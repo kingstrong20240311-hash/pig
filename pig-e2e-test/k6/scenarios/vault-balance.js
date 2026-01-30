@@ -18,8 +18,8 @@ export default function vaultBalance(sharedData) {
 		return;
 	}
 
-	// Query USDC balance
-	const usdcRes = authGet(`/vault/balance?accountId=${user.userId}&symbol=USDC`, token);
+	// Query USDC balance (current user via /balance/me)
+	const usdcRes = authGet('/vault/balance/me?symbol=USDC', token);
 	vaultBalanceDuration.add(usdcRes.timings.duration);
 
 	if (!checkBalanceValid(usdcRes)) {
@@ -32,7 +32,7 @@ export default function vaultBalance(sharedData) {
 		const outcome = Math.random() < 0.5 ? 'YES' : 'NO';
 		const symbol = `M${marketId}_${outcome}`;
 
-		const outcomeRes = authGet(`/vault/balance?accountId=${user.userId}&symbol=${symbol}`, token);
+		const outcomeRes = authGet(`/vault/balance/me?symbol=${symbol}`, token);
 		vaultBalanceDuration.add(outcomeRes.timings.duration);
 
 		if (!checkBalanceValid(outcomeRes)) {

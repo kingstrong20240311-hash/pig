@@ -192,11 +192,10 @@ public class OrderServiceImpl implements OrderService {
 			throw new IllegalArgumentException("Order not found: " + request.getOrderId());
 		}
 
-		// 4. Check if order can be cancelled
+		// 4. If order cannot be cancelled, return current status (no-op)
 		if (!order.isCancellable()) {
 			log.warn("Order cannot be cancelled: orderId={}, status={}", order.getOrderId(), order.getStatus());
-			throw new IllegalStateException(
-					"Order cannot be cancelled: orderId=" + order.getOrderId() + ", status=" + order.getStatus());
+			return buildCancelOrderResponse(order);
 		}
 
 		// 5. Insert cancel record (idempotent anchor)

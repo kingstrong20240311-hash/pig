@@ -25,8 +25,8 @@ import com.pig4cloud.pig.order.mapper.OrderMapper;
 import com.pig4cloud.pig.order.service.MarketService;
 import com.pig4cloud.pig.outbox.api.annotation.DomainEventHandler;
 import com.pig4cloud.pig.outbox.api.model.DomainEventEnvelope;
-import com.pig4cloud.pig.outbox.api.payload.order.OrderCancelPayload;
 import com.pig4cloud.pig.outbox.api.payload.order.OrderCancelRequestedPayload;
+import com.pig4cloud.pig.outbox.api.payload.order.OrderReducedPayload;
 import com.pig4cloud.pig.outbox.api.payload.order.OrderCreatedPayload;
 import com.pig4cloud.pig.outbox.api.publisher.DomainEventPublisher;
 import exchange.core2.core.ExchangeApi;
@@ -37,6 +37,8 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import java.math.BigDecimal;
 
 /**
  * Order Event Handler - Handles order lifecycle events from outbox
@@ -67,7 +69,7 @@ public class OrderEventHandler {
 
 	private static final String AGG_TYPE_ORDER = "Order";
 
-	private static final String EVENT_ORDER_CANCEL = "OrderCancel";
+	private static final String EVENT_ORDER_REDUCED = "OrderReduced";
 
 	/**
 	 * Handle OrderCreated event - Submit order to matching engine asynchronously
@@ -103,7 +105,7 @@ public class OrderEventHandler {
 							orderId);
 					order.setStatus(OrderStatus.CANCELLED);
 					orderMapper.updateById(order);
-					publishOrderCancelEvent(order);
+					publishOrderReducedEvent(order);
 				}
 				else {
 					log.info("Order already processed or in non-OPEN state: orderId={}, status={}, skipping", orderId,
@@ -142,7 +144,7 @@ public class OrderEventHandler {
 				order.setStatus(OrderStatus.REJECTED);
 				order.setRejectReason("Matching engine rejected: " + resultCode);
 				orderMapper.updateById(order);
-				publishOrderCancelEvent(order);
+				publishOrderReducedEvent(order);
 
 				log.warn("Order rejected by matching engine: orderId={}, resultCode={}", orderId, resultCode);
 			}
@@ -211,7 +213,7 @@ public class OrderEventHandler {
 						orderId);
 				order.setStatus(OrderStatus.CANCELLED);
 				orderMapper.updateById(order);
-				publishOrderCancelEvent(order);
+				publishOrderReducedEvent(order);
 			}
 			else {
 				log.error("Failed to submit cancel to matching engine: orderId={}, resultCode={}", orderId, resultCode);
@@ -228,15 +230,15 @@ public class OrderEventHandler {
 		}
 	}
 
-	private void publishOrderCancelEvent(Order order) {
-		OrderCancelPayload payload = new OrderCancelPayload(order.getOrderId(), order.getUserId(), order.getMarketId(),
-				order.getStatus().name(), order.getRejectReason());
+	private void publishOrderReducedEvent(Order order) {
+		BigDecimal amount = order.getRemainingQuantity().multiply(order.getPrice());
+		OrderReducedPayload payload = new OrderReducedPayload(order.getOrderId(), amount);
 
-		DomainEventEnvelope<OrderCancelPayload> event = new DomainEventEnvelope<>(IdUtil.randomUUID(), // eventId
+		DomainEventEnvelope<OrderReducedPayload> event = new DomainEventEnvelope<>(IdUtil.randomUUID(), // eventId
 				DOMAIN_ORDER, // domain
 				AGG_TYPE_ORDER, // aggregateType
 				String.valueOf(order.getOrderId()), // aggregateId
-				EVENT_ORDER_CANCEL, // eventType
+				EVENT_ORDER_REDUCED, // eventType
 				System.currentTimeMillis(), // occurredAt
 				null, // headers
 				payload // payload

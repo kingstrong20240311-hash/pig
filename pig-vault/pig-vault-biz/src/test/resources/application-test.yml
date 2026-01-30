@@ -1,0 +1,4 @@
+# Test profile: 使用独立日志目录，与运行态 logs/pig-vault-biz 分离
+spring:
+  application:
+    name: pig-vault-test

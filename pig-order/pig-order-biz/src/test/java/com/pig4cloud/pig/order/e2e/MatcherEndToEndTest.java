@@ -204,7 +204,8 @@ class MatcherEndToEndTest extends BaseIntegrationTest {
 		await().atMost(5, TimeUnit.SECONDS).untilAsserted(() -> {
 			Order order = orderMapper.selectById(orderId);
 			assertThat(order.getStatus()).isEqualTo(OrderStatus.CANCELLED);
-			assertThat(order.getRemainingQuantity()).isEqualByComparingTo(BigDecimal.ZERO);
+			// remainingQuantity preserved (amount not filled when cancelled)
+			assertThat(order.getRemainingQuantity()).isEqualByComparingTo(new BigDecimal("10.00"));
 		});
 	}
 

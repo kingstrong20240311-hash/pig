@@ -1,9 +1,21 @@
 # Test configuration for pig-order integration tests
 
 spring:
+  main:
+    allow-bean-definition-overriding: true
+  cloud:
+    config:
+      import-check:
+        enabled: false
+    nacos:
+      config:
+        enabled: false
+      discovery:
+        enabled: false
   application:
     name: pig-order-test
 server:
+  port: 5010
   servlet:
     context-path: /
 

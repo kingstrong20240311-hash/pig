@@ -1,0 +1,15 @@
+# Base test config (loaded for all tests; profile-specific overrides in application-test.yml)
+spring:
+  main:
+    allow-bean-definition-overriding: true
+  cloud:
+    config:
+      import-check:
+        enabled: false
+    nacos:
+      config:
+        enabled: false
+      discovery:
+        enabled: false
+server:
+  port: 5010

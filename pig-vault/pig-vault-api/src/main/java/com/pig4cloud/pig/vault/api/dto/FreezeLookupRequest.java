@@ -24,6 +24,9 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Data;
 
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Positive;
+
+import java.math.BigDecimal;
 
 /**
  * Freeze Lookup Request DTO - for Release/Claim/Consume operations
@@ -48,5 +51,13 @@ public class FreezeLookupRequest {
 	@NotNull(message = "Reference ID cannot be null")
 	@Schema(description = "Reference ID", requiredMode = Schema.RequiredMode.REQUIRED)
 	private String refId;
+
+	/**
+	 * Optional amount for partial release. When null or not set, release full freeze
+	 * amount.
+	 */
+	@Positive(message = "Release amount must be positive when provided")
+	@Schema(description = "Amount to release (optional; when omitted, release full freeze)")
+	private BigDecimal amount;
 
 }

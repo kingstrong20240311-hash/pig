@@ -314,7 +314,7 @@ public class CancelFlowE2eTest extends E2eBaseTest {
 	private void verifyFreezeReleased(String orderId) {
 		log.info("开始验证冻结资金释放状态，订单ID: {}", orderId);
 
-		// 使用轮询等待，因为 OrderCancel 事件是异步处理的
+		// 使用轮询等待，因为 OrderReduced 事件是异步处理的
 		Response freezeResponse = pollUntil(() -> {
 			return authenticatedRequest().queryParam("refId", orderId)
 				.queryParam("refType", "ORDER")
