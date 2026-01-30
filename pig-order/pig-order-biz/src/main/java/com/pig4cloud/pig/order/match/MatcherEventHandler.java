@@ -170,29 +170,28 @@ public class MatcherEventHandler implements OrderMatchService {
 				return;
 			}
 
-			// note: No need to check previous status,
-			// because it has been checked before requesting cancel to matching engine
-			// Update order status based on whether it's completed
-			if (reduceEvent.orderCompleted) {
-				order.setStatus(OrderStatus.CANCELLED);
-				// DO NOT set remainingQuantity to ZERO!
-				// remainingQuantity should preserve the amount that was NOT filled when
-				// cancelled
-				// This is critical for calculating filledQuantity = quantity -
-				// remainingQuantity
-			}
-			else {
-				// Partial cancel - update remaining quantity
-				BigDecimal reducedVolume = convertLongToDecimal(reduceEvent.reducedVolume);
-				BigDecimal newRemaining = order.getRemainingQuantity().subtract(reducedVolume);
-				order.setRemainingQuantity(newRemaining);
-			}
+		// note: No need to check previous status,
+		// because it has been checked before requesting cancel to matching engine
+		// Update order status based on whether it's completed
+		if (reduceEvent.orderCompleted) {
+			order.setStatus(OrderStatus.CANCELLED);
+			// DO NOT set remainingQuantity to ZERO!
+			// remainingQuantity should preserve the amount that was NOT filled when
+			// cancelled
+			// This is critical for calculating filledQuantity = quantity -
+			// remainingQuantity
+		}
+		else {
+			// Partial cancel - update remaining quantity
+			BigDecimal reducedVolume = convertLongToDecimal(reduceEvent.reducedVolume);
+			BigDecimal newRemaining = order.getRemainingQuantity().subtract(reducedVolume);
+			order.setRemainingQuantity(newRemaining);
+		}
 
-			orderMapper.updateById(order);
-			// reducedVolume 为 exchange-core 刻度（×100），换算为小数后按资产计算释放金额：BUY=数量×价格，SELL=数量
-			BigDecimal reducedQty = convertLongToDecimal(reduceEvent.reducedVolume);
-			BigDecimal reducedAmount = order.getPrice() != null ? reducedQty.multiply(order.getPrice()) : reducedQty;
-			publishOrderReducedEvent(order, reducedAmount);
+		orderMapper.updateById(order);
+		// reducedVolume 为 exchange-core 刻度（×100），代表资产数量，直接换算为小数作为释放金额
+		BigDecimal reducedAmount = convertLongToDecimal(reduceEvent.reducedVolume);
+		publishOrderReducedEvent(order, reducedAmount);
 			log.info("Reduce event processed successfully: orderId={}, newStatus={}", reduceEvent.orderId,
 					order.getStatus());
 		}
@@ -235,26 +234,25 @@ public class MatcherEventHandler implements OrderMatchService {
 				return;
 			}
 
-			// rejectedVolume 为 exchange-core 刻度（×100），资产数量；换算为小数后计算释放金额
-			BigDecimal rejectedQty = convertLongToDecimal(rejectEvent.rejectedVolume);
-			BigDecimal reducedAmount = order.getPrice() != null ? rejectedQty.multiply(order.getPrice()) : rejectedQty;
+		// rejectedVolume 为 exchange-core 刻度（×100），代表资产数量，直接换算为小数作为释放金额
+		BigDecimal reducedAmount = convertLongToDecimal(rejectEvent.rejectedVolume);
 
-			// 市价单：仅当成交量=0（全部被拒）时落 REJECTED；若有成交则保持 PARTIALLY_FILLED 终态，但仍发 reduce 事件
-			if (order.getOrderType() == OrderType.MARKET && order.getFilledQuantity().compareTo(BigDecimal.ZERO) > 0) {
-				log.info(
-						"Market order reject event but has partial fill: orderId={}, keeping PARTIALLY_FILLED, rejectedVolume={}",
-						rejectEvent.orderId, rejectEvent.rejectedVolume);
-				publishOrderReducedEvent(order, reducedAmount);
-				return;
-			}
-
-			// Mark order as rejected (for IOC/market orders that couldn't be filled, or
-			// limit IOC)
-			order.setStatus(OrderStatus.REJECTED);
-			order.setRejectReason("IOC order could not be filled at specified price");
-
-			orderMapper.updateById(order);
+		// 市价单：仅当成交量=0（全部被拒）时落 REJECTED；若有成交则保持 PARTIALLY_FILLED 终态，但仍发 reduce 事件
+		if (order.getOrderType() == OrderType.MARKET && order.getFilledQuantity().compareTo(BigDecimal.ZERO) > 0) {
+			log.info(
+					"Market order reject event but has partial fill: orderId={}, keeping PARTIALLY_FILLED, rejectedVolume={}",
+					rejectEvent.orderId, rejectEvent.rejectedVolume);
 			publishOrderReducedEvent(order, reducedAmount);
+			return;
+		}
+
+		// Mark order as rejected (for IOC/market orders that couldn't be filled, or
+		// limit IOC)
+		order.setStatus(OrderStatus.REJECTED);
+		order.setRejectReason("IOC order could not be filled at specified price");
+
+		orderMapper.updateById(order);
+		publishOrderReducedEvent(order, reducedAmount);
 			log.info("Reject event processed successfully: orderId={}", rejectEvent.orderId);
 		}
 		catch (Exception e) {
@@ -494,8 +492,8 @@ public class MatcherEventHandler implements OrderMatchService {
 	}
 
 	/**
-	 * Publish OrderReduced event with given amount (asset amount in decimal: BUY = qty *
-	 * price, SELL = qty)
+	 * Publish OrderReduced event with given amount (asset amount in decimal, directly
+	 * from reducedVolume/rejectedVolume without price multiplication)
 	 */
 	private void publishOrderReducedEvent(Order order, BigDecimal amount) {
 		OrderReducedPayload payload = new OrderReducedPayload(order.getOrderId(), amount);

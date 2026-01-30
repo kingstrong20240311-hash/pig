@@ -45,8 +45,8 @@ public class OrderReducedEventHandler {
 
 	/**
 	 * Handle OrderReduced event - release freeze amount via vault. Payload amount is
-	 * already in decimal (asset amount: BUY = qty*price in USDC, SELL = qty in outcome
-	 * tokens); conversion from exchange-core scale (×100) is done by the publisher.
+	 * already in decimal (asset amount from reducedVolume/rejectedVolume); conversion
+	 * from exchange-core scale (×100) is done by the publisher.
 	 */
 	@DomainEventHandler(domain = "order", eventType = "OrderReduced")
 	public void handleOrderReduced(DomainEventEnvelope<?> event) {

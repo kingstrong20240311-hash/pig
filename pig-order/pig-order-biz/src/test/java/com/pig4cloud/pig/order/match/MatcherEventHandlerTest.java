@@ -228,11 +228,11 @@ class MatcherEventHandlerTest {
 		assertThat(updatedOrder.getStatus()).isEqualTo(OrderStatus.CANCELLED);
 		assertThat(updatedOrder.getRemainingQuantity()).isEqualByComparingTo(BigDecimal.valueOf(10));
 
-		// OrderReduced amount = reducedVolume(scale 100) -> 10 * price 100 = 1000
+		// OrderReduced amount = reducedVolume(scale 100) -> 10（资产数量，直接使用不乘价格）
 		verify(domainEventPublisher).publish(eventCaptor.capture());
 		OrderReducedPayload reducedPayload = (OrderReducedPayload) eventCaptor.getValue().payload();
 		assertThat(reducedPayload.getOrderId()).isEqualTo(orderId);
-		assertThat(reducedPayload.getAmount()).isEqualByComparingTo(BigDecimal.valueOf(1000));
+		assertThat(reducedPayload.getAmount()).isEqualByComparingTo(BigDecimal.valueOf(10));
 	}
 
 	@Test
@@ -286,11 +286,11 @@ class MatcherEventHandlerTest {
 		assertThat(updatedOrder.getStatus()).isEqualTo(OrderStatus.REJECTED);
 		assertThat(updatedOrder.getRejectReason()).contains("IOC order could not be filled");
 
-		// OrderReduced amount = rejectedVolume(scale 100) -> 10 * price 100 = 1000
+		// OrderReduced amount = rejectedVolume(scale 100) -> 10（资产数量，直接使用不乘价格）
 		verify(domainEventPublisher).publish(eventCaptor.capture());
 		OrderReducedPayload reducedPayload = (OrderReducedPayload) eventCaptor.getValue().payload();
 		assertThat(reducedPayload.getOrderId()).isEqualTo(orderId);
-		assertThat(reducedPayload.getAmount()).isEqualByComparingTo(BigDecimal.valueOf(1000));
+		assertThat(reducedPayload.getAmount()).isEqualByComparingTo(BigDecimal.valueOf(10));
 	}
 
 	@Test
@@ -333,10 +333,10 @@ class MatcherEventHandlerTest {
 
 		// Then: should not update to REJECTED, keep PARTIALLY_FILLED (no updateById)
 		verify(orderMapper, never()).updateById(any(Order.class));
-		// OrderReduced still published: rejectedVolume 500 (scale 100) -> 5 * price 100 = 500
+		// OrderReduced still published: rejectedVolume 500 (scale 100) -> 5（资产数量，直接使用不乘价格）
 		verify(domainEventPublisher).publish(eventCaptor.capture());
 		OrderReducedPayload reducedPayload = (OrderReducedPayload) eventCaptor.getValue().payload();
-		assertThat(reducedPayload.getAmount()).isEqualByComparingTo(BigDecimal.valueOf(500));
+		assertThat(reducedPayload.getAmount()).isEqualByComparingTo(BigDecimal.valueOf(5));
 	}
 
 	// ========================================
