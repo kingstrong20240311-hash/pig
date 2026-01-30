@@ -212,7 +212,9 @@ public class OrderStateRecoveryService {
 	}
 
 	private void publishOrderReducedEvent(Order order) {
-		BigDecimal amount = order.getRemainingQuantity().multiply(order.getPrice());
+		// 资产金额：BUY = 剩余数量×价格，SELL = 剩余数量
+		BigDecimal amount = order.getPrice() != null ? order.getRemainingQuantity().multiply(order.getPrice())
+				: order.getRemainingQuantity();
 		OrderReducedPayload payload = new OrderReducedPayload(order.getOrderId(), amount);
 
 		DomainEventEnvelope<OrderReducedPayload> event = new DomainEventEnvelope<>(IdUtil.randomUUID(), // eventId

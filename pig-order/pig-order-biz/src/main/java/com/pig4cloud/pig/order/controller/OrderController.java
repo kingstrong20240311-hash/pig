@@ -75,13 +75,14 @@ public class OrderController {
 	}
 
 	/**
-	 * Cancel an order
+	 * Cancel an order. Market orders are not supported for cancellation (error
+	 * MARKET_ORDER_CANCEL_NOT_SUPPORTED).
 	 * @param request cancel order request
 	 * @return cancel order response
 	 */
 	@PostMapping("/cancel")
 	@PreAuthorize("@pms.hasPermission('order_cancel')")
-	@Operation(summary = "取消订单", description = "请求取消订单")
+	@Operation(summary = "取消订单", description = "请求取消订单；市价单不支持取消")
 	public R<CancelOrderResponse> cancelOrder(@Valid @RequestBody CancelOrderRequest request) {
 		CancelOrderResponse response = orderService.cancelOrder(request);
 		return R.ok(response);

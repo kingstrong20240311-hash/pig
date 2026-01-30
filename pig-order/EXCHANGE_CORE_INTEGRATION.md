@@ -49,8 +49,8 @@ This document summarizes the integration of the exchange-core matching engine in
   - Throws exception on failure (transaction rollback)
 
 - **cancelOrder()**:
-  - Updates to CANCEL_REQUESTED status
-  - Submits cancel to matching engine
+  - Market orders: rejected with `MARKET_ORDER_CANCEL_NOT_SUPPORTED` (no ApiCancelOrder)
+  - Limit orders: updates to CANCEL_REQUESTED, submits cancel to matching engine
   - Waits for result synchronously
   - Throws exception on failure (transaction rollback)
 
@@ -61,6 +61,17 @@ This document summarizes the integration of the exchange-core matching engine in
     default-asset: 1
     enable-state-recovery: true
   ```
+
+## Order State Machine: Market Orders (市价单)
+
+- **Initial**: OPEN → 提交撮合 → MATCHING
+- **撮合回调**:
+  - 成交量 = 0 → REJECTED（终态）
+  - 成交量 = 全部 → FILLED（终态）
+  - 成交量 ∈ (0, 全部) → PARTIALLY_FILLED（终态，部分成交后剩余不再撮合）
+- **终态**：市价单不允许进入 CANCEL_REQUESTED / CANCELLED；取消接口对市价单直接拒绝（错误码 `MARKET_ORDER_CANCEL_NOT_SUPPORTED`）。
+
+**关键语义**：PARTIALLY_FILLED 对市价单为终态，表示“部分成交后剩余取消，不再继续撮合”；市价单取消请求无效。
 
 ## Key Design Decisions
 

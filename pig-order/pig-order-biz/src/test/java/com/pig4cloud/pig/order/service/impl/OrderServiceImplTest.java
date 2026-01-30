@@ -296,4 +296,36 @@ class OrderServiceImplTest {
 		verify(domainEventPublisher, never()).publish(any());
 	}
 
+	/**
+	 * U-08: Test market order cancel is rejected (MARKET_ORDER_CANCEL_NOT_SUPPORTED)
+	 */
+	@Test
+	@DisplayName("U-08: Market order cancel is rejected")
+	void testCancelOrder_MarketOrderRejected() {
+		CancelOrderRequest request = new CancelOrderRequest();
+		request.setOrderId(1000L);
+		request.setReason("User requested");
+		request.setIdempotencyKey("cancel-idempotency-market");
+
+		when(orderCancelMapper.selectOne(any(LambdaQueryWrapper.class))).thenReturn(null);
+
+		Order order = new Order();
+		order.setOrderId(1000L);
+		order.setUserId(100L);
+		order.setMarketId(1L);
+		order.setOrderType(OrderType.MARKET);
+		order.setStatus(OrderStatus.MATCHING);
+		order.setQuantity(new BigDecimal("10.00"));
+		order.setRemainingQuantity(new BigDecimal("10.00"));
+		when(orderMapper.selectById(1000L)).thenReturn(order);
+
+		org.junit.jupiter.api.Assertions.assertThrows(IllegalArgumentException.class,
+				() -> orderService.cancelOrder(request), "MARKET_ORDER_CANCEL_NOT_SUPPORTED");
+
+		verify(orderMapper, times(1)).selectById(1000L);
+		verify(orderCancelMapper, never()).insert(any(OrderCancel.class));
+		verify(orderMapper, never()).updateById(any(Order.class));
+		verify(domainEventPublisher, never()).publish(any());
+	}
+
 }

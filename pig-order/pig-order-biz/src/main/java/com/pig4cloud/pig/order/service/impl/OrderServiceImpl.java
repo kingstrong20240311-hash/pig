@@ -192,6 +192,11 @@ public class OrderServiceImpl implements OrderService {
 			throw new IllegalArgumentException("Order not found: " + request.getOrderId());
 		}
 
+		// 3.1 市价单不支持取消：直接拒绝，不发 ApiCancelOrder
+		if (order.getOrderType() == OrderType.MARKET) {
+			throw new IllegalArgumentException("MARKET_ORDER_CANCEL_NOT_SUPPORTED: 市价单不支持取消");
+		}
+
 		// 4. If order cannot be cancelled, return current status (no-op)
 		if (!order.isCancellable()) {
 			log.warn("Order cannot be cancelled: orderId={}, status={}", order.getOrderId(), order.getStatus());
