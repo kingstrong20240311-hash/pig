@@ -123,9 +123,9 @@ public class OrderController {
 	 */
 	private OrderDTO toOrderDTO(Order order) {
 		OrderDTO dto = new OrderDTO();
-		dto.setOrderId(order.getOrderId());
-		dto.setUserId(order.getUserId());
-		dto.setMarketId(order.getMarketId());
+		dto.setOrderId(order.getOrderId() != null ? String.valueOf(order.getOrderId()) : null);
+		dto.setUserId(order.getUserId() != null ? String.valueOf(order.getUserId()) : null);
+		dto.setMarketId(order.getMarketId() != null ? String.valueOf(order.getMarketId()) : null);
 		dto.setOutcome(order.getOutcome());
 		dto.setSide(order.getSide());
 		dto.setOrderType(order.getOrderType());
@@ -166,10 +166,10 @@ public class OrderController {
 	 */
 	private OrderFillDTO convertToDTO(OrderFill fill) {
 		OrderFillDTO dto = new OrderFillDTO();
-		dto.setTradeId(fill.getTradeId());
+		dto.setTradeId(fill.getTradeId() != null ? String.valueOf(fill.getTradeId()) : null);
 		dto.setMatchId(fill.getMatchId());
-		dto.setTakerOrderId(fill.getTakerOrderId());
-		dto.setMakerOrderId(fill.getMakerOrderId());
+		dto.setTakerOrderId(fill.getTakerOrderId() != null ? String.valueOf(fill.getTakerOrderId()) : null);
+		dto.setMakerOrderId(fill.getMakerOrderId() != null ? String.valueOf(fill.getMakerOrderId()) : null);
 		dto.setPrice(fill.getPrice());
 		dto.setQuantity(fill.getQuantity());
 		dto.setFee(fill.getFee());

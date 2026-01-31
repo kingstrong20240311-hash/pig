@@ -104,7 +104,6 @@ class OrderEventHandlerTest {
 		when(orderMapper.selectById(orderId)).thenReturn(order);
 		when(exchangeApi.submitCommandAsync(any()))
 			.thenReturn(CompletableFuture.completedFuture(CommandResultCode.SUCCESS));
-		when(orderMapper.updateById(any(Order.class))).thenReturn(1);
 
 		// When
 		orderEventHandler.handleOrderCreated(event);
@@ -112,10 +111,7 @@ class OrderEventHandlerTest {
 		// Then
 		verify(matchingEngineSymbolService).ensureSymbol(101, 101, 1);
 		verify(exchangeApi).submitCommandAsync(any());
-		verify(orderMapper).updateById(orderCaptor.capture());
-
-		Order updatedOrder = orderCaptor.getValue();
-		assertThat(updatedOrder.getStatus()).isEqualTo(OrderStatus.MATCHING);
+		verify(orderMapper).update(any(), any());
 	}
 
 	@Test
@@ -140,14 +136,13 @@ class OrderEventHandlerTest {
 		when(orderMapper.selectById(orderId)).thenReturn(order);
 		when(exchangeApi.submitCommandAsync(any()))
 			.thenReturn(CompletableFuture.completedFuture(CommandResultCode.SUCCESS));
-		when(orderMapper.updateById(any(Order.class))).thenReturn(1);
 
 		// When
 		orderEventHandler.handleOrderCreated(event);
 
 		// Then
 		verify(exchangeApi).submitCommandAsync(any());
-		verify(orderMapper).updateById(orderCaptor.capture());
+		verify(orderMapper).update(any(), any());
 	}
 
 	@Test

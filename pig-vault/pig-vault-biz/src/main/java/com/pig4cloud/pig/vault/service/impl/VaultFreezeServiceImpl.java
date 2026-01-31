@@ -384,7 +384,7 @@ public class VaultFreezeServiceImpl implements VaultFreezeService {
 	 */
 	private FreezeResponse toFreezeResponse(Freeze freeze) {
 		FreezeResponse response = new FreezeResponse();
-		response.setFreezeId(freeze.getFreezeId());
+		response.setFreezeId(freeze.getFreezeId() != null ? String.valueOf(freeze.getFreezeId()) : null);
 		response.setStatus(freeze.getStatus());
 		response.setAmount(freeze.getAmount());
 		response.setClaimTime(freeze.getClaimTime() != null ? freeze.getClaimTime().toEpochMilli() : null);

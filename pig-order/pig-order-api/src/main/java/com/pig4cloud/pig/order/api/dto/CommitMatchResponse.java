@@ -46,7 +46,7 @@ public class CommitMatchResponse implements Serializable {
 	 * Order states after match (orderId -> OrderStateDTO)
 	 */
 	@Schema(description = "订单状态映射 (orderId -> OrderStateDTO)")
-	private Map<Long, OrderStateDTO> orderStates;
+	private Map<String, OrderStateDTO> orderStates;
 
 	/**
 	 * Whether settlement is required

@@ -198,10 +198,17 @@ export function login(username, password) {
 		},
 	);
 
+	if (res.status !== 200) {
+		console.error(`  Login failed for ${username}: status=${res.status}, body=${res.body}`);
+		return null;
+	}
+
 	const body = res.json();
 	const token = body.access_token;
 	if (token) {
 		tokenCache[username] = token;
+	} else {
+		console.error(`  Login failed for ${username}: no access_token in response, body=${JSON.stringify(body)}`);
 	}
 	return token;
 }

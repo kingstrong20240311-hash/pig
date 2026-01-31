@@ -20,6 +20,8 @@
 package com.pig4cloud.pig.admin.api.vo;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.databind.annotation.JsonSerialize;
+import com.fasterxml.jackson.databind.ser.std.ToStringSerializer;
 import com.pig4cloud.pig.admin.api.entity.SysDept;
 import com.pig4cloud.pig.admin.api.entity.SysPost;
 import com.pig4cloud.pig.admin.api.entity.SysRole;
@@ -44,6 +46,7 @@ public class UserVO implements Serializable {
 	 * 主键ID
 	 */
 	@Schema(description = "主键")
+	@JsonSerialize(using = ToStringSerializer.class)
 	private Long userId;
 
 	/**

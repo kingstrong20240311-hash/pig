@@ -95,6 +95,14 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
 	@Override
 	@Transactional(rollbackFor = Exception.class)
 	public Boolean saveUser(UserDTO userDto) {
+		if (userDto.getDeptId() == null) {
+			Long defaultDeptId = ParamResolver.getLong("USER_DEFAULT_DEPT");
+			if (defaultDeptId == null) {
+				log.error("Default dept not configured: USER_DEFAULT_DEPT is missing");
+				throw new IllegalStateException("Default dept not configured");
+			}
+			userDto.setDeptId(defaultDeptId);
+		}
 		SysUser sysUser = new SysUser();
 		BeanUtils.copyProperties(userDto, sysUser);
 		sysUser.setDelFlag(CommonConstants.STATUS_NORMAL);
@@ -113,9 +121,21 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
 		if (CollUtil.isEmpty(userDto.getRole())) {
 			// 获取默认角色编码
 			String defaultRole = ParamResolver.getStr("USER_DEFAULT_ROLE");
+			log.debug("Assigning default role: USER_DEFAULT_ROLE={}", defaultRole);
+
 			// 默认角色
 			SysRole sysRole = sysRoleService
 				.getOne(Wrappers.<SysRole>lambdaQuery().eq(SysRole::getRoleCode, defaultRole));
+			if (sysRole == null) {
+				log.error("Default role not found in sys_role table: role_code={}", defaultRole);
+				// Fallback: try to find any role for development/testing
+				sysRole = sysRoleService.getOne(Wrappers.<SysRole>lambdaQuery().last("LIMIT 1"));
+				if (sysRole == null) {
+					throw new IllegalStateException("No roles found in database. Please create at least one role.");
+				}
+				log.warn("Using fallback role: role_id={}, role_code={}", sysRole.getRoleId(),
+						sysRole.getRoleCode());
+			}
 			userDto.setRole(Collections.singletonList(sysRole.getRoleId()));
 		}
 

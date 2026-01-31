@@ -331,7 +331,7 @@ public class MatcherEventHandler implements OrderMatchService {
 		}
 
 		// 4. Process each fill
-		Map<Long, OrderStateDTO> orderStates = new HashMap<>();
+		Map<String, OrderStateDTO> orderStates = new HashMap<>();
 		BigDecimal totalTakerFilled = BigDecimal.ZERO;
 
 		for (FillDTO fillDTO : request.getFills()) {
@@ -392,7 +392,7 @@ public class MatcherEventHandler implements OrderMatchService {
 					makerOrder.getStatus());
 
 			// Track maker order state
-			orderStates.put(makerOrder.getOrderId(), buildOrderStateDTO(makerOrder));
+			orderStates.put(String.valueOf(makerOrder.getOrderId()), buildOrderStateDTO(makerOrder));
 
 			// Accumulate taker filled quantity
 			totalTakerFilled = totalTakerFilled.add(fillDTO.getQuantity());
@@ -424,7 +424,7 @@ public class MatcherEventHandler implements OrderMatchService {
 		orderMapper.updateById(takerOrder);
 
 		// Track taker order state
-		orderStates.put(takerOrder.getOrderId(), buildOrderStateDTO(takerOrder));
+		orderStates.put(String.valueOf(takerOrder.getOrderId()), buildOrderStateDTO(takerOrder));
 
 		// 6. Emit MatchCommittedEvent
 		publishMatchCommittedEvent(request, orderStates);
@@ -450,7 +450,7 @@ public class MatcherEventHandler implements OrderMatchService {
 	 */
 	private OrderStateDTO buildOrderStateDTO(Order order) {
 		OrderStateDTO dto = new OrderStateDTO();
-		dto.setOrderId(order.getOrderId());
+		dto.setOrderId(order.getOrderId() != null ? String.valueOf(order.getOrderId()) : null);
 		dto.setStatus(order.getStatus());
 		dto.setRemainingQuantity(order.getRemainingQuantity());
 		return dto;
@@ -461,17 +461,17 @@ public class MatcherEventHandler implements OrderMatchService {
 	 */
 	private CommitMatchResponse buildCommitMatchResponse(CommitMatchRequest request) {
 		// Rebuild response from existing data
-		Map<Long, OrderStateDTO> orderStates = new HashMap<>();
+		Map<String, OrderStateDTO> orderStates = new HashMap<>();
 
 		Order takerOrder = orderMapper.selectById(request.getTakerOrderId());
 		if (takerOrder != null) {
-			orderStates.put(takerOrder.getOrderId(), buildOrderStateDTO(takerOrder));
+			orderStates.put(String.valueOf(takerOrder.getOrderId()), buildOrderStateDTO(takerOrder));
 		}
 
 		for (FillDTO fill : request.getFills()) {
 			Order makerOrder = orderMapper.selectById(fill.getMakerOrderId());
 			if (makerOrder != null) {
-				orderStates.put(makerOrder.getOrderId(), buildOrderStateDTO(makerOrder));
+				orderStates.put(String.valueOf(makerOrder.getOrderId()), buildOrderStateDTO(makerOrder));
 			}
 		}
 
@@ -486,7 +486,7 @@ public class MatcherEventHandler implements OrderMatchService {
 	/**
 	 * Publish MatchCommittedEvent via DomainEventPublisher
 	 */
-	private void publishMatchCommittedEvent(CommitMatchRequest request, Map<Long, OrderStateDTO> orderStates) {
+	private void publishMatchCommittedEvent(CommitMatchRequest request, Map<String, OrderStateDTO> orderStates) {
 		MatchCommittedPayload payload = new MatchCommittedPayload(request.getMatchId(), request.getTakerOrderId(),
 				request.getFills(), orderStates);
 

@@ -88,7 +88,7 @@ class OrderCancelTransactionIntegrationTest extends BaseIntegrationTest {
 	void setUp() {
 		// Mock vault service to always return success
 		FreezeResponse freezeResponse = new FreezeResponse();
-		freezeResponse.setFreezeId(1000L);
+		freezeResponse.setFreezeId("1000");
 		when(vaultService.createFreeze(any())).thenReturn(R.ok(freezeResponse));
 	}
 
@@ -114,7 +114,7 @@ class OrderCancelTransactionIntegrationTest extends BaseIntegrationTest {
 		assertThat(createResponse.getOrderId()).isNotNull();
 		assertThat(createResponse.getStatus()).isEqualTo(OrderStatus.OPEN);
 
-		final Long orderId = createResponse.getOrderId();
+		final Long orderId = Long.parseLong(createResponse.getOrderId());
 
 		// Dispatch events to process OrderCreated
 		outboxEventDispatcher.dispatch();
@@ -177,7 +177,7 @@ class OrderCancelTransactionIntegrationTest extends BaseIntegrationTest {
 		assertThat(createResponse.getOrderId()).isNotNull();
 		assertThat(createResponse.getStatus()).isEqualTo(OrderStatus.OPEN);
 
-		Long orderId = createResponse.getOrderId();
+		Long orderId = Long.parseLong(createResponse.getOrderId());
 
 		// Dispatch events to process OrderCreated (which will fail)
 		outboxEventDispatcher.dispatch();
@@ -209,7 +209,7 @@ class OrderCancelTransactionIntegrationTest extends BaseIntegrationTest {
 		createRequest.setIdempotencyKey("order-to-cancel-2");
 
 		CreateOrderResponse createResponse = orderService.createOrder(createRequest);
-		Long orderId = createResponse.getOrderId();
+		Long orderId = Long.parseLong(createResponse.getOrderId());
 
 		// Dispatch events to process OrderCreated
 		outboxEventDispatcher.dispatch();

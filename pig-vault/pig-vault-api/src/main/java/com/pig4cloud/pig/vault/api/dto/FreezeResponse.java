@@ -24,7 +24,6 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Data;
 
 import java.math.BigDecimal;
-import java.time.Instant;
 
 /**
  * Freeze Response DTO
@@ -40,7 +39,7 @@ public class FreezeResponse {
 	 * Freeze ID
 	 */
 	@Schema(description = "Freeze ID")
-	private Long freezeId;
+	private String freezeId;
 
 	/**
 	 * Freeze status

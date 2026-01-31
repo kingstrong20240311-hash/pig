@@ -16,6 +16,7 @@ P99_MS="${K6_P99_MS:-1000}"
 CLIENT_ID="${K6_CLIENT_ID:-test}"
 CLIENT_SECRET="${K6_CLIENT_SECRET:-test}"
 ENCODE_KEY="${K6_ENCODE_KEY:-thanks,pig4cloud}"
+USER_PREFIX="${K6_USER_PREFIX:-k6user}"
 
 # Colors
 RED='\033[0;31m'
@@ -163,11 +164,16 @@ if [ "$TEST_ONLY" = false ]; then
         echo "  Sellers: $(echo "$USERS * $SELLERS_PCT" | bc | cut -d. -f1)"
         echo ""
 
+        # Ensure each setup run uses a unique user prefix to avoid legacy users
+        RUN_ID="$(date +%Y%m%d%H%M%S)"
+        EFFECTIVE_USER_PREFIX="${USER_PREFIX}-${RUN_ID}"
+
         k6 run "$SCRIPT_DIR/setup/data-setup.js" \
             -e K6_BASE_URL="$BASE_URL" \
             -e K6_MARKETS="$MARKETS" \
             -e K6_USERS="$USERS" \
             -e K6_SELLERS_PCT="$SELLERS_PCT" \
+            -e K6_USER_PREFIX="$EFFECTIVE_USER_PREFIX" \
             -e K6_CLIENT_ID="$CLIENT_ID" \
             -e K6_CLIENT_SECRET="$CLIENT_SECRET" \
             -e K6_ENCODE_KEY="$ENCODE_KEY" \

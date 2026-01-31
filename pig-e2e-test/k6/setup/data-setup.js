@@ -77,11 +77,13 @@ export default function () {
 	for (let i = 0; i < USER_COUNT; i++) {
 		const username = `${USER_PREFIX}${i}`;
 		const user = registerUser(adminToken, username, USER_PASSWORD);
-		if (user) {
+		if (user && user.userId) {
 			data.users.push({ username, password: USER_PASSWORD, userId: user.userId });
+		} else {
+			console.error(`  Failed to register user ${username} - skipping`);
 		}
 		if ((i + 1) % 100 === 0) {
-			console.log(`  Registered ${i + 1}/${USER_COUNT} users`);
+			console.log(`  Registered ${i + 1}/${USER_COUNT} users, total valid: ${data.users.length}`);
 		}
 	}
 
@@ -151,7 +153,10 @@ function createMarket(token, index) {
 	if (res.status === 200) {
 		const body = res.json();
 		if (body && body.data) {
+			console.log('createMarket resp body.data:', body.data);
 			return typeof body.data === 'object' ? body.data.id || body.data.marketId : body.data;
+		} else {
+			console.error('createMarket resp error body=', body);
 		}
 	}
 	console.error(`  Failed to create market ${index}: ${res.status}`);
@@ -194,19 +199,23 @@ function waitForMarketReady(token, marketId) {
 function getUserIdByUserToken(userToken) {
 	const res = authGet('/admin/user/info', userToken);
 	if (res.status !== 200) {
+		console.error(`  Failed to get user info: status=${res.status}`);
 		return null;
 	}
 	const body = res.json();
 	if (!body || body.code !== 0 || !body.data) {
+		console.error(`  Invalid user info response: body=${JSON.stringify(body)}`);
 		return null;
 	}
 	const d = body.data;
 	const id = d.userId != null ? d.userId : d.id;
 	if (id != null) {
-		const n = typeof id === 'number' ? id : Number(id);
-		if (Number.isSafeInteger(n)) {
-			return n;
-		}
+		console.log(`  userId type check: typeof id=${typeof id}, id=${id}`);
+	}
+	if (id != null) {
+		return String(id);
+	} else {
+		console.error(`  No userId found in response data: ${JSON.stringify(d)}`);
 	}
 	return null;
 }
@@ -218,11 +227,14 @@ function registerUser(adminToken, username, password) {
 		password: password,
 	});
 	if (res.status !== 200) {
-		return { username, userId: username };
+		console.warn(`  Failed to register user ${username}: status=${res.status}, response=${res.body}`);
 	}
 	const body = res.json();
 	if (!body || body.code !== 0) {
-		// User may already exist
+		// User may already exist, try to login anyway
+		console.log(`  User ${username} registration response: code=${body?.code}, msg=${body?.msg}`);
+	} else {
+		console.log(`  User ${username} registered successfully`);
 	}
 	// Login as this user and get /admin/user/info to read numeric userId (deposit expects Long).
 	const userToken = login(username, password);
@@ -230,19 +242,28 @@ function registerUser(adminToken, username, password) {
 		const userId = getUserIdByUserToken(userToken);
 		if (userId != null) {
 			return { username, userId };
+		} else {
+			console.error(`  CRITICAL: Failed to get numeric userId for ${username}`);
+			return null;
 		}
+	} else {
+		console.error(`  CRITICAL: Failed to login as ${username} after registration`);
+		return null;
 	}
-	return { username, userId: username };
 }
 
 function deposit(token, userId, symbol, amount) {
+	// Keep userId as string to avoid JS precision loss
+	const userIdValue = String(userId);
+
 	const res = authPost('/vault/deposit', token, {
-		userId: userId,
+		userId: userIdValue,
 		symbol: symbol,
 		amount: amount,
-		refId: `k6-deposit-${userId}-${symbol}-${Date.now()}`,
+		refId: `k6-deposit-${userIdValue}-${symbol}-${Date.now()}`,
 	});
 	if (res.status !== 200) {
-		console.warn(`  Deposit failed for ${userId}/${symbol}: ${res.status}`);
+		const body = res.json();
+		console.warn(`  Deposit failed for userId=${userId}/${symbol}: status=${res.status}, response=${JSON.stringify(body)}`);
 	}
 }

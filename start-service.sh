@@ -24,7 +24,7 @@ fi
 # 删除本次启动将写入的日志文件，避免沿用旧内容
 rm -f "$LOG_DIR/debug.log" "$LOG_DIR/error.log"
 
-export JAVA_TOOL_OPTIONS="-Xms128m -Xmx512m -XX:MaxMetaspaceSize=256m -XX:+UseSerialGC"
+export JAVA_TOOL_OPTIONS="-Xms128m -Xmx256m -XX:MaxMetaspaceSize=128m -XX:+UseSerialGC -Djava.net.useSystemProxies=false -Dhttp.proxyHost= -Dhttp.proxyPort= -Dhttps.proxyHost= -Dhttps.proxyPort= -DsocksProxyHost= -DsocksProxyPort="
 export MYSQL_HOST="${MYSQL_HOST:-127.0.0.1}"
 export MYSQL_PASSWORD="${MYSQL_PASSWORD:-root}"
 export MYSQL_PORT="${MYSQL_PORT:-33307}"

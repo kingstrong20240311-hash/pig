@@ -198,13 +198,13 @@ public class OrderServiceImpl implements OrderService {
 
 		// 3.1 市价单不支持取消：直接拒绝，不发 ApiCancelOrder
 		if (order.getOrderType() == OrderType.MARKET) {
-			throw new ResponseStatusException(HttpStatus.CONFLICT, "MARKET_ORDER_CANCEL_NOT_SUPPORTED: 市价单不支持取消");
+			throw new IllegalArgumentException("MARKET_ORDER_CANCEL_NOT_SUPPORTED");
 		}
 
 		// 4. If order cannot be cancelled, return current status (no-op)
 		if (!order.isCancellable()) {
 			log.warn("Order cannot be cancelled: orderId={}, status={}", order.getOrderId(), order.getStatus());
-			throw new ResponseStatusException(HttpStatus.CONFLICT, "ORDER_NOT_CANCELLABLE");
+			return buildCancelOrderResponse(order);
 		}
 
 		// 5. Insert cancel record (idempotent anchor)
@@ -315,7 +315,7 @@ public class OrderServiceImpl implements OrderService {
 	 */
 	private CreateOrderResponse buildCreateOrderResponse(Order order) {
 		CreateOrderResponse response = new CreateOrderResponse();
-		response.setOrderId(order.getOrderId());
+		response.setOrderId(order.getOrderId() != null ? String.valueOf(order.getOrderId()) : null);
 		response.setStatus(order.getStatus());
 		response.setRemainingQuantity(order.getRemainingQuantity());
 		response.setRejectReason(order.getRejectReason());
@@ -327,7 +327,7 @@ public class OrderServiceImpl implements OrderService {
 	 */
 	private CreateOrderResponse buildRejectedResponse(Long orderId, String reason) {
 		CreateOrderResponse response = new CreateOrderResponse();
-		response.setOrderId(orderId);
+		response.setOrderId(orderId != null ? String.valueOf(orderId) : null);
 		response.setStatus(OrderStatus.REJECTED);
 		response.setRejectReason(reason);
 		return response;
@@ -338,7 +338,7 @@ public class OrderServiceImpl implements OrderService {
 	 */
 	private CancelOrderResponse buildCancelOrderResponse(Order order) {
 		CancelOrderResponse response = new CancelOrderResponse();
-		response.setOrderId(order.getOrderId());
+		response.setOrderId(order.getOrderId() != null ? String.valueOf(order.getOrderId()) : null);
 		response.setStatus(order.getStatus());
 		return response;
 	}

@@ -41,7 +41,7 @@ public class OrderStateDTO implements Serializable {
 	 * Order ID
 	 */
 	@Schema(description = "订单ID")
-	private Long orderId;
+	private String orderId;
 
 	/**
 	 * Order status

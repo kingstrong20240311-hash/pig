@@ -184,9 +184,9 @@ public class VaultBalanceServiceImpl implements VaultBalanceService {
 		}
 
 		BalanceResponse response = new BalanceResponse();
-		response.setBalanceId(balance.getBalanceId());
-		response.setAccountId(balance.getAccountId());
-		response.setAssetId(balance.getAssetId());
+		response.setBalanceId(balance.getBalanceId() != null ? String.valueOf(balance.getBalanceId()) : null);
+		response.setAccountId(balance.getAccountId() != null ? String.valueOf(balance.getAccountId()) : null);
+		response.setAssetId(balance.getAssetId() != null ? String.valueOf(balance.getAssetId()) : null);
 		response.setSymbol(symbol);
 		response.setAvailable(balance.getAvailable());
 		response.setFrozen(balance.getFrozen());
@@ -230,9 +230,9 @@ public class VaultBalanceServiceImpl implements VaultBalanceService {
 
 		// 5) Build response
 		BalanceResponse response = new BalanceResponse();
-		response.setBalanceId(balance.getBalanceId());
-		response.setAccountId(balance.getAccountId());
-		response.setAssetId(balance.getAssetId());
+		response.setBalanceId(balance.getBalanceId() != null ? String.valueOf(balance.getBalanceId()) : null);
+		response.setAccountId(balance.getAccountId() != null ? String.valueOf(balance.getAccountId()) : null);
+		response.setAssetId(balance.getAssetId() != null ? String.valueOf(balance.getAssetId()) : null);
 		response.setSymbol(symbol);
 		response.setAvailable(balance.getAvailable());
 		response.setFrozen(balance.getFrozen());

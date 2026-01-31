@@ -79,7 +79,7 @@ class MatcherEndToEndTest extends BaseIntegrationTest {
 	void setUp() {
 		// Mock vault service to always return success
 		FreezeResponse freezeResponse = new FreezeResponse();
-		freezeResponse.setFreezeId(1000L);
+		freezeResponse.setFreezeId("1000");
 		when(vaultService.createFreeze(any())).thenReturn(R.ok(freezeResponse));
 	}
 
@@ -114,7 +114,7 @@ class MatcherEndToEndTest extends BaseIntegrationTest {
 		// Then: Wait for matching and verify order
 		// Expected matching order: sell2 (100, T2) -> sell4 (100, T4) -> sell3 (101,
 		// T3) -> sell1 (102, T1)
-		final Long buyOrderId = buyResp.getOrderId();
+		final Long buyOrderId = Long.parseLong(buyResp.getOrderId());
 
 		await().atMost(5, TimeUnit.SECONDS).untilAsserted(() -> {
 			Order buyOrder = orderMapper.selectById(buyOrderId);
@@ -135,8 +135,8 @@ class MatcherEndToEndTest extends BaseIntegrationTest {
 
 			// Verify time priority for same price (100): sell2 before sell4
 			// sell2 (orderId smaller, created earlier) should match before sell4
-			assertThat(fills.get(0).getMakerOrderId()).isEqualTo(sellResp2.getOrderId());
-			assertThat(fills.get(1).getMakerOrderId()).isEqualTo(sellResp4.getOrderId());
+			assertThat(fills.get(0).getMakerOrderId()).isEqualTo(Long.parseLong(sellResp2.getOrderId()));
+			assertThat(fills.get(1).getMakerOrderId()).isEqualTo(Long.parseLong(sellResp4.getOrderId()));
 		});
 	}
 
@@ -163,7 +163,7 @@ class MatcherEndToEndTest extends BaseIntegrationTest {
 		CreateOrderResponse iocResp = orderService.createOrder(iocBuy);
 
 		// Then: Wait for reject event to be processed
-		final Long orderId = iocResp.getOrderId();
+		final Long orderId = Long.parseLong(iocResp.getOrderId());
 
 		await().atMost(5, TimeUnit.SECONDS).untilAsserted(() -> {
 			Order order = orderMapper.selectById(orderId);
@@ -186,12 +186,12 @@ class MatcherEndToEndTest extends BaseIntegrationTest {
 
 		// Verify order is in MATCHING status
 		await().atMost(2, TimeUnit.SECONDS)
-			.untilAsserted(() -> assertThat(orderMapper.selectById(sellResp.getOrderId()).getStatus())
+			.untilAsserted(() -> assertThat(orderMapper.selectById(Long.parseLong(sellResp.getOrderId())).getStatus())
 				.isEqualTo(OrderStatus.MATCHING));
 
 		// When: Cancel the order
 		CancelOrderRequest cancelReq = new CancelOrderRequest();
-		cancelReq.setOrderId(sellResp.getOrderId());
+		cancelReq.setOrderId(Long.parseLong(sellResp.getOrderId()));
 		cancelReq.setReason("User requested");
 		cancelReq.setIdempotencyKey("cancel-reduce-1");
 
@@ -199,7 +199,7 @@ class MatcherEndToEndTest extends BaseIntegrationTest {
 		assertThat(cancelResp.getStatus()).isEqualTo(OrderStatus.CANCEL_REQUESTED);
 
 		// Then: Wait for reduce event to trigger cancellation
-		final Long orderId = sellResp.getOrderId();
+		final Long orderId = Long.parseLong(sellResp.getOrderId());
 
 		await().atMost(5, TimeUnit.SECONDS).untilAsserted(() -> {
 			Order order = orderMapper.selectById(orderId);

@@ -47,6 +47,6 @@ public class MatchCommittedPayload implements Serializable {
 
 	private List<FillDTO> fills;
 
-	private Map<Long, OrderStateDTO> orderStates;
+	private Map<String, OrderStateDTO> orderStates;
 
 }

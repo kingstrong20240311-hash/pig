@@ -38,19 +38,19 @@ public class BalanceResponse {
 	 * Balance ID
 	 */
 	@Schema(description = "Balance ID")
-	private Long balanceId;
+	private String balanceId;
 
 	/**
 	 * Account ID
 	 */
 	@Schema(description = "Account ID")
-	private Long accountId;
+	private String accountId;
 
 	/**
 	 * Asset ID
 	 */
 	@Schema(description = "Asset ID")
-	private Long assetId;
+	private String assetId;
 
 	/**
 	 * Asset symbol

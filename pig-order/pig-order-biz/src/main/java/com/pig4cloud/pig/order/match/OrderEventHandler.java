@@ -128,9 +128,11 @@ public class OrderEventHandler {
 				// 5. For LIMIT orders, update status to MATCHING if still OPEN
 				if (order.getOrderType() == com.pig4cloud.pig.order.api.enums.OrderType.LIMIT) {
 					if (order.getStatus() == OrderStatus.OPEN) {
-						int updated = orderMapper.update(null,
-								Wrappers.<Order>lambdaUpdate().eq(Order::getOrderId, orderId).eq(Order::getStatus,
-										OrderStatus.OPEN).set(Order::getStatus, OrderStatus.MATCHING));
+					int updated = orderMapper.update(null,
+							new com.baomidou.mybatisplus.core.conditions.update.UpdateWrapper<Order>()
+								.eq("order_id", orderId)
+								.eq("status", OrderStatus.OPEN)
+								.set("status", OrderStatus.MATCHING));
 						if (updated == 1) {
 							log.info("Order status changed: orderId={}, {} -> {}, reason=submitted_to_engine", orderId,
 									OrderStatus.OPEN, OrderStatus.MATCHING);

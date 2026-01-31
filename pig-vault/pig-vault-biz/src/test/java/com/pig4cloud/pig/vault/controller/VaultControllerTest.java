@@ -21,6 +21,7 @@ package com.pig4cloud.pig.vault.controller;
 
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.pig4cloud.pig.common.core.constant.SecurityConstants;
 import com.pig4cloud.pig.vault.PigVaultApplication;
 import com.pig4cloud.pig.vault.api.dto.CreateFreezeRequest;
 import com.pig4cloud.pig.vault.api.dto.FreezeLookupRequest;
@@ -259,7 +260,7 @@ class VaultControllerTest {
 		// Get freeze ID from database
 		Freeze freeze1 = freezeMapper.selectOne(
 				Wrappers.<Freeze>lambdaQuery().eq(Freeze::getRefType, RefType.ORDER).eq(Freeze::getRefId, "ORD-002"));
-		Long freezeId1 = freeze1.getFreezeId();
+		String freezeId1 = String.valueOf(freeze1.getFreezeId());
 
 		// Second request with same refType+refId should return same freeze
 		mockMvc
@@ -385,6 +386,7 @@ class VaultControllerTest {
 
 		mockMvc
 			.perform(post("/freeze/release").header(HttpHeaders.AUTHORIZATION, "Bearer " + TEST_TOKEN)
+				.header(SecurityConstants.FROM, SecurityConstants.FROM_IN)
 				.contentType(MediaType.APPLICATION_JSON)
 				.content(objectMapper.writeValueAsString(releaseRequest)))
 			.andDo(print())
@@ -435,6 +437,7 @@ class VaultControllerTest {
 
 		mockMvc
 			.perform(post("/freeze/release").header(HttpHeaders.AUTHORIZATION, "Bearer " + TEST_TOKEN)
+				.header(SecurityConstants.FROM, SecurityConstants.FROM_IN)
 				.contentType(MediaType.APPLICATION_JSON)
 				.content(objectMapper.writeValueAsString(releaseRequest)))
 			.andExpect(status().isOk())
@@ -448,6 +451,7 @@ class VaultControllerTest {
 		// Release second time (idempotent)
 		mockMvc
 			.perform(post("/freeze/release").header(HttpHeaders.AUTHORIZATION, "Bearer " + TEST_TOKEN)
+				.header(SecurityConstants.FROM, SecurityConstants.FROM_IN)
 				.contentType(MediaType.APPLICATION_JSON)
 				.content(objectMapper.writeValueAsString(releaseRequest)))
 			.andExpect(status().isOk())
@@ -492,6 +496,7 @@ class VaultControllerTest {
 
 		mockMvc
 			.perform(post("/freeze/release").header(HttpHeaders.AUTHORIZATION, "Bearer " + TEST_TOKEN)
+				.header(SecurityConstants.FROM, SecurityConstants.FROM_IN)
 				.contentType(MediaType.APPLICATION_JSON)
 				.content(objectMapper.writeValueAsString(partialRequest)))
 			.andExpect(status().isOk());
@@ -509,6 +514,7 @@ class VaultControllerTest {
 
 		mockMvc
 			.perform(post("/freeze/release").header(HttpHeaders.AUTHORIZATION, "Bearer " + TEST_TOKEN)
+				.header(SecurityConstants.FROM, SecurityConstants.FROM_IN)
 				.contentType(MediaType.APPLICATION_JSON)
 				.content(objectMapper.writeValueAsString(remainingRequest)))
 			.andExpect(status().isOk());
@@ -600,6 +606,7 @@ class VaultControllerTest {
 
 		mockMvc
 			.perform(post("/freeze/release").header(HttpHeaders.AUTHORIZATION, "Bearer " + TEST_TOKEN)
+				.header(SecurityConstants.FROM, SecurityConstants.FROM_IN)
 				.contentType(MediaType.APPLICATION_JSON)
 				.content(objectMapper.writeValueAsString(releaseRequest)))
 			.andExpect(status().isOk());
@@ -739,7 +746,7 @@ class VaultControllerTest {
 			.andDo(print())
 			.andExpect(status().isOk())
 			.andExpect(jsonPath("$.code").value(0))
-			.andExpect(jsonPath("$.data.accountId").value(ACCOUNT_ID))
+			.andExpect(jsonPath("$.data.accountId").value(String.valueOf(ACCOUNT_ID)))
 			.andExpect(jsonPath("$.data.symbol").value(SYMBOL))
 			.andExpect(jsonPath("$.data.available").exists())
 			.andExpect(jsonPath("$.data.frozen").exists());

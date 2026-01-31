@@ -82,7 +82,7 @@ class OrderMatchingIntegrationTest extends BaseIntegrationTest {
 	void setUp() {
 		// Mock vault service to always return success
 		FreezeResponse freezeResponse = new FreezeResponse();
-		freezeResponse.setFreezeId(1000L);
+		freezeResponse.setFreezeId("1000");
 		when(vaultService.createFreeze(any())).thenReturn(R.ok(freezeResponse));
 	}
 
@@ -126,8 +126,8 @@ class OrderMatchingIntegrationTest extends BaseIntegrationTest {
 		assertThat(takerResponse.getStatus()).isEqualTo(OrderStatus.OPEN);
 
 		// Then: Wait for matching engine callback to process and verify
-		final Long takerOrderId = takerResponse.getOrderId();
-		final Long makerOrderId = makerResponse.getOrderId();
+		final Long takerOrderId = Long.parseLong(takerResponse.getOrderId());
+		final Long makerOrderId = Long.parseLong(makerResponse.getOrderId());
 
 		outboxEventDispatcher.dispatch();
 		await().atMost(5, TimeUnit.SECONDS).untilAsserted(() -> {
@@ -189,8 +189,8 @@ class OrderMatchingIntegrationTest extends BaseIntegrationTest {
 		assertThat(takerResponse.getStatus()).isEqualTo(OrderStatus.OPEN);
 
 		// Then: Wait for callback and verify partial fill
-		final Long takerOrderId = takerResponse.getOrderId();
-		final Long makerOrderId = makerResponse.getOrderId();
+		final Long takerOrderId = Long.parseLong(takerResponse.getOrderId());
+		final Long makerOrderId = Long.parseLong(makerResponse.getOrderId());
 
 		outboxEventDispatcher.dispatch();
 		await().atMost(5, TimeUnit.SECONDS).untilAsserted(() -> {
@@ -244,8 +244,8 @@ class OrderMatchingIntegrationTest extends BaseIntegrationTest {
 		assertThat(takerResponse.getStatus()).isEqualTo(OrderStatus.OPEN);
 
 		// Then: Wait for callback and verify both orders are FILLED
-		final Long takerOrderId = takerResponse.getOrderId();
-		final Long makerOrderId = makerResponse.getOrderId();
+		final Long takerOrderId = Long.parseLong(takerResponse.getOrderId());
+		final Long makerOrderId = Long.parseLong(makerResponse.getOrderId());
 
 		outboxEventDispatcher.dispatch();
 		await().atMost(5, TimeUnit.SECONDS).untilAsserted(() -> {

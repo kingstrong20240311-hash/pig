@@ -132,7 +132,7 @@ class OrderServiceImplTest {
 
 		// Mock: freeze success
 		FreezeResponse freezeResponse = new FreezeResponse();
-		freezeResponse.setFreezeId(1000L);
+		freezeResponse.setFreezeId("1000");
 		when(vaultService.createFreeze(any())).thenReturn(R.ok(freezeResponse));
 
 		// Mock: insert order
@@ -245,7 +245,7 @@ class OrderServiceImplTest {
 
 		// Then
 		assertThat(response).isNotNull();
-		assertThat(response.getOrderId()).isEqualTo(1000L);
+		assertThat(response.getOrderId()).isEqualTo("1000");
 		assertThat(response.getStatus()).isEqualTo(OrderStatus.CANCEL_REQUESTED);
 
 		// Verify interactions
@@ -285,7 +285,7 @@ class OrderServiceImplTest {
 
 		// Then
 		assertThat(response).isNotNull();
-		assertThat(response.getOrderId()).isEqualTo(1000L);
+		assertThat(response.getOrderId()).isEqualTo("1000");
 		assertThat(response.getStatus()).isEqualTo(OrderStatus.FILLED);
 
 		// Verify interactions - should not insert cancel record or update order

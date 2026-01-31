@@ -175,7 +175,7 @@ public class VaultAssetServiceImpl implements VaultAssetService {
 	 */
 	private AssetResponse toAssetResponse(VaultAsset asset) {
 		AssetResponse response = new AssetResponse();
-		response.setAssetId(asset.getAssetId());
+		response.setAssetId(asset.getAssetId() != null ? String.valueOf(asset.getAssetId()) : null);
 		response.setSymbol(asset.getSymbol());
 		response.setCurrencyId(asset.getCurrencyId());
 		response.setDecimals(asset.getDecimals());

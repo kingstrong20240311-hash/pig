@@ -45,19 +45,19 @@ public class FreezeDTO implements Serializable {
 	 * Freeze ID
 	 */
 	@Schema(description = "Freeze ID")
-	private Long freezeId;
+	private String freezeId;
 
 	/**
 	 * Account ID
 	 */
 	@Schema(description = "Account ID")
-	private Long accountId;
+	private String accountId;
 
 	/**
 	 * Asset ID
 	 */
 	@Schema(description = "Asset ID")
-	private Long assetId;
+	private String assetId;
 
 	/**
 	 * Freeze amount

@@ -40,7 +40,7 @@ public class OrderFillDTO implements Serializable {
 	 * Trade ID
 	 */
 	@Schema(description = "成交ID")
-	private Long tradeId;
+	private String tradeId;
 
 	/**
 	 * Match ID (for idempotency)
@@ -52,13 +52,13 @@ public class OrderFillDTO implements Serializable {
 	 * Taker Order ID
 	 */
 	@Schema(description = "Taker订单ID")
-	private Long takerOrderId;
+	private String takerOrderId;
 
 	/**
 	 * Maker Order ID
 	 */
 	@Schema(description = "Maker订单ID")
-	private Long makerOrderId;
+	private String makerOrderId;
 
 	/**
 	 * Fill price
