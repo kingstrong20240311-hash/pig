@@ -21,6 +21,7 @@ package com.pig4cloud.pig.vault.controller;
 
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.pig4cloud.pig.common.core.util.R;
+import com.pig4cloud.pig.common.security.annotation.Inner;
 import com.pig4cloud.pig.vault.api.dto.*;
 import com.pig4cloud.pig.vault.api.entity.Balance;
 import com.pig4cloud.pig.vault.api.entity.Freeze;
@@ -91,6 +92,7 @@ public class VaultController {
 	 */
 	@PostMapping("/freeze/release")
 	@Operation(summary = "Release Freeze", description = "Release a freeze to unlock funds")
+	@Inner
 	public R<FreezeResponse> releaseFreeze(@Valid @RequestBody FreezeLookupRequest request) {
 		try {
 			FreezeResponse response = vaultFreezeService.releaseFreeze(request);

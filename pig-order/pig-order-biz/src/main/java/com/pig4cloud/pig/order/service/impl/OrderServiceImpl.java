@@ -45,8 +45,10 @@ import com.pig4cloud.pig.vault.api.feign.VaultService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.math.BigDecimal;
 import java.time.Instant;
@@ -146,7 +148,9 @@ public class OrderServiceImpl implements OrderService {
 		order.setPrice(request.getPrice());
 		order.setQuantity(request.getQuantity());
 		order.setRemainingQuantity(request.getQuantity());
+		OrderStatus previousStatus = order.getStatus();
 		order.setStatus(OrderStatus.OPEN);
+		log.info("Order status changed: orderId={}, {} -> {}, reason=init", orderId, previousStatus, order.getStatus());
 		order.setTimeInForce(request.getTimeInForce() != null ? request.getTimeInForce() : TimeInForce.GTC);
 		// Convert Long timestamp (milliseconds) to Instant
 		if (request.getExpireAt() != null) {
@@ -194,13 +198,13 @@ public class OrderServiceImpl implements OrderService {
 
 		// 3.1 市价单不支持取消：直接拒绝，不发 ApiCancelOrder
 		if (order.getOrderType() == OrderType.MARKET) {
-			throw new IllegalArgumentException("MARKET_ORDER_CANCEL_NOT_SUPPORTED: 市价单不支持取消");
+			throw new ResponseStatusException(HttpStatus.CONFLICT, "MARKET_ORDER_CANCEL_NOT_SUPPORTED: 市价单不支持取消");
 		}
 
 		// 4. If order cannot be cancelled, return current status (no-op)
 		if (!order.isCancellable()) {
 			log.warn("Order cannot be cancelled: orderId={}, status={}", order.getOrderId(), order.getStatus());
-			return buildCancelOrderResponse(order);
+			throw new ResponseStatusException(HttpStatus.CONFLICT, "ORDER_NOT_CANCELLABLE");
 		}
 
 		// 5. Insert cancel record (idempotent anchor)
@@ -212,7 +216,10 @@ public class OrderServiceImpl implements OrderService {
 		orderCancelMapper.insert(orderCancel);
 
 		// 6. Update order status to CANCEL_REQUESTED
+		OrderStatus previousStatus = order.getStatus();
 		order.setStatus(OrderStatus.CANCEL_REQUESTED);
+		log.info("Order status changed: orderId={}, {} -> {}, reason=cancel_requested", order.getOrderId(),
+				previousStatus, order.getStatus());
 		orderMapper.updateById(order);
 
 		// 7. Emit OrderCancelRequestedEvent for asynchronous processing

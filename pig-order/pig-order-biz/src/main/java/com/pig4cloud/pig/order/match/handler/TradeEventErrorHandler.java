@@ -16,7 +16,6 @@
 
 package com.pig4cloud.pig.order.match.handler;
 
-import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.pig4cloud.pig.common.error.annotation.ErrorHandler;
 import com.pig4cloud.pig.order.api.dto.CommitMatchRequest;
 import com.pig4cloud.pig.order.api.entity.Order;
@@ -98,8 +97,11 @@ public class TradeEventErrorHandler {
 
 		// Update order status based on whether it's completed
 		if (Boolean.TRUE.equals(failedEvent.getOrderCompleted())) {
+			OrderStatus previousStatus = order.getStatus();
 			order.setStatus(OrderStatus.CANCELLED);
 			order.setRemainingQuantity(BigDecimal.ZERO);
+			log.info("Order status changed: orderId={}, {} -> {}, reason=reduce_compensation",
+					failedEvent.getOrderId(), previousStatus, order.getStatus());
 		}
 		else {
 			// Partial cancel - update remaining quantity
@@ -133,8 +135,11 @@ public class TradeEventErrorHandler {
 		}
 
 		// Mark order as rejected (for IOC orders that couldn't be filled)
+		OrderStatus previousStatus = order.getStatus();
 		order.setStatus(OrderStatus.REJECTED);
 		order.setRejectReason("IOC order could not be filled at specified price");
+		log.info("Order status changed: orderId={}, {} -> {}, reason=reject_compensation", failedEvent.getOrderId(),
+				previousStatus, order.getStatus());
 
 		orderMapper.updateById(order);
 		log.info("Reject event compensation successful: orderId={}", failedEvent.getOrderId());

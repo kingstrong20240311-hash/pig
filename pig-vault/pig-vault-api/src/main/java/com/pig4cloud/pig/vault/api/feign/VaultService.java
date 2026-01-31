@@ -21,6 +21,7 @@ package com.pig4cloud.pig.vault.api.feign;
 
 import com.pig4cloud.pig.common.core.constant.ServiceNameConstants;
 import com.pig4cloud.pig.common.core.util.R;
+import com.pig4cloud.pig.common.feign.annotation.NoToken;
 import com.pig4cloud.pig.vault.api.dto.*;
 import org.springframework.cloud.openfeign.FeignClient;
 import org.springframework.web.bind.annotation.*;
@@ -49,6 +50,7 @@ public interface VaultService {
 	 * @param request freeze lookup request
 	 * @return freeze response
 	 */
+	@NoToken
 	@PostMapping("/freeze/release")
 	R<FreezeResponse> releaseFreeze(@Valid @RequestBody FreezeLookupRequest request);
 

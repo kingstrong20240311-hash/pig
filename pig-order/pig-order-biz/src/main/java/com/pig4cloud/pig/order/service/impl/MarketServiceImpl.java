@@ -159,8 +159,11 @@ public class MarketServiceImpl implements MarketService {
 					OrderStatus.CANCEL_REQUESTED));
 
 		for (Order order : expiringOrders) {
+			OrderStatus previousStatus = order.getStatus();
 			order.setStatus(OrderStatus.EXPIRED);
 			orderMapper.updateById(order);
+			log.info("Order status changed: orderId={}, {} -> {}, reason=market_expire", order.getOrderId(),
+					previousStatus, order.getStatus());
 			publishOrderReducedEvent(order);
 		}
 	}

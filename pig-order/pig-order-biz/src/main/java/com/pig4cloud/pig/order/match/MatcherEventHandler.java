@@ -174,7 +174,10 @@ public class MatcherEventHandler implements OrderMatchService {
 		// because it has been checked before requesting cancel to matching engine
 		// Update order status based on whether it's completed
 		if (reduceEvent.orderCompleted) {
+			OrderStatus previousStatus = order.getStatus();
 			order.setStatus(OrderStatus.CANCELLED);
+			log.info("Order status changed: orderId={}, {} -> {}, reason=reduce_completed", reduceEvent.orderId,
+					previousStatus, order.getStatus());
 			// DO NOT set remainingQuantity to ZERO!
 			// remainingQuantity should preserve the amount that was NOT filled when
 			// cancelled
@@ -248,8 +251,11 @@ public class MatcherEventHandler implements OrderMatchService {
 
 		// Mark order as rejected (for IOC/market orders that couldn't be filled, or
 		// limit IOC)
+		OrderStatus previousStatus = order.getStatus();
 		order.setStatus(OrderStatus.REJECTED);
 		order.setRejectReason("IOC order could not be filled at specified price");
+		log.info("Order status changed: orderId={}, {} -> {}, reason=reject_event", rejectEvent.orderId,
+				previousStatus, order.getStatus());
 
 		orderMapper.updateById(order);
 		publishOrderReducedEvent(order, reducedAmount);
@@ -367,6 +373,7 @@ public class MatcherEventHandler implements OrderMatchService {
 			}
 
 			makerOrder.setRemainingQuantity(newMakerRemaining);
+			OrderStatus previousMakerStatus = makerOrder.getStatus();
 			if (newMakerRemaining.compareTo(BigDecimal.ZERO) == 0) {
 				// Exactly 0: FILLED
 				makerOrder.setStatus(OrderStatus.FILLED);
@@ -375,6 +382,8 @@ public class MatcherEventHandler implements OrderMatchService {
 				// Greater than 0: PARTIALLY_FILLED
 				makerOrder.setStatus(OrderStatus.PARTIALLY_FILLED);
 			}
+			log.info("Order status changed: orderId={}, {} -> {}, reason=match_commit_maker",
+					makerOrder.getOrderId(), previousMakerStatus, makerOrder.getStatus());
 			int rows = orderMapper.updateById(makerOrder);
 			if (rows != 1) {
 				throw new IllegalStateException("Failed to update maker order: orderId=" + makerOrder.getOrderId());
@@ -400,6 +409,7 @@ public class MatcherEventHandler implements OrderMatchService {
 		}
 
 		takerOrder.setRemainingQuantity(newTakerRemaining);
+		OrderStatus previousTakerStatus = takerOrder.getStatus();
 		if (newTakerRemaining.compareTo(BigDecimal.ZERO) == 0) {
 			// Exactly 0: FILLED
 			takerOrder.setStatus(OrderStatus.FILLED);
@@ -409,6 +419,8 @@ public class MatcherEventHandler implements OrderMatchService {
 			// further matching).
 			takerOrder.setStatus(OrderStatus.PARTIALLY_FILLED);
 		}
+		log.info("Order status changed: orderId={}, {} -> {}, reason=match_commit_taker",
+				takerOrder.getOrderId(), previousTakerStatus, takerOrder.getStatus());
 		orderMapper.updateById(takerOrder);
 
 		// Track taker order state

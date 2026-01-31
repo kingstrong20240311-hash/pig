@@ -17,6 +17,7 @@
 package com.pig4cloud.pig.order.match;
 
 import cn.hutool.core.util.IdUtil;
+import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.pig4cloud.pig.order.api.entity.Order;
 import com.pig4cloud.pig.order.api.enums.OrderStatus;
@@ -103,8 +104,11 @@ public class OrderEventHandler {
 					log.info(
 							"Order was cancelled before submission to matching engine: orderId={}, marking as CANCELLED directly",
 							orderId);
+					OrderStatus previousStatus = order.getStatus();
 					order.setStatus(OrderStatus.CANCELLED);
 					orderMapper.updateById(order);
+					log.info("Order status changed: orderId={}, {} -> {}, reason=cancel_before_submit", orderId,
+							previousStatus, order.getStatus());
 					publishOrderReducedEvent(order);
 				}
 				else {
@@ -124,10 +128,20 @@ public class OrderEventHandler {
 				// 5. For LIMIT orders, update status to MATCHING if still OPEN
 				if (order.getOrderType() == com.pig4cloud.pig.order.api.enums.OrderType.LIMIT) {
 					if (order.getStatus() == OrderStatus.OPEN) {
-						order.setStatus(OrderStatus.MATCHING);
-						orderMapper.updateById(order);
-						log.info("Order submitted to matching engine successfully: orderId={}, eventId={}", orderId,
-								event.eventId());
+						int updated = orderMapper.update(null,
+								Wrappers.<Order>lambdaUpdate().eq(Order::getOrderId, orderId).eq(Order::getStatus,
+										OrderStatus.OPEN).set(Order::getStatus, OrderStatus.MATCHING));
+						if (updated == 1) {
+							log.info("Order status changed: orderId={}, {} -> {}, reason=submitted_to_engine", orderId,
+									OrderStatus.OPEN, OrderStatus.MATCHING);
+							log.info("Order submitted to matching engine successfully: orderId={}, eventId={}", orderId,
+									event.eventId());
+						}
+						else {
+							Order latest = orderMapper.selectById(orderId);
+							log.info("Order status changed before MATCHING transition: orderId={}, status={}, eventId={}",
+									orderId, latest == null ? null : latest.getStatus(), event.eventId());
+						}
 					}
 					else {
 						log.info("Order status changed before MATCHING transition: orderId={}, status={}, eventId={}",
@@ -141,9 +155,12 @@ public class OrderEventHandler {
 			}
 			else {
 				// Matching engine rejected - mark order as REJECTED
+				OrderStatus previousStatus = order.getStatus();
 				order.setStatus(OrderStatus.REJECTED);
 				order.setRejectReason("Matching engine rejected: " + resultCode);
 				orderMapper.updateById(order);
+				log.info("Order status changed: orderId={}, {} -> {}, reason=engine_rejected", orderId, previousStatus,
+						order.getStatus());
 				publishOrderReducedEvent(order);
 
 				log.warn("Order rejected by matching engine: orderId={}, resultCode={}", orderId, resultCode);
@@ -187,11 +204,36 @@ public class OrderEventHandler {
 				throw new IllegalArgumentException("Order not found: " + orderId);
 			}
 
-			// 3. Check order status - only process CANCEL_REQUESTED orders
+			// 3. Check order status - reconcile to CANCEL_REQUESTED if possible
 			if (order.getStatus() != OrderStatus.CANCEL_REQUESTED) {
-				log.info("Order not in CANCEL_REQUESTED state: orderId={}, status={}, skipping", orderId,
-						order.getStatus());
-				return;
+				if (order.isCancellable()) {
+					OrderStatus previousStatus = order.getStatus();
+					int updated = orderMapper.update(null,
+							Wrappers.<Order>lambdaUpdate().eq(Order::getOrderId, orderId).eq(Order::getStatus,
+									previousStatus).set(Order::getStatus, OrderStatus.CANCEL_REQUESTED));
+					if (updated == 1) {
+						order.setStatus(OrderStatus.CANCEL_REQUESTED);
+						log.info("Order status changed: orderId={}, {} -> {}, reason=cancel_event_reconcile", orderId,
+								previousStatus, order.getStatus());
+					}
+					else {
+						Order latest = orderMapper.selectById(orderId);
+						OrderStatus latestStatus = latest == null ? null : latest.getStatus();
+						if (latestStatus == OrderStatus.CANCEL_REQUESTED) {
+							order = latest;
+						}
+						else {
+							log.info("Order not in CANCEL_REQUESTED state: orderId={}, status={}, skipping", orderId,
+									latestStatus);
+							return;
+						}
+					}
+				}
+				else {
+					log.info("Order not cancellable in current state: orderId={}, status={}, skipping", orderId,
+							order.getStatus());
+					return;
+				}
 			}
 
 			// 4. Submit cancel to matching engine
@@ -211,15 +253,21 @@ public class OrderEventHandler {
 				log.info(
 						"Order not found in matching engine (never submitted): orderId={}, marking as CANCELLED directly",
 						orderId);
+				OrderStatus previousStatus = order.getStatus();
 				order.setStatus(OrderStatus.CANCELLED);
 				orderMapper.updateById(order);
+				log.info("Order status changed: orderId={}, {} -> {}, reason=not_in_engine", orderId, previousStatus,
+						order.getStatus());
 				publishOrderReducedEvent(order);
 			}
 			else {
 				log.error("Failed to submit cancel to matching engine: orderId={}, resultCode={}", orderId, resultCode);
 				// Rollback order status to previous state
+				OrderStatus previousStatus = order.getStatus();
 				order.setStatus(OrderStatus.MATCHING);
 				orderMapper.updateById(order);
+				log.info("Order status changed: orderId={}, {} -> {}, reason=cancel_failed", orderId, previousStatus,
+						order.getStatus());
 				log.warn("Order cancel request failed, status rolled back to MATCHING: orderId={}", orderId);
 			}
 		}

@@ -166,8 +166,11 @@ public class OrderStateRecoveryService {
 		Market market = marketService.getMarket(order.getMarketId());
 		if (market == null || market.getStatus() != MarketStatus.ACTIVE
 				|| (market.getExpireAt() != null && !market.getExpireAt().isAfter(Instant.now()))) {
+			OrderStatus previousStatus = order.getStatus();
 			order.setStatus(OrderStatus.EXPIRED);
 			orderMapper.updateById(order);
+			log.info("Order status changed: orderId={}, {} -> {}, reason=market_expired", order.getOrderId(),
+					previousStatus, order.getStatus());
 			publishOrderReducedEvent(order);
 			log.info("Skipping recovery for expired market order: orderId={}, marketId={}", order.getOrderId(),
 					order.getMarketId());
@@ -205,6 +208,8 @@ public class OrderStateRecoveryService {
 		if (previousStatus == OrderStatus.OPEN) {
 			order.setStatus(OrderStatus.MATCHING);
 			orderMapper.updateById(order);
+			log.info("Order status changed: orderId={}, {} -> {}, reason=recovery_submit", order.getOrderId(),
+					previousStatus, order.getStatus());
 			log.info("Order recovered and status updated: orderId={}, OPEN -> MATCHING", order.getOrderId());
 		}
 
