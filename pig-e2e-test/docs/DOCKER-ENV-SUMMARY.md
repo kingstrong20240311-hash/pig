@@ -34,9 +34,11 @@
 - ✅ 健康检查确保启动完成
 
 #### Kafka 主题
-- ✅ 自动创建 2 个主题
+- ✅ 启动时自动创建 3 个主题（避免 LEADER_NOT_AVAILABLE 警告）
   - `domain.order` - 订单领域事件（3 分区）
   - `domain.vault` - 金库领域事件（3 分区）
+  - `domain.market` - 市场领域事件（3 分区）
+- ✅ healthcheck 验证所有主题创建成功才标记为 healthy
 - ✅ 配置适合单机测试的参数
 
 #### Nacos 配置

@@ -33,10 +33,12 @@
 		<spring-cloud-alibaba.version>2025.0.0.0</spring-cloud-alibaba.version>
 		<jasypt.version>3.0.5</jasypt.version>
 		<git.commit.plugin>9.0.1</git.commit.plugin>
-		<docker.namespace>pig4cloud</docker.namespace>
+		<docker.namespace>kingstrong20240311/pig</docker.namespace>
 		<maven.compiler.target>21</maven.compiler.target>
-		<docker.host>http://192.168.0.100:2375</docker.host>
+		<docker.host>unix:///var/run/docker.sock</docker.host>
 		<commons-lang3.version>3.20.0</commons-lang3.version>
+		<docker.skip>true</docker.skip>
+		<docker.image.name>${project.artifactId}</docker.image.name>
 		<docker.plugin.version>0.45.1</docker.plugin.version>
 		<spring.checkstyle.plugin>0.0.47</spring.checkstyle.plugin>
 		<spring-boot-admin.version>3.5.6</spring-boot-admin.version>
@@ -257,10 +259,11 @@
 					<artifactId>docker-maven-plugin</artifactId>
 					<version>${docker.plugin.version}</version>
 					<configuration>
+						<skip>${docker.skip}</skip>
 						<!-- Docker Remote Api-->
 						<dockerHost>${docker.host}</dockerHost>
-						<!-- Docker 镜像私服-->
-						<registry>${docker.registry}</registry>
+						<!-- 基础镜像从 Docker Hub 拉取，不走私服 -->
+						<pullRegistry>docker.io</pullRegistry>
 						<!-- 认证信息-->
 						<authConfig>
 							<push>
@@ -270,8 +273,7 @@
 						</authConfig>
 						<images>
 							<image>
-								<!-- 镜像名称： 172.17.0.111/library/pig-gateway:2.6.3-->
-								<name>${docker.registry}/${docker.namespace}/${project.name}:${project.version}</name>
+								<name>${docker.namespace}/${docker.image.name}:${project.version}</name>
 								<build>
 									<dockerFile>${project.basedir}/Dockerfile</dockerFile>
 								</build>

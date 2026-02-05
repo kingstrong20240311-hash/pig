@@ -1,4 +1,15 @@
 spring:
+  main:
+    allow-bean-definition-overriding: true
+  cloud:
+    config:
+      import-check:
+        enabled: false
+    nacos:
+      config:
+        enabled: false
+      discovery:
+        enabled: false
   datasource:
     driver-class-name: com.mysql.cj.jdbc.Driver
     url: jdbc:mysql://${MYSQL_HOST:127.0.0.1}:${MYSQL_PORT:3306}/pig-test?characterEncoding=utf8&zeroDateTimeBehavior=convertToNull&useSSL=false&useJDBCCompliantTimezoneShift=true&useLegacyDatetimeCode=false&serverTimezone=GMT%2B8&allowMultiQueries=true&nullCatalogMeansCurrent=true&allowPublicKeyRetrieval=true
@@ -15,6 +26,11 @@ pig:
   vault:
     market-event-handler:
       enabled: false  # 禁用 MarketCreatedEventHandler
+
+server:
+  port: 5020
+  servlet:
+    context-path: /
 
 # MyBatis Plus 配置
 mybatis-plus:

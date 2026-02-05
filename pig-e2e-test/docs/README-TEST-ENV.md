@@ -29,7 +29,9 @@ cd pig-e2e-test
 - ✅ 自动导入数据库初始化脚本
   - `pig.sql` + `pig_config.sql` (包含 Nacos 配置) + `error_record.sql`
   - `pig_order.sql`, `vault_schema.sql`
-- ✅ 创建 Kafka 主题（domain.order, domain.vault）
+- ✅ 自动创建 Kafka 主题（domain.order, domain.vault, domain.market）
+  - **新特性**: Kafka 启动时自动创建所有必要的主题，避免 LEADER_NOT_AVAILABLE 警告
+  - healthcheck 会验证所有主题创建成功后才标记为 healthy
 - ✅ Nacos 从数据库加载配置（无需手动配置）
 
 ### 2. 验证服务
@@ -111,9 +113,10 @@ pig-e2e-test/
 
 - **端口**: 9093（broker）
 - **Zookeeper 端口**: 22181
-- **自动创建主题**:
+- **自动创建主题**（启动时预先创建，避免 LEADER_NOT_AVAILABLE 警告）:
   - `domain.order` - 订单领域事件（3 分区）
   - `domain.vault` - 金库领域事件（3 分区）
+  - `domain.market` - 市场领域事件（3 分区）
 - **Replication Factor**: 1（单机测试环境）
 
 ### Nacos

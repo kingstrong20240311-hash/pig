@@ -40,7 +40,7 @@ public class AssetResponse implements Serializable {
 	 * Asset ID
 	 */
 	@Schema(description = "Asset ID")
-	private Long assetId;
+	private String assetId;
 
 	/**
 	 * Asset symbol (e.g., USDC, ETH)

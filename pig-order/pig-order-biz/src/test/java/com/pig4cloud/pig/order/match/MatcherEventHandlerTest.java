@@ -27,6 +27,7 @@ import com.pig4cloud.pig.order.mapper.OrderFillMapper;
 import com.pig4cloud.pig.order.mapper.OrderMapper;
 import com.pig4cloud.pig.common.error.service.ErrorRecordService;
 import com.pig4cloud.pig.outbox.api.model.DomainEventEnvelope;
+import com.pig4cloud.pig.outbox.api.payload.order.OrderReducedPayload;
 import com.pig4cloud.pig.outbox.api.publisher.DomainEventPublisher;
 import exchange.core2.core.IEventsHandler;
 import org.junit.jupiter.api.BeforeEach;
@@ -220,11 +221,18 @@ class MatcherEventHandlerTest {
 		// When
 		matcherEventHandler.handleReduceEvent(reduceEvent);
 
-		// Then
+		// Then - status CANCELLED; remainingQuantity preserved (amount not filled when
+		// cancelled)
 		verify(orderMapper).updateById(orderCaptor.capture());
 		Order updatedOrder = orderCaptor.getValue();
 		assertThat(updatedOrder.getStatus()).isEqualTo(OrderStatus.CANCELLED);
-		assertThat(updatedOrder.getRemainingQuantity()).isEqualTo(BigDecimal.ZERO);
+		assertThat(updatedOrder.getRemainingQuantity()).isEqualByComparingTo(BigDecimal.valueOf(10));
+
+		// OrderReduced amount = reducedVolume(scale 100) -> 10（资产数量，直接使用不乘价格）
+		verify(domainEventPublisher).publish(eventCaptor.capture());
+		OrderReducedPayload reducedPayload = (OrderReducedPayload) eventCaptor.getValue().payload();
+		assertThat(reducedPayload.getOrderId()).isEqualTo(orderId);
+		assertThat(reducedPayload.getAmount()).isEqualByComparingTo(BigDecimal.valueOf(10));
 	}
 
 	@Test
@@ -277,6 +285,12 @@ class MatcherEventHandlerTest {
 		Order updatedOrder = orderCaptor.getValue();
 		assertThat(updatedOrder.getStatus()).isEqualTo(OrderStatus.REJECTED);
 		assertThat(updatedOrder.getRejectReason()).contains("IOC order could not be filled");
+
+		// OrderReduced amount = rejectedVolume(scale 100) -> 10（资产数量，直接使用不乘价格）
+		verify(domainEventPublisher).publish(eventCaptor.capture());
+		OrderReducedPayload reducedPayload = (OrderReducedPayload) eventCaptor.getValue().payload();
+		assertThat(reducedPayload.getOrderId()).isEqualTo(orderId);
+		assertThat(reducedPayload.getAmount()).isEqualByComparingTo(BigDecimal.valueOf(10));
 	}
 
 	@Test
@@ -297,6 +311,32 @@ class MatcherEventHandlerTest {
 
 		// Then - should not throw, just log warning
 		verify(orderMapper, never()).updateById(any(Order.class));
+	}
+
+	@Test
+	void testHandleRejectEvent_MarketOrderWithPartialFill_KeepsPartiallyFilled() {
+		// Given: market order with partial fill (remainder rejected)
+		long orderId = 1001L;
+		IEventsHandler.RejectEvent rejectEvent = new IEventsHandler.RejectEvent(1, 500L, 10000L, orderId, 123L,
+				System.currentTimeMillis());
+
+		Order order = createOrder(orderId, OrderStatus.PARTIALLY_FILLED, BigDecimal.valueOf(100),
+				BigDecimal.valueOf(5));
+		order.setOrderType(com.pig4cloud.pig.order.api.enums.OrderType.MARKET);
+		order.setQuantity(BigDecimal.valueOf(10));
+		order.setRemainingQuantity(BigDecimal.valueOf(5)); // filled 5
+
+		when(orderMapper.selectById(orderId)).thenReturn(order);
+
+		// When
+		matcherEventHandler.handleRejectEvent(rejectEvent);
+
+		// Then: should not update to REJECTED, keep PARTIALLY_FILLED (no updateById)
+		verify(orderMapper, never()).updateById(any(Order.class));
+		// OrderReduced still published: rejectedVolume 500 (scale 100) -> 5（资产数量，直接使用不乘价格）
+		verify(domainEventPublisher).publish(eventCaptor.capture());
+		OrderReducedPayload reducedPayload = (OrderReducedPayload) eventCaptor.getValue().payload();
+		assertThat(reducedPayload.getAmount()).isEqualByComparingTo(BigDecimal.valueOf(5));
 	}
 
 	// ========================================

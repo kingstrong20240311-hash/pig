@@ -10,13 +10,13 @@
 
 	<!-- 文件输出（可选） -->
 	<appender name="FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
-		<file>target/logs/e2e-test.log</file>
+		<file>../logs/pig-e2e-test/e2e-test.log</file>
 		<encoder>
 			<pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n</pattern>
 			<charset>UTF-8</charset>
 		</encoder>
 		<rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
-			<fileNamePattern>target/logs/e2e-test.%d{yyyy-MM-dd}.log</fileNamePattern>
+			<fileNamePattern>../logs/pig-e2e-test/e2e-test.%d{yyyy-MM-dd}.log</fileNamePattern>
 			<maxHistory>7</maxHistory>
 		</rollingPolicy>
 	</appender>

@@ -92,7 +92,7 @@ class OrderConcurrencyIdempotencyIntegrationTest extends BaseIntegrationTest {
 	void setUp() {
 		// Mock vault service to always return success
 		FreezeResponse freezeResponse = new FreezeResponse();
-		freezeResponse.setFreezeId(1000L);
+		freezeResponse.setFreezeId("1000");
 		when(vaultService.createFreeze(any())).thenReturn(R.ok(freezeResponse));
 	}
 
@@ -210,7 +210,7 @@ class OrderConcurrencyIdempotencyIntegrationTest extends BaseIntegrationTest {
 			.forClass(IEventsHandler.TradeEvent.class);
 
 		// Wait for the first trade event to be processed
-		final Long takerOrderId = takerResponse.getOrderId();
+		final Long takerOrderId = Long.parseLong(takerResponse.getOrderId());
 		await().atMost(5, TimeUnit.SECONDS).untilAsserted(() -> {
 			verify(orderMatchService, atLeastOnce()).handleTradeEvent(tradeEventCaptor.capture());
 			List<IEventsHandler.TradeEvent> events = tradeEventCaptor.getAllValues();
@@ -238,11 +238,11 @@ class OrderConcurrencyIdempotencyIntegrationTest extends BaseIntegrationTest {
 		assertThat(fills.get(0).getQuantity()).isEqualByComparingTo(new BigDecimal("5.00"));
 
 		// Verify order states are consistent despite replays
-		Order takerOrder = orderMapper.selectById(takerResponse.getOrderId());
+		Order takerOrder = orderMapper.selectById(Long.parseLong(takerResponse.getOrderId()));
 		assertThat(takerOrder.getStatus()).isEqualTo(OrderStatus.FILLED);
 		assertThat(takerOrder.getRemainingQuantity()).isEqualByComparingTo(BigDecimal.ZERO);
 
-		Order makerOrder = orderMapper.selectById(makerResponse.getOrderId());
+		Order makerOrder = orderMapper.selectById(Long.parseLong(makerResponse.getOrderId()));
 		assertThat(makerOrder.getStatus()).isEqualTo(OrderStatus.PARTIALLY_FILLED);
 		assertThat(makerOrder.getRemainingQuantity()).isEqualByComparingTo(new BigDecimal("5.00"));
 	}

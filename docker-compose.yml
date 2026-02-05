@@ -10,6 +10,11 @@ services:
     image: pig-mysql
     ports:
       - 33306:3306
+    command:
+      - --slow_query_log=ON
+      - --slow_query_log_file=/var/log/mysql/mysql-slow.log
+      - --long_query_time=2
+      - --log_queries_not_using_indexes=ON
     networks:
       - spring_cloud_default
 
@@ -116,6 +121,34 @@ services:
     restart: always
     image: pig-quartz
     container_name: pig-quartz
+    environment:
+      MYSQL_HOST: pig-mysql
+      REDIS_HOST: pig-redis
+      NACOS_HOST: pig-register
+    networks:
+      - spring_cloud_default
+
+  pig-vault:
+    build:
+      context: ./pig-vault/pig-vault-biz
+    restart: always
+    container_name: pig-vault
+    hostname: pig-vault
+    image: pig-vault
+    environment:
+      MYSQL_HOST: pig-mysql
+      REDIS_HOST: pig-redis
+      NACOS_HOST: pig-register
+    networks:
+      - spring_cloud_default
+
+  pig-order:
+    build:
+      context: ./pig-order/pig-order-biz
+    restart: always
+    container_name: pig-order
+    hostname: pig-order
+    image: pig-order
     environment:
       MYSQL_HOST: pig-mysql
       REDIS_HOST: pig-redis

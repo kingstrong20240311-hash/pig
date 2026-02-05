@@ -104,7 +104,7 @@ mysql -h 127.0.0.1 -P 33307 -uroot -proot
 
 ## 📨 Kafka 主题
 
-系统会自动创建以下主题：
+系统启动时会自动创建以下主题（避免 LEADER_NOT_AVAILABLE 警告）：
 
 1. **domain.order** - 订单领域事件
    - 3 个分区
@@ -113,6 +113,10 @@ mysql -h 127.0.0.1 -P 33307 -uroot -proot
 2. **domain.vault** - 金库领域事件
    - 3 个分区
    - 用于金库相关的事件流
+
+3. **domain.market** - 市场领域事件
+   - 3 个分区
+   - 用于市场相关的事件流
 
 ### 查看 Kafka 消息
 
@@ -127,6 +131,12 @@ docker exec pig-e2e-kafka kafka-console-consumer \
 docker exec pig-e2e-kafka kafka-console-consumer \
   --bootstrap-server localhost:9093 \
   --topic domain.vault \
+  --from-beginning
+
+# 消费 market 主题
+docker exec pig-e2e-kafka kafka-console-consumer \
+  --bootstrap-server localhost:9093 \
+  --topic domain.market \
   --from-beginning
 ```
 

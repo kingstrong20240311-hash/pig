@@ -169,7 +169,7 @@ class VaultBalanceServiceTest {
 
 		// Then
 		assertThat(response).isNotNull();
-		assertThat(response.getAccountId()).isEqualTo(ACCOUNT_ID);
+		assertThat(response.getAccountId()).isEqualTo(String.valueOf(ACCOUNT_ID));
 		assertThat(response.getSymbol()).isEqualTo(SYMBOL);
 		assertThat(response.getAvailable()).isEqualByComparingTo(new BigDecimal("150.000000"));
 		assertThat(response.getFrozen()).isEqualByComparingTo(BigDecimal.ZERO);
@@ -325,7 +325,7 @@ class VaultBalanceServiceTest {
 
 		// Then
 		assertThat(response).isNotNull();
-		assertThat(response.getAccountId()).isEqualTo(ACCOUNT_ID);
+		assertThat(response.getAccountId()).isEqualTo(String.valueOf(ACCOUNT_ID));
 		assertThat(response.getSymbol()).isEqualTo(SYMBOL);
 		assertThat(response.getAvailable()).isEqualByComparingTo(INITIAL_AVAILABLE);
 		assertThat(response.getFrozen()).isEqualByComparingTo(BigDecimal.ZERO);

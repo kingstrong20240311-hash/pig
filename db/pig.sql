@@ -472,6 +472,7 @@ INSERT INTO `sys_public_param` VALUES (6, '租户默认角色名称', 'TENANT_DE
 INSERT INTO `sys_public_param` VALUES (7, '表前缀', 'GEN_TABLE_PREFIX', 'tb_', '0', '', ' ', ' ', '2020-05-12 04:23:04', NULL, '9', '1', '0');
 INSERT INTO `sys_public_param` VALUES (8, '接口文档不显示的字段', 'GEN_HIDDEN_COLUMNS', 'tenant_id', '0', '', ' ', ' ', '2020-05-12 04:25:19', NULL, '9', '1', '0');
 INSERT INTO `sys_public_param` VALUES (9, '注册用户默认角色', 'USER_DEFAULT_ROLE', 'GENERAL_USER', '0', NULL, ' ', ' ', '2022-03-31 16:52:24', NULL, '2', '1', '0');
+INSERT INTO `sys_public_param` VALUES (10, '用户默认部门', 'USER_DEFAULT_DEPT', '1', '0', '', ' ', ' ', '2026-01-31 00:00:00', NULL, '2', '1', '0');
 COMMIT;
 
 -- ----------------------------

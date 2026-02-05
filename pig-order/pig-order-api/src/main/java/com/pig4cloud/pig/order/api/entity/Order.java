@@ -187,10 +187,12 @@ public class Order extends Model<Order> {
 	}
 
 	/**
-	 * Check if order can be cancelled
+	 * Check if order can be cancelled. Market orders are never cancellable (terminal
+	 * states: FILLED, PARTIALLY_FILLED, REJECTED only).
 	 */
 	public boolean isCancellable() {
-		return status == OrderStatus.OPEN || status == OrderStatus.PARTIALLY_FILLED || status == OrderStatus.MATCHING;
+		return orderType != OrderType.MARKET && (status == OrderStatus.OPEN || status == OrderStatus.PARTIALLY_FILLED
+				|| status == OrderStatus.MATCHING);
 	}
 
 	/**

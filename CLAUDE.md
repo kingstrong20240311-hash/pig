@@ -212,6 +212,12 @@ Access Swagger UI at:
 
 Annotations are processed automatically via `pig-common-swagger`.
 
+### logs
+logs              # running logs under dev mode
+
+### env
+pig-e2e-test/docker-compose.yml # could be dev base env. rm all container can reset env
+
 ## Testing
 
 Test structure mirrors main source:

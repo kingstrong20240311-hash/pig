@@ -21,6 +21,7 @@ package com.pig4cloud.pig.vault.controller;
 
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.pig4cloud.pig.common.core.constant.SecurityConstants;
 import com.pig4cloud.pig.vault.PigVaultApplication;
 import com.pig4cloud.pig.vault.api.dto.CreateFreezeRequest;
 import com.pig4cloud.pig.vault.api.dto.FreezeLookupRequest;
@@ -259,7 +260,7 @@ class VaultControllerTest {
 		// Get freeze ID from database
 		Freeze freeze1 = freezeMapper.selectOne(
 				Wrappers.<Freeze>lambdaQuery().eq(Freeze::getRefType, RefType.ORDER).eq(Freeze::getRefId, "ORD-002"));
-		Long freezeId1 = freeze1.getFreezeId();
+		String freezeId1 = String.valueOf(freeze1.getFreezeId());
 
 		// Second request with same refType+refId should return same freeze
 		mockMvc
@@ -385,6 +386,7 @@ class VaultControllerTest {
 
 		mockMvc
 			.perform(post("/freeze/release").header(HttpHeaders.AUTHORIZATION, "Bearer " + TEST_TOKEN)
+				.header(SecurityConstants.FROM, SecurityConstants.FROM_IN)
 				.contentType(MediaType.APPLICATION_JSON)
 				.content(objectMapper.writeValueAsString(releaseRequest)))
 			.andDo(print())
@@ -435,6 +437,7 @@ class VaultControllerTest {
 
 		mockMvc
 			.perform(post("/freeze/release").header(HttpHeaders.AUTHORIZATION, "Bearer " + TEST_TOKEN)
+				.header(SecurityConstants.FROM, SecurityConstants.FROM_IN)
 				.contentType(MediaType.APPLICATION_JSON)
 				.content(objectMapper.writeValueAsString(releaseRequest)))
 			.andExpect(status().isOk())
@@ -448,6 +451,7 @@ class VaultControllerTest {
 		// Release second time (idempotent)
 		mockMvc
 			.perform(post("/freeze/release").header(HttpHeaders.AUTHORIZATION, "Bearer " + TEST_TOKEN)
+				.header(SecurityConstants.FROM, SecurityConstants.FROM_IN)
 				.contentType(MediaType.APPLICATION_JSON)
 				.content(objectMapper.writeValueAsString(releaseRequest)))
 			.andExpect(status().isOk())
@@ -459,6 +463,66 @@ class VaultControllerTest {
 			.eq(LedgerEntry::getRefType, RefType.ORDER)
 			.eq(LedgerEntry::getRefId, "ORD-007"));
 		assertThat(ledgerCountAfterSecondRelease).isEqualTo(ledgerCountAfterFirstRelease);
+	}
+
+	/**
+	 * Test Case 6b: Release freeze partial amount
+	 */
+	@Test
+	@Order(56)
+	@WithMockUser(username = "testuser", roles = "USER")
+	@DisplayName("6b. Release freeze partial amount")
+	@Transactional
+	void testReleaseFreezePartialAmount() throws Exception {
+		// Create a freeze
+		CreateFreezeRequest createRequest = new CreateFreezeRequest();
+		createRequest.setUserId(USER_ID);
+		createRequest.setSymbol(SYMBOL);
+		createRequest.setAmount(new BigDecimal("30.000000"));
+		createRequest.setRefType(RefType.ORDER);
+		createRequest.setRefId("ORD-006b");
+
+		mockMvc
+			.perform(post("/freeze/create").header(HttpHeaders.AUTHORIZATION, "Bearer " + TEST_TOKEN)
+				.contentType(MediaType.APPLICATION_JSON)
+				.content(objectMapper.writeValueAsString(createRequest)))
+			.andExpect(status().isOk());
+
+		// Partial release: 10
+		FreezeLookupRequest partialRequest = new FreezeLookupRequest();
+		partialRequest.setRefType(RefType.ORDER);
+		partialRequest.setRefId("ORD-006b");
+		partialRequest.setAmount(new BigDecimal("10.000000"));
+
+		mockMvc
+			.perform(post("/freeze/release").header(HttpHeaders.AUTHORIZATION, "Bearer " + TEST_TOKEN)
+				.header(SecurityConstants.FROM, SecurityConstants.FROM_IN)
+				.contentType(MediaType.APPLICATION_JSON)
+				.content(objectMapper.writeValueAsString(partialRequest)))
+			.andExpect(status().isOk());
+
+		Freeze freezeAfterPartial = freezeMapper.selectOne(
+				Wrappers.<Freeze>lambdaQuery().eq(Freeze::getRefType, RefType.ORDER).eq(Freeze::getRefId, "ORD-006b"));
+		assertThat(freezeAfterPartial.getAmount()).isEqualByComparingTo(new BigDecimal("20.000000"));
+		assertThat(freezeAfterPartial.getStatus()).isEqualTo(FreezeStatus.HELD);
+
+		// Release remaining: 20 -> status RELEASED
+		FreezeLookupRequest remainingRequest = new FreezeLookupRequest();
+		remainingRequest.setRefType(RefType.ORDER);
+		remainingRequest.setRefId("ORD-006b");
+		remainingRequest.setAmount(new BigDecimal("20.000000"));
+
+		mockMvc
+			.perform(post("/freeze/release").header(HttpHeaders.AUTHORIZATION, "Bearer " + TEST_TOKEN)
+				.header(SecurityConstants.FROM, SecurityConstants.FROM_IN)
+				.contentType(MediaType.APPLICATION_JSON)
+				.content(objectMapper.writeValueAsString(remainingRequest)))
+			.andExpect(status().isOk());
+
+		Freeze freezeFinal = freezeMapper.selectOne(
+				Wrappers.<Freeze>lambdaQuery().eq(Freeze::getRefType, RefType.ORDER).eq(Freeze::getRefId, "ORD-006b"));
+		assertThat(freezeFinal.getAmount()).isEqualByComparingTo(BigDecimal.ZERO);
+		assertThat(freezeFinal.getStatus()).isEqualTo(FreezeStatus.RELEASED);
 	}
 
 	/**
@@ -542,6 +606,7 @@ class VaultControllerTest {
 
 		mockMvc
 			.perform(post("/freeze/release").header(HttpHeaders.AUTHORIZATION, "Bearer " + TEST_TOKEN)
+				.header(SecurityConstants.FROM, SecurityConstants.FROM_IN)
 				.contentType(MediaType.APPLICATION_JSON)
 				.content(objectMapper.writeValueAsString(releaseRequest)))
 			.andExpect(status().isOk());
@@ -681,7 +746,7 @@ class VaultControllerTest {
 			.andDo(print())
 			.andExpect(status().isOk())
 			.andExpect(jsonPath("$.code").value(0))
-			.andExpect(jsonPath("$.data.accountId").value(ACCOUNT_ID))
+			.andExpect(jsonPath("$.data.accountId").value(String.valueOf(ACCOUNT_ID)))
 			.andExpect(jsonPath("$.data.symbol").value(SYMBOL))
 			.andExpect(jsonPath("$.data.available").exists())
 			.andExpect(jsonPath("$.data.frozen").exists());

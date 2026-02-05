@@ -26,7 +26,7 @@ import com.pig4cloud.pig.order.api.enums.Outcome;
 import com.pig4cloud.pig.order.mapper.OrderMapper;
 import com.pig4cloud.pig.order.service.MarketService;
 import com.pig4cloud.pig.outbox.api.model.DomainEventEnvelope;
-import com.pig4cloud.pig.outbox.api.payload.order.OrderCancelPayload;
+import com.pig4cloud.pig.outbox.api.payload.order.OrderReducedPayload;
 import com.pig4cloud.pig.outbox.api.publisher.DomainEventPublisher;
 import exchange.core2.core.ExchangeApi;
 import exchange.core2.core.common.api.ApiPlaceOrder;
@@ -40,6 +40,7 @@ import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Service;
 
+import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
@@ -76,7 +77,7 @@ public class OrderStateRecoveryService {
 
 	private static final String AGG_TYPE_ORDER = "Order";
 
-	private static final String EVENT_ORDER_CANCEL = "OrderCancel";
+	private static final String EVENT_ORDER_REDUCED = "OrderReduced";
 
 	@EventListener(ApplicationReadyEvent.class)
 	@org.springframework.core.annotation.Order(org.springframework.core.Ordered.HIGHEST_PRECEDENCE)
@@ -165,9 +166,12 @@ public class OrderStateRecoveryService {
 		Market market = marketService.getMarket(order.getMarketId());
 		if (market == null || market.getStatus() != MarketStatus.ACTIVE
 				|| (market.getExpireAt() != null && !market.getExpireAt().isAfter(Instant.now()))) {
+			OrderStatus previousStatus = order.getStatus();
 			order.setStatus(OrderStatus.EXPIRED);
 			orderMapper.updateById(order);
-			publishOrderCancelEvent(order, "Market expired");
+			log.info("Order status changed: orderId={}, {} -> {}, reason=market_expired", order.getOrderId(),
+					previousStatus, order.getStatus());
+			publishOrderReducedEvent(order);
 			log.info("Skipping recovery for expired market order: orderId={}, marketId={}", order.getOrderId(),
 					order.getMarketId());
 			return;
@@ -204,21 +208,25 @@ public class OrderStateRecoveryService {
 		if (previousStatus == OrderStatus.OPEN) {
 			order.setStatus(OrderStatus.MATCHING);
 			orderMapper.updateById(order);
+			log.info("Order status changed: orderId={}, {} -> {}, reason=recovery_submit", order.getOrderId(),
+					previousStatus, order.getStatus());
 			log.info("Order recovered and status updated: orderId={}, OPEN -> MATCHING", order.getOrderId());
 		}
 
 		log.debug("Order recovered successfully: orderId={}", order.getOrderId());
 	}
 
-	private void publishOrderCancelEvent(Order order, String reason) {
-		OrderCancelPayload payload = new OrderCancelPayload(order.getOrderId(), order.getUserId(), order.getMarketId(),
-				order.getStatus().name(), reason);
+	private void publishOrderReducedEvent(Order order) {
+		// 资产金额：BUY = 剩余数量×价格，SELL = 剩余数量
+		BigDecimal amount = order.getPrice() != null ? order.getRemainingQuantity().multiply(order.getPrice())
+				: order.getRemainingQuantity();
+		OrderReducedPayload payload = new OrderReducedPayload(order.getOrderId(), amount);
 
-		DomainEventEnvelope<OrderCancelPayload> event = new DomainEventEnvelope<>(IdUtil.randomUUID(), // eventId
+		DomainEventEnvelope<OrderReducedPayload> event = new DomainEventEnvelope<>(IdUtil.randomUUID(), // eventId
 				DOMAIN_ORDER, // domain
 				AGG_TYPE_ORDER, // aggregateType
 				String.valueOf(order.getOrderId()), // aggregateId
-				EVENT_ORDER_CANCEL, // eventType
+				EVENT_ORDER_REDUCED, // eventType
 				System.currentTimeMillis(), // occurredAt
 				null, // headers
 				payload // payload

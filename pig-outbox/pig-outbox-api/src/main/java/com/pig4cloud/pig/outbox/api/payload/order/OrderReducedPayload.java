@@ -24,28 +24,23 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.io.Serializable;
+import java.math.BigDecimal;
 
 /**
- * OrderCancel 事件负载
+ * OrderReduced 事件负载：撮合引擎确认释放的剩余资金/数量（事实）
  *
  * @author pig4cloud
- * @date 2026-01-25
+ * @date 2026-01-30
  */
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
 @JsonIgnoreProperties(ignoreUnknown = true)
 @JsonInclude(JsonInclude.Include.NON_NULL)
-public class OrderCancelPayload implements Serializable {
+public class OrderReducedPayload implements Serializable {
 
 	private Long orderId;
 
-	private Long userId;
-
-	private Long marketId;
-
-	private String status;
-
-	private String reason;
+	private BigDecimal amount;
 
 }

@@ -104,6 +104,7 @@ docker-compose restart zookeeper kafka
 **症状**:
 - 应用报错找不到主题
 - 消息无法发送
+- 出现 `LEADER_NOT_AVAILABLE` 警告
 
 **验证**:
 ```bash
@@ -113,26 +114,48 @@ docker exec pig-e2e-kafka kafka-topics --list --bootstrap-server localhost:9093
 # 应该看到:
 # - domain.order
 # - domain.vault
+# - domain.market
 ```
 
 **解决方案**:
-```bash
-# 1. 查看 kafka-init 容器日志
-docker-compose logs kafka-init
 
-# 2. 手动创建主题
+⚠️ **注意**: 从最新版本开始，Kafka 会在启动时自动创建所有必要的主题。如果主题缺失，说明 Kafka 启动脚本未正确执行。
+
+```bash
+# 1. 查看 Kafka 容器日志，检查主题创建过程
+docker-compose logs kafka | grep -i "creating topics"
+
+# 2. 检查 Kafka 是否完全就绪（healthcheck 会验证所有主题）
+docker-compose ps kafka
+# 状态应该是 "healthy"
+
+# 3. 如果主题仍然缺失，手动创建
 docker exec pig-e2e-kafka kafka-topics --create \
+  --if-not-exists \
   --bootstrap-server localhost:9093 \
   --topic domain.order \
   --partitions 3 \
   --replication-factor 1
 
 docker exec pig-e2e-kafka kafka-topics --create \
+  --if-not-exists \
   --bootstrap-server localhost:9093 \
   --topic domain.vault \
   --partitions 3 \
   --replication-factor 1
+
+docker exec pig-e2e-kafka kafka-topics --create \
+  --if-not-exists \
+  --bootstrap-server localhost:9093 \
+  --topic domain.market \
+  --partitions 3 \
+  --replication-factor 1
+
+# 4. 如果问题持续，重启 Kafka
+docker-compose restart kafka
 ```
+
+详情请参阅: [KAFKA-TOPICS-AUTO-CREATE.md](../KAFKA-TOPICS-AUTO-CREATE.md)
 
 ### 3. Nacos 相关问题
 

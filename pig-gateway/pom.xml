@@ -68,11 +68,17 @@
 			<groupId>com.github.xiaoymin</groupId>
 			<artifactId>knife4j-openapi3-ui</artifactId>
 		</dependency>
-		<dependency>
-			<groupId>cn.hutool</groupId>
-			<artifactId>hutool-crypto</artifactId>
-		</dependency>
-	</dependencies>
+	<dependency>
+		<groupId>cn.hutool</groupId>
+		<artifactId>hutool-crypto</artifactId>
+	</dependency>
+	<!-- macOS DNS 解析器 -->
+	<dependency>
+		<groupId>io.netty</groupId>
+		<artifactId>netty-resolver-dns-native-macos</artifactId>
+		<classifier>osx-aarch_64</classifier>
+	</dependency>
+</dependencies>
 
 	<build>
 		<plugins>

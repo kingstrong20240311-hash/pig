@@ -21,6 +21,7 @@ package com.pig4cloud.pig.vault.controller;
 
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.pig4cloud.pig.common.core.util.R;
+import com.pig4cloud.pig.common.security.annotation.Inner;
 import com.pig4cloud.pig.vault.api.dto.*;
 import com.pig4cloud.pig.vault.api.entity.Balance;
 import com.pig4cloud.pig.vault.api.entity.Freeze;
@@ -91,6 +92,7 @@ public class VaultController {
 	 */
 	@PostMapping("/freeze/release")
 	@Operation(summary = "Release Freeze", description = "Release a freeze to unlock funds")
+	@Inner
 	public R<FreezeResponse> releaseFreeze(@Valid @RequestBody FreezeLookupRequest request) {
 		try {
 			FreezeResponse response = vaultFreezeService.releaseFreeze(request);
@@ -167,9 +169,9 @@ public class VaultController {
 			}
 
 			BalanceResponse response = new BalanceResponse();
-			response.setBalanceId(balance.getBalanceId());
-			response.setAccountId(balance.getAccountId());
-			response.setAssetId(balance.getAssetId());
+		response.setBalanceId(balance.getBalanceId() != null ? String.valueOf(balance.getBalanceId()) : null);
+		response.setAccountId(balance.getAccountId() != null ? String.valueOf(balance.getAccountId()) : null);
+		response.setAssetId(balance.getAssetId() != null ? String.valueOf(balance.getAssetId()) : null);
 			response.setSymbol(symbol);
 			response.setAvailable(balance.getAvailable());
 			response.setFrozen(balance.getFrozen());
@@ -216,9 +218,9 @@ public class VaultController {
 	 */
 	private FreezeDTO toFreezeDTO(Freeze freeze) {
 		FreezeDTO dto = new FreezeDTO();
-		dto.setFreezeId(freeze.getFreezeId());
-		dto.setAccountId(freeze.getAccountId());
-		dto.setAssetId(freeze.getAssetId());
+		dto.setFreezeId(freeze.getFreezeId() != null ? String.valueOf(freeze.getFreezeId()) : null);
+		dto.setAccountId(freeze.getAccountId() != null ? String.valueOf(freeze.getAccountId()) : null);
+		dto.setAssetId(freeze.getAssetId() != null ? String.valueOf(freeze.getAssetId()) : null);
 		dto.setAmount(freeze.getAmount());
 		dto.setStatus(freeze.getStatus());
 		dto.setRefType(freeze.getRefType());

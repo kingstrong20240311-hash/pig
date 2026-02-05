@@ -45,19 +45,19 @@ public class OrderDTO implements Serializable {
 	 * Order ID
 	 */
 	@Schema(description = "订单ID")
-	private Long orderId;
+	private String orderId;
 
 	/**
 	 * User ID
 	 */
 	@Schema(description = "用户ID")
-	private Long userId;
+	private String userId;
 
 	/**
 	 * Market ID
 	 */
 	@Schema(description = "市场ID")
-	private Long marketId;
+	private String marketId;
 
 	/**
 	 * Outcome: YES / NO

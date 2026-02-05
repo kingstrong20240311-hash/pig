@@ -88,7 +88,7 @@ class OrderCancelTransactionIntegrationTest extends BaseIntegrationTest {
 	void setUp() {
 		// Mock vault service to always return success
 		FreezeResponse freezeResponse = new FreezeResponse();
-		freezeResponse.setFreezeId(1000L);
+		freezeResponse.setFreezeId("1000");
 		when(vaultService.createFreeze(any())).thenReturn(R.ok(freezeResponse));
 	}
 
@@ -114,7 +114,7 @@ class OrderCancelTransactionIntegrationTest extends BaseIntegrationTest {
 		assertThat(createResponse.getOrderId()).isNotNull();
 		assertThat(createResponse.getStatus()).isEqualTo(OrderStatus.OPEN);
 
-		final Long orderId = createResponse.getOrderId();
+		final Long orderId = Long.parseLong(createResponse.getOrderId());
 
 		// Dispatch events to process OrderCreated
 		outboxEventDispatcher.dispatch();
@@ -177,7 +177,7 @@ class OrderCancelTransactionIntegrationTest extends BaseIntegrationTest {
 		assertThat(createResponse.getOrderId()).isNotNull();
 		assertThat(createResponse.getStatus()).isEqualTo(OrderStatus.OPEN);
 
-		Long orderId = createResponse.getOrderId();
+		Long orderId = Long.parseLong(createResponse.getOrderId());
 
 		// Dispatch events to process OrderCreated (which will fail)
 		outboxEventDispatcher.dispatch();
@@ -209,7 +209,7 @@ class OrderCancelTransactionIntegrationTest extends BaseIntegrationTest {
 		createRequest.setIdempotencyKey("order-to-cancel-2");
 
 		CreateOrderResponse createResponse = orderService.createOrder(createRequest);
-		Long orderId = createResponse.getOrderId();
+		Long orderId = Long.parseLong(createResponse.getOrderId());
 
 		// Dispatch events to process OrderCreated
 		outboxEventDispatcher.dispatch();
@@ -220,7 +220,7 @@ class OrderCancelTransactionIntegrationTest extends BaseIntegrationTest {
 			assertThat(order.getStatus()).isIn(OrderStatus.MATCHING, OrderStatus.OPEN);
 		});
 
-		// Mock exchange API to fail cancel (after order creation succeeds)
+		// Mock exchange API: order not found in engine (never submitted or race)
 		doReturn(CompletableFuture.completedFuture(CommandResultCode.MATCHING_UNKNOWN_ORDER_ID)).when(exchangeApi)
 			.submitCommandAsync(any());
 
@@ -234,15 +234,13 @@ class OrderCancelTransactionIntegrationTest extends BaseIntegrationTest {
 		CancelOrderResponse cancelResponse = orderService.cancelOrder(cancelRequest);
 		assertThat(cancelResponse.getStatus()).isEqualTo(OrderStatus.CANCEL_REQUESTED);
 
-		// Dispatch events to process OrderCancelRequested (which will fail and rollback)
+		// Dispatch events to process OrderCancelRequested
 		outboxEventDispatcher.dispatch();
 
-		// Then: Wait for event handler to process and rollback status
-		// Event handler will fail and rollback status to MATCHING
+		// Then: Order not in engine is treated as cancelled -> CANCELLED
 		await().atMost(5, TimeUnit.SECONDS).untilAsserted(() -> {
 			Order order = orderMapper.selectById(orderId);
-			// Status should be rolled back to MATCHING (not CANCELLED)
-			assertThat(order.getStatus()).isEqualTo(OrderStatus.MATCHING);
+			assertThat(order.getStatus()).isEqualTo(OrderStatus.CANCELLED);
 		});
 	}
 

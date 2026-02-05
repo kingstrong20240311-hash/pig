@@ -27,6 +27,7 @@ import com.pig4cloud.pig.order.api.dto.OrderStateDTO;
 import com.pig4cloud.pig.order.api.entity.Order;
 import com.pig4cloud.pig.order.api.entity.OrderFill;
 import com.pig4cloud.pig.order.api.enums.OrderStatus;
+import com.pig4cloud.pig.order.api.enums.OrderType;
 import com.pig4cloud.pig.order.mapper.OrderFillMapper;
 import com.pig4cloud.pig.order.mapper.OrderMapper;
 import com.pig4cloud.pig.order.match.dto.FailedReduceEventDTO;
@@ -34,7 +35,7 @@ import com.pig4cloud.pig.order.match.dto.FailedRejectEventDTO;
 import com.pig4cloud.pig.order.match.dto.FailedTradeEventDTO;
 import com.pig4cloud.pig.order.match.dto.MatchCommittedPayload;
 import com.pig4cloud.pig.outbox.api.model.DomainEventEnvelope;
-import com.pig4cloud.pig.outbox.api.payload.order.OrderCancelPayload;
+import com.pig4cloud.pig.outbox.api.payload.order.OrderReducedPayload;
 import com.pig4cloud.pig.outbox.api.publisher.DomainEventPublisher;
 import exchange.core2.core.IEventsHandler;
 import lombok.RequiredArgsConstructor;
@@ -70,7 +71,7 @@ public class MatcherEventHandler implements OrderMatchService {
 
 	private static final String AGG_TYPE_ORDER = "Order";
 
-	private static final String EVENT_ORDER_CANCEL = "OrderCancel";
+	private static final String EVENT_ORDER_REDUCED = "OrderReduced";
 
 	private final OrderMapper orderMapper;
 
@@ -169,28 +170,31 @@ public class MatcherEventHandler implements OrderMatchService {
 				return;
 			}
 
-			// note: No need to check previous status,
-			// because it has been checked before requesting cancel to matching engine
-			// Update order status based on whether it's completed
-			if (reduceEvent.orderCompleted) {
-				order.setStatus(OrderStatus.CANCELLED);
-				// DO NOT set remainingQuantity to ZERO!
-				// remainingQuantity should preserve the amount that was NOT filled when
-				// cancelled
-				// This is critical for calculating filledQuantity = quantity -
-				// remainingQuantity
-			}
-			else {
-				// Partial cancel - update remaining quantity
-				BigDecimal reducedVolume = convertLongToDecimal(reduceEvent.reducedVolume);
-				BigDecimal newRemaining = order.getRemainingQuantity().subtract(reducedVolume);
-				order.setRemainingQuantity(newRemaining);
-			}
+		// note: No need to check previous status,
+		// because it has been checked before requesting cancel to matching engine
+		// Update order status based on whether it's completed
+		if (reduceEvent.orderCompleted) {
+			OrderStatus previousStatus = order.getStatus();
+			order.setStatus(OrderStatus.CANCELLED);
+			log.info("Order status changed: orderId={}, {} -> {}, reason=reduce_completed", reduceEvent.orderId,
+					previousStatus, order.getStatus());
+			// DO NOT set remainingQuantity to ZERO!
+			// remainingQuantity should preserve the amount that was NOT filled when
+			// cancelled
+			// This is critical for calculating filledQuantity = quantity -
+			// remainingQuantity
+		}
+		else {
+			// Partial cancel - update remaining quantity
+			BigDecimal reducedVolume = convertLongToDecimal(reduceEvent.reducedVolume);
+			BigDecimal newRemaining = order.getRemainingQuantity().subtract(reducedVolume);
+			order.setRemainingQuantity(newRemaining);
+		}
 
-			orderMapper.updateById(order);
-			if (reduceEvent.orderCompleted) {
-				publishOrderCancelEvent(order, "Order cancelled");
-			}
+		orderMapper.updateById(order);
+		// reducedVolume 为 exchange-core 刻度（×100），代表资产数量，直接换算为小数作为释放金额
+		BigDecimal reducedAmount = convertLongToDecimal(reduceEvent.reducedVolume);
+		publishOrderReducedEvent(order, reducedAmount);
 			log.info("Reduce event processed successfully: orderId={}, newStatus={}", reduceEvent.orderId,
 					order.getStatus());
 		}
@@ -233,12 +237,28 @@ public class MatcherEventHandler implements OrderMatchService {
 				return;
 			}
 
-			// Mark order as rejected (for IOC orders that couldn't be filled)
-			order.setStatus(OrderStatus.REJECTED);
-			order.setRejectReason("IOC order could not be filled at specified price");
+		// rejectedVolume 为 exchange-core 刻度（×100），代表资产数量，直接换算为小数作为释放金额
+		BigDecimal reducedAmount = convertLongToDecimal(rejectEvent.rejectedVolume);
 
-			orderMapper.updateById(order);
-			publishOrderCancelEvent(order, order.getRejectReason());
+		// 市价单：仅当成交量=0（全部被拒）时落 REJECTED；若有成交则保持 PARTIALLY_FILLED 终态，但仍发 reduce 事件
+		if (order.getOrderType() == OrderType.MARKET && order.getFilledQuantity().compareTo(BigDecimal.ZERO) > 0) {
+			log.info(
+					"Market order reject event but has partial fill: orderId={}, keeping PARTIALLY_FILLED, rejectedVolume={}",
+					rejectEvent.orderId, rejectEvent.rejectedVolume);
+			publishOrderReducedEvent(order, reducedAmount);
+			return;
+		}
+
+		// Mark order as rejected (for IOC/market orders that couldn't be filled, or
+		// limit IOC)
+		OrderStatus previousStatus = order.getStatus();
+		order.setStatus(OrderStatus.REJECTED);
+		order.setRejectReason("IOC order could not be filled at specified price");
+		log.info("Order status changed: orderId={}, {} -> {}, reason=reject_event", rejectEvent.orderId,
+				previousStatus, order.getStatus());
+
+		orderMapper.updateById(order);
+		publishOrderReducedEvent(order, reducedAmount);
 			log.info("Reject event processed successfully: orderId={}", rejectEvent.orderId);
 		}
 		catch (Exception e) {
@@ -311,7 +331,7 @@ public class MatcherEventHandler implements OrderMatchService {
 		}
 
 		// 4. Process each fill
-		Map<Long, OrderStateDTO> orderStates = new HashMap<>();
+		Map<String, OrderStateDTO> orderStates = new HashMap<>();
 		BigDecimal totalTakerFilled = BigDecimal.ZERO;
 
 		for (FillDTO fillDTO : request.getFills()) {
@@ -353,6 +373,7 @@ public class MatcherEventHandler implements OrderMatchService {
 			}
 
 			makerOrder.setRemainingQuantity(newMakerRemaining);
+			OrderStatus previousMakerStatus = makerOrder.getStatus();
 			if (newMakerRemaining.compareTo(BigDecimal.ZERO) == 0) {
 				// Exactly 0: FILLED
 				makerOrder.setStatus(OrderStatus.FILLED);
@@ -361,6 +382,8 @@ public class MatcherEventHandler implements OrderMatchService {
 				// Greater than 0: PARTIALLY_FILLED
 				makerOrder.setStatus(OrderStatus.PARTIALLY_FILLED);
 			}
+			log.info("Order status changed: orderId={}, {} -> {}, reason=match_commit_maker",
+					makerOrder.getOrderId(), previousMakerStatus, makerOrder.getStatus());
 			int rows = orderMapper.updateById(makerOrder);
 			if (rows != 1) {
 				throw new IllegalStateException("Failed to update maker order: orderId=" + makerOrder.getOrderId());
@@ -369,7 +392,7 @@ public class MatcherEventHandler implements OrderMatchService {
 					makerOrder.getStatus());
 
 			// Track maker order state
-			orderStates.put(makerOrder.getOrderId(), buildOrderStateDTO(makerOrder));
+			orderStates.put(String.valueOf(makerOrder.getOrderId()), buildOrderStateDTO(makerOrder));
 
 			// Accumulate taker filled quantity
 			totalTakerFilled = totalTakerFilled.add(fillDTO.getQuantity());
@@ -386,18 +409,22 @@ public class MatcherEventHandler implements OrderMatchService {
 		}
 
 		takerOrder.setRemainingQuantity(newTakerRemaining);
+		OrderStatus previousTakerStatus = takerOrder.getStatus();
 		if (newTakerRemaining.compareTo(BigDecimal.ZERO) == 0) {
 			// Exactly 0: FILLED
 			takerOrder.setStatus(OrderStatus.FILLED);
 		}
 		else {
-			// Greater than 0: PARTIALLY_FILLED
+			// Greater than 0: PARTIALLY_FILLED. For market orders this is terminal (no
+			// further matching).
 			takerOrder.setStatus(OrderStatus.PARTIALLY_FILLED);
 		}
+		log.info("Order status changed: orderId={}, {} -> {}, reason=match_commit_taker",
+				takerOrder.getOrderId(), previousTakerStatus, takerOrder.getStatus());
 		orderMapper.updateById(takerOrder);
 
 		// Track taker order state
-		orderStates.put(takerOrder.getOrderId(), buildOrderStateDTO(takerOrder));
+		orderStates.put(String.valueOf(takerOrder.getOrderId()), buildOrderStateDTO(takerOrder));
 
 		// 6. Emit MatchCommittedEvent
 		publishMatchCommittedEvent(request, orderStates);
@@ -423,7 +450,7 @@ public class MatcherEventHandler implements OrderMatchService {
 	 */
 	private OrderStateDTO buildOrderStateDTO(Order order) {
 		OrderStateDTO dto = new OrderStateDTO();
-		dto.setOrderId(order.getOrderId());
+		dto.setOrderId(order.getOrderId() != null ? String.valueOf(order.getOrderId()) : null);
 		dto.setStatus(order.getStatus());
 		dto.setRemainingQuantity(order.getRemainingQuantity());
 		return dto;
@@ -434,17 +461,17 @@ public class MatcherEventHandler implements OrderMatchService {
 	 */
 	private CommitMatchResponse buildCommitMatchResponse(CommitMatchRequest request) {
 		// Rebuild response from existing data
-		Map<Long, OrderStateDTO> orderStates = new HashMap<>();
+		Map<String, OrderStateDTO> orderStates = new HashMap<>();
 
 		Order takerOrder = orderMapper.selectById(request.getTakerOrderId());
 		if (takerOrder != null) {
-			orderStates.put(takerOrder.getOrderId(), buildOrderStateDTO(takerOrder));
+			orderStates.put(String.valueOf(takerOrder.getOrderId()), buildOrderStateDTO(takerOrder));
 		}
 
 		for (FillDTO fill : request.getFills()) {
 			Order makerOrder = orderMapper.selectById(fill.getMakerOrderId());
 			if (makerOrder != null) {
-				orderStates.put(makerOrder.getOrderId(), buildOrderStateDTO(makerOrder));
+				orderStates.put(String.valueOf(makerOrder.getOrderId()), buildOrderStateDTO(makerOrder));
 			}
 		}
 
@@ -459,7 +486,7 @@ public class MatcherEventHandler implements OrderMatchService {
 	/**
 	 * Publish MatchCommittedEvent via DomainEventPublisher
 	 */
-	private void publishMatchCommittedEvent(CommitMatchRequest request, Map<Long, OrderStateDTO> orderStates) {
+	private void publishMatchCommittedEvent(CommitMatchRequest request, Map<String, OrderStateDTO> orderStates) {
 		MatchCommittedPayload payload = new MatchCommittedPayload(request.getMatchId(), request.getTakerOrderId(),
 				request.getFills(), orderStates);
 
@@ -477,17 +504,17 @@ public class MatcherEventHandler implements OrderMatchService {
 	}
 
 	/**
-	 * Publish OrderCancel event via DomainEventPublisher
+	 * Publish OrderReduced event with given amount (asset amount in decimal, directly
+	 * from reducedVolume/rejectedVolume without price multiplication)
 	 */
-	private void publishOrderCancelEvent(Order order, String reason) {
-		OrderCancelPayload payload = new OrderCancelPayload(order.getOrderId(), order.getUserId(), order.getMarketId(),
-				order.getStatus().name(), reason);
+	private void publishOrderReducedEvent(Order order, BigDecimal amount) {
+		OrderReducedPayload payload = new OrderReducedPayload(order.getOrderId(), amount);
 
-		DomainEventEnvelope<OrderCancelPayload> event = new DomainEventEnvelope<>(IdUtil.randomUUID(), // eventId
+		DomainEventEnvelope<OrderReducedPayload> event = new DomainEventEnvelope<>(IdUtil.randomUUID(), // eventId
 				DOMAIN_ORDER, // domain
 				AGG_TYPE_ORDER, // aggregateType
 				String.valueOf(order.getOrderId()), // aggregateId
-				EVENT_ORDER_CANCEL, // eventType
+				EVENT_ORDER_REDUCED, // eventType
 				System.currentTimeMillis(), // occurredAt
 				null, // headers
 				payload // payload

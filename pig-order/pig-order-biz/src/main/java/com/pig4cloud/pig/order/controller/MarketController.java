@@ -57,9 +57,9 @@ public class MarketController {
 	@PostMapping
 	@PreAuthorize("@pms.hasPermission('market_create')")
 	@Operation(summary = "创建市场", description = "创建新的预测市场")
-	public R<Long> createMarket(@Valid @RequestBody CreateMarketRequest request) {
+	public R<String> createMarket(@Valid @RequestBody CreateMarketRequest request) {
 		Long marketId = marketService.createMarket(request);
-		return R.ok(marketId);
+		return R.ok(String.valueOf(marketId));
 	}
 
 	/**
@@ -128,7 +128,7 @@ public class MarketController {
 	 */
 	private MarketDTO toMarketDTO(Market market) {
 		MarketDTO dto = new MarketDTO();
-		dto.setMarketId(market.getMarketId());
+		dto.setMarketId(market.getMarketId() != null ? String.valueOf(market.getMarketId()) : null);
 		dto.setName(market.getName());
 		dto.setSymbolIdYes(market.getSymbolIdYes());
 		dto.setSymbolIdNo(market.getSymbolIdNo());

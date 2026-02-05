@@ -40,7 +40,7 @@ public class MarketDTO implements Serializable {
 	 * Market ID
 	 */
 	@Schema(description = "市场ID")
-	private Long marketId;
+	private String marketId;
 
 	/**
 	 * Market name

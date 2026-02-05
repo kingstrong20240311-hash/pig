@@ -197,7 +197,7 @@ class VaultBalanceControllerTest {
 			.andDo(print())
 			.andExpect(status().isOk())
 			.andExpect(jsonPath("$.code").value(0))
-			.andExpect(jsonPath("$.data.accountId").value(ACCOUNT_ID))
+			.andExpect(jsonPath("$.data.accountId").value(String.valueOf(ACCOUNT_ID)))
 			.andExpect(jsonPath("$.data.symbol").value(SYMBOL))
 			.andExpect(jsonPath("$.data.available").value(150.0))
 			.andExpect(jsonPath("$.data.frozen").value(0.0));
@@ -318,7 +318,7 @@ class VaultBalanceControllerTest {
 			.andDo(print())
 			.andExpect(status().isOk())
 			.andExpect(jsonPath("$.code").value(0))
-			.andExpect(jsonPath("$.data.accountId").value(ACCOUNT_ID))
+			.andExpect(jsonPath("$.data.accountId").value(String.valueOf(ACCOUNT_ID)))
 			.andExpect(jsonPath("$.data.symbol").value(SYMBOL))
 			.andExpect(jsonPath("$.data.available").value(100.0))
 			.andExpect(jsonPath("$.data.frozen").value(0.0));
