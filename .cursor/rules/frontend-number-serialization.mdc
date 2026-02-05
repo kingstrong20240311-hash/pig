@@ -1,0 +1,21 @@
+---
+description: Ensure large numbers are serialized safely for JS
+globs: **/*Controller.java
+alwaysApply: false
+---
+
+# Frontend Number Serialization
+
+When returning numeric values to the frontend, check whether the value can exceed
+JavaScript `Number` safe range. If it can, convert it to `String` before returning
+to avoid precision loss.
+
+Safe range: `[-9007199254740991, 9007199254740991]` (`Number.MAX_SAFE_INTEGER`).
+
+Example:
+
+```java
+// If amount or id may exceed JS safe range
+response.setAmount(amount.toString());
+response.setOrderId(orderId.toString());
+```
