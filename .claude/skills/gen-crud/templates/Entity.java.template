@@ -18,7 +18,7 @@
 package {{PACKAGE}};
 
 import com.baomidou.mybatisplus.annotation.*;
-import com.baomidou.mybatisplus.extension.activerecord.Model;
+import com.pig4cloud.pig.common.mybatis.base.BaseEntity;
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
@@ -34,9 +34,7 @@ import lombok.EqualsAndHashCode;
 @Data
 @Schema(description = "{{TABLE_COMMENT}}")
 @EqualsAndHashCode(callSuper = true)
-public class {{CLASS_NAME}} extends Model<{{CLASS_NAME}}> {
-
-	private static final long serialVersionUID = 1L;
+public class {{CLASS_NAME}} extends BaseEntity {
 
 {{FIELDS}}
 }

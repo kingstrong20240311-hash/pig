@@ -16,7 +16,7 @@ Use this skill when the user asks to generate a complete CRUD module from a data
 ## What This Skill Generates
 
 ### Backend (Java)
-1. **Entity** - JPA entity class in `{module}-api/src/main/java/com/pig4cloud/pig/{name}/api/entity/`
+1. **Entity** - MyBatis Plus entity class in `{module}-api/src/main/java/com/pig4cloud/pig/{name}/api/entity/`
 2. **Mapper** - MyBatis Plus mapper interface in `{module}-biz/src/main/java/com/pig4cloud/pig/{name}/mapper/`
 3. **Service** - Service interface in `{module}-biz/src/main/java/com/pig4cloud/pig/{name}/service/`
 4. **ServiceImpl** - Service implementation in `{module}-biz/src/main/java/com/pig4cloud/pig/{name}/service/impl/`
@@ -31,39 +31,31 @@ Use this skill when the user asks to generate a complete CRUD module from a data
 ## Workflow
 
 ### Step 1: Parse SQL Schema
-- Extract table name
-- Extract column definitions with types, constraints
-- Identify primary key
-- Map SQL types to Java types (following project constraint: use `Instant` for new time fields, keep existing `LocalDateTime`)
-- Detect auto-fill fields: `create_time`, `update_time`, `create_by`, `update_by`, `del_flag`
+- Extract table name, column definitions, primary key
+- Map SQL types to Java types (use `Instant` for new time fields; keep `LocalDateTime` for existing)
+- **IMPORTANT**: Every table MUST include `create_time`, `update_time`, `create_by`, `update_by`. If missing from the input SQL, add them automatically.
+- Identify auto-fill fields: `create_time`, `update_time`, `create_by`, `update_by`, `del_flag`
 
 ### Step 2: Generate Entity Class
-Template-based generation following conventions:
-- Extend `Model<T>` for ActiveRecord pattern
+Rules:
+- **Extend `BaseEntity`** (`com.pig4cloud.pig.common.mybatis.base.BaseEntity`)
+  - `BaseEntity` already provides: `createTime`, `updateTime`, `createBy`, `updateBy`
+  - **Do NOT generate** these four fields in the entity body — they are inherited
 - Use `@TableId(type = IdType.ASSIGN_ID)` for primary key
 - Use `@Schema` annotations for Swagger documentation
-- Apply `@TableField(fill = FieldFill.INSERT)` for create fields
-- Apply `@TableField(fill = FieldFill.UPDATE)` for update fields
-- Apply `@TableLogic` for `delFlag`
+- Apply `@TableLogic` + `@TableField(fill = FieldFill.INSERT)` for `delFlag`
 - Place in `{module}-api` submodule
 
 ### Step 3: Generate Mapper Interface
-Simple interface extending `BaseMapper<Entity>`:
-- Annotated with `@Mapper`
+- Extend `BaseMapper<Entity>`, annotated with `@Mapper`
 - Place in `{module}-biz/mapper/`
-- Usually no custom methods needed (MyBatis Plus provides CRUD)
 
 ### Step 4: Generate Service Interface
-Service interface extending `IService<Entity>`:
-- Define business methods if needed
-- Standard CRUD provided by MyBatis Plus
+- Extend `IService<Entity>`
 - Place in `{module}-biz/service/`
 
 ### Step 5: Generate ServiceImpl
-Implementation extending `ServiceImpl<Mapper, Entity>`:
-- Annotated with `@Service` and `@AllArgsConstructor`
-- Implement custom business methods
-- Add cache annotations if needed
+- Extend `ServiceImpl<Mapper, Entity>`, annotated with `@Service` and `@AllArgsConstructor`
 - Place in `{module}-biz/service/impl/`
 
 ### Step 6: Generate Controller
@@ -75,64 +67,26 @@ REST controller following project conventions:
   - `POST /` - Create new record
   - `PUT /` - Update existing record
   - `DELETE /` - Delete by ID array
-  - Optional: `GET /export` - Export Excel
 - Use `@HasPermission` for authorization
 - Use `@SysLog` for audit logging
 - Use `@ParameterObject` for query parameters
 - Follow `SysPublicParamController` pattern
 
 ### Step 7: Generate Vue Index Page
-List page with:
-- Search form with filters
-- Data table with pagination
-- Action buttons (Add, Delete, Export, Refresh)
-- Row actions (Edit, Delete)
-- Selection support
+- Search form with filters, data table with pagination
+- Action buttons (Add, Delete, Export, Refresh) and row actions (Edit, Delete)
 - i18n support
-- Integration with form dialog
 
 ### Step 8: Generate Vue Form Dialog
-Form dialog with:
-- Reactive form with validation rules
-- Support for add/edit modes
-- i18n support
-- API integration
-- Submit and cancel handling
+- Reactive form with validation, add/edit mode, API integration
 
 ### Step 9: Generate TypeScript API Client
-API functions:
-- `fetchList(query)` - Paginated list
-- `getObj(id)` - Get by ID
-- `addObj(obj)` - Create
-- `putObj(obj)` - Update
-- `delObj(ids)` - Delete
+- `fetchList`, `getObj`, `addObj`, `putObj`, `delObj`
 
 ### Step 10: Generate i18n Files
-Chinese and English translations for:
-- Field labels
-- Placeholders
-- Validation messages
-- Button labels
+- `zh-cn.ts` and `en.ts` with field labels, placeholders, validation messages
 
-## Code Formatting
-
-After generation, apply Spring Java Format:
-```bash
-mvn spring-javaformat:apply
-```
-
-## References
-
-### Example Entities
-- `SysPublicParam` - Standard entity with all common fields
-
-### Example Controllers
-- `SysPublicParamController` - Standard CRUD controller pattern
-
-### Example Vue Pages
-- `pig-ui/src/views/admin/sys/param/` - Complete reference implementation
-
-### Type Mapping (SQL → Java)
+## Type Mapping (SQL → Java)
 
 | SQL Type | Java Type | Notes |
 |----------|-----------|-------|
@@ -146,78 +100,77 @@ mvn spring-javaformat:apply
 | DATE | LocalDate | |
 | BIT, BOOLEAN | Boolean | |
 
-## Best Practices
-
-1. **Entity Design**
-   - Always include audit fields: `createTime`, `updateTime`, `createBy`, `updateBy`
-   - Always include `delFlag` for soft delete
-   - Use `@Schema` for comprehensive API documentation
-   - Follow naming: entity name should be `{TableName}` in PascalCase
-
-2. **Service Layer**
-   - Keep service interface simple, add methods only when needed
-   - Implement custom business logic in ServiceImpl
-   - Use cache annotations for frequently accessed data
-
-3. **Controller Layer**
-   - Follow REST conventions
-   - Use `@ParameterObject` for complex query objects
-   - Return `R<T>` wrapper for all responses
-   - Add permission checks with `@HasPermission`
-   - Use `LambdaUpdateWrapper` for dynamic query conditions
-
-4. **Frontend**
-   - Use composition API (setup script)
-   - Follow existing i18n patterns
-   - Reuse components: `right-toolbar`, `pagination`, `dict-tag`
-   - Use `useTable` hook for table management
-   - Use `useDict` hook for dictionary data
-
-5. **API Client**
-   - Use consistent naming: `fetchList`, `getObj`, `addObj`, `putObj`, `delObj`
-   - Follow request utility patterns
-   - Add validation functions when needed
-
-## Example Usage
-
-User provides:
-```sql
-CREATE TABLE `gym_member` (
-  `id` bigint NOT NULL COMMENT 'ID',
-  `name` varchar(64) NOT NULL COMMENT 'Member Name',
-  `phone` varchar(20) COMMENT 'Phone',
-  `status` char(1) DEFAULT '0' COMMENT 'Status 0:Active 1:Inactive',
-  `create_time` datetime DEFAULT CURRENT_TIMESTAMP COMMENT 'Create Time',
-  `update_time` datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT 'Update Time',
-  `create_by` varchar(64) COMMENT 'Created By',
-  `update_by` varchar(64) COMMENT 'Updated By',
-  `del_flag` char(1) DEFAULT '0' COMMENT 'Delete Flag',
-  PRIMARY KEY (`id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='Gym Member';
-```
-
-Module: `pig-gym`
-Frontend path: `gym`
-
-Skill generates:
-- `pig-gym-api/.../entity/GymMember.java`
-- `pig-gym-biz/.../mapper/GymMemberMapper.java`
-- `pig-gym-biz/.../service/GymMemberService.java`
-- `pig-gym-biz/.../service/impl/GymMemberServiceImpl.java`
-- `pig-gym-biz/.../controller/GymMemberController.java`
-- `pig-ui/src/views/admin/gym/member/index.vue`
-- `pig-ui/src/views/admin/gym/member/form.vue`
-- `pig-ui/src/api/admin/gymmember.ts`
-- `pig-ui/src/views/admin/gym/member/i18n/zh-cn.ts`
-- `pig-ui/src/views/admin/gym/member/i18n/en.ts`
-
 ## Post-Generation Checklist
 
-- [ ] Run `mvn spring-javaformat:apply` to format Java code
-- [ ] Verify entity annotations are correct
-- [ ] Check if additional business methods are needed in Service
-- [ ] Review permission strings in Controller
-- [ ] Test API endpoints
-- [ ] Verify frontend routing is configured
-- [ ] Test CRUD operations in UI
-- [ ] Add menu entry if needed
+### 1. Format Java Code
+```bash
+mvn spring-javaformat:apply
+```
+
+### 2. Restart and Verify Build
+
+```bash
+./start-standalone.sh
+```
+
+**Success**: A new PID is printed in the output, e.g.:
+```
+Started PigBootApplication in X.XXX seconds
+PID: <new-pid>
+```
+
+**If no new PID appears** — compilation failed:
+1. Read the build log:
+   ```bash
+   cat logs/pig-boot/build.log
+   ```
+2. Fix all reported errors
+3. Re-run `./start-standalone.sh` and repeat until a new PID appears
+
+### 3. Verify Controller is Active via API Docs
+
+Look up the OpenAPI group name for the module in:
+`pig-boot/src/main/java/com/pig4cloud/pig/config/OpenApiGroupConfiguration.java`
+
+Known group names:
+| Module package | `.group(...)` value | API Docs URL |
+|---|---|---|
+| `com.pig4cloud.pig.gym` | `健身管理模块` | `http://localhost:9999/admin/v3/api-docs/健身管理模块` |
+| `com.pig4cloud.pig.admin` | `用户管理模块` | `http://localhost:9999/admin/v3/api-docs/用户管理模块` |
+| `com.pig4cloud.pig.auth` | `认证模块` | `http://localhost:9999/admin/v3/api-docs/认证模块` |
+
+For new modules, read the file and use the `.group(...)` value as the URL path segment (URL-encode Chinese characters if needed).
+
+Check that the response JSON contains the new controller's paths (e.g., `/member/page`).
+If not found: check package scan config in `OpenApiGroupConfiguration.java` and restart again.
+
+### 4. Add Menu Entry
+
+After confirming the Controller is active, render `templates/add_menu.sql.template` by substituting all `{{PLACEHOLDER}}` values:
+
+| Placeholder | Example value |
+|---|---|
+| `{{PARENT_MENU_NAME}}` | `健身房管理` |
+| `{{ENTITY_DISPLAY_NAME}}` | `会员管理` |
+| `{{ENTITY_EN_NAME}}` | `member` |
+| `{{VUE_ROUTE_PATH}}` | `/admin/gym/member/index` |
+| `{{ICON}}` | `ele-User` |
+| `{{PERMISSION_PREFIX}}` | `gym_member` |
+
+Save the rendered SQL as `db/add_{entity_snake}_menu.sql`, then execute:
+```bash
+mysql -u root -pJz123456 pig < db/add_{entity_snake}_menu.sql
+```
+
+If the password is wrong, ask the user for the correct password.
+
+The template uses a **recursive CTE** to walk up the full ancestor chain and grant every ancestor menu to `role_id=1` as well — this is required because a child menu is invisible if any ancestor is not granted to the role.
+
+## References
+
+- Entity template: `templates/Entity.java.template`
+- Menu SQL template: `templates/add_menu.sql.template`
+- Example controller: `SysPublicParamController`
+- Example Vue pages: `pig-ui/src/views/admin/sys/param/`
+- Example menu SQL: `db/add_trainingsession_menu.sql`
+- OpenAPI group config: `pig-boot/src/main/java/com/pig4cloud/pig/config/OpenApiGroupConfiguration.java`
