@@ -26,6 +26,12 @@ spring:
   profiles:
     active: dev  # 激活dev，对应 application-dev.yml
 
+springdoc:
+  api-docs:
+    enabled: true
+  swagger-ui:
+    disable-swagger-default-url: true
+
 
 ## spring security 对外暴露接口设置（不鉴权直接可访问）
 security:
@@ -64,3 +70,7 @@ mybatis-plus:
     jdbc-type-for-null: 'null' # 是否设置字段为null
     call-setters-on-nulls: true # 是否调用set方法时传入null值
     shrink-whitespaces-in-sql: true # 去掉sql中多余的空格
+
+# gym 模块路由前缀（单体模式生效，微服务模式默认不配置）
+gym:
+  api-prefix: /gym

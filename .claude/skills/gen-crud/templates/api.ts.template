@@ -1,0 +1,40 @@
+import request from '/@/utils/request';
+
+export function fetchList(query?: Object) {
+	return request({
+		url: '/{{MODULE}}/{{REQUEST_MAPPING}}/page',
+		method: 'get',
+		params: query,
+	});
+}
+
+export function addObj(obj?: Object) {
+	return request({
+		url: '/{{MODULE}}/{{REQUEST_MAPPING}}',
+		method: 'post',
+		data: obj,
+	});
+}
+
+export function getObj(id?: {{ID_TYPE_TS}}) {
+	return request({
+		url: '/{{MODULE}}/{{REQUEST_MAPPING}}/details/' + id,
+		method: 'get',
+	});
+}
+
+export function delObj(ids?: Object) {
+	return request({
+		url: '/{{MODULE}}/{{REQUEST_MAPPING}}',
+		method: 'delete',
+		data: ids,
+	});
+}
+
+export function putObj(obj?: Object) {
+	return request({
+		url: '/{{MODULE}}/{{REQUEST_MAPPING}}',
+		method: 'put',
+		data: obj,
+	});
+}
