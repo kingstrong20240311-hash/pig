@@ -44,10 +44,12 @@ The skill will generate the following files:
 
 1. **Entity**: `pig-gym/pig-gym-api/src/main/java/com/pig4cloud/pig/gym/api/entity/GymMember.java`
 ```java
+// Extends BaseEntity — createTime, updateTime, createBy, updateBy are inherited, do NOT redeclare them
 @Data
 @Schema(description = "Gym Member Information")
 @EqualsAndHashCode(callSuper = true)
-public class GymMember extends Model<GymMember> {
+public class GymMember extends BaseEntity {
+
     @TableId(type = IdType.ASSIGN_ID)
     @Schema(description = "Member ID")
     private Long id;
@@ -78,22 +80,6 @@ public class GymMember extends Model<GymMember> {
 
     @Schema(description = "Membership Expire Date")
     private Instant expireDate;
-
-    @TableField(fill = FieldFill.INSERT)
-    @Schema(description = "Create Time")
-    private LocalDateTime createTime;
-
-    @TableField(fill = FieldFill.UPDATE)
-    @Schema(description = "Update Time")
-    private LocalDateTime updateTime;
-
-    @TableField(fill = FieldFill.INSERT)
-    @Schema(description = "Created By")
-    private String createBy;
-
-    @TableField(fill = FieldFill.UPDATE)
-    @Schema(description = "Updated By")
-    private String updateBy;
 
     @TableLogic
     @TableField(fill = FieldFill.INSERT)
