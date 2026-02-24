@@ -27,8 +27,8 @@ public class FmsAssessmentServiceImpl implements FmsAssessmentService {
 			FmsMovementType.TRUNK_STABILITY_PUSHUP, FmsMovementType.ROTARY_STABILITY);
 
 	private static final Set<FmsMovementType> BILATERAL_MOVEMENTS = EnumSet.of(FmsMovementType.HURDLE_STEP,
-			FmsMovementType.INLINE_LUNGE, FmsMovementType.SHOULDER_MOBILITY,
-			FmsMovementType.ACTIVE_STRAIGHT_LEG_RAISE, FmsMovementType.ROTARY_STABILITY);
+			FmsMovementType.INLINE_LUNGE, FmsMovementType.SHOULDER_MOBILITY, FmsMovementType.ACTIVE_STRAIGHT_LEG_RAISE,
+			FmsMovementType.ROTARY_STABILITY);
 
 	private final FmsAssessmentMapper fmsAssessmentMapper;
 
@@ -61,7 +61,8 @@ public class FmsAssessmentServiceImpl implements FmsAssessmentService {
 			if (item.getFinalScore() <= 2) {
 				restrictedMovementCount++;
 			}
-			if (item.getLeftScore() != null && item.getRightScore() != null && !item.getLeftScore().equals(item.getRightScore())) {
+			if (item.getLeftScore() != null && item.getRightScore() != null
+					&& !item.getLeftScore().equals(item.getRightScore())) {
 				hasAsymmetry = true;
 			}
 			if ((item.getFinalScore() == 0) || Boolean.TRUE.equals(item.getClearingTestPain())) {
@@ -108,7 +109,8 @@ public class FmsAssessmentServiceImpl implements FmsAssessmentService {
 		item.setCompensationTags(input.getCompensationTags());
 		item.setRemark(input.getRemark());
 
-		if (Boolean.TRUE.equals(item.getHasClearingTest()) && !CLEARING_TEST_MOVEMENTS.contains(input.getMovementType())) {
+		if (Boolean.TRUE.equals(item.getHasClearingTest())
+				&& !CLEARING_TEST_MOVEMENTS.contains(input.getMovementType())) {
 			throw new IllegalArgumentException("当前动作不支持清除测试: " + input.getMovementType());
 		}
 		if (Boolean.TRUE.equals(item.getClearingTestPain()) && !Boolean.TRUE.equals(item.getHasClearingTest())) {
