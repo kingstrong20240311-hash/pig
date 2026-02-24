@@ -53,7 +53,8 @@ public class GymController {
 	@PostMapping("/session/cancel")
 	@Operation(summary = "取消训练预约", description = "仅课程教练允许取消")
 	public R<TrainingSession> cancelSession(@Valid @RequestBody CancelTrainingSessionRequest request) {
-		return R.ok(trainingSessionService.cancelSession(request.getSessionId(), request.getCoachId(), request.getCancelReason()));
+		return R.ok(trainingSessionService.cancelSession(request.getSessionId(), request.getCoachId(),
+				request.getCancelReason()));
 	}
 
 	@PostMapping("/session/complete")
