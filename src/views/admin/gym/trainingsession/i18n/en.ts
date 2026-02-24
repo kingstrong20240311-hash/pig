@@ -1,0 +1,23 @@
+export default {
+	trainingsession: {
+		index: 'Index',
+		memberId: 'Member ID',
+		coachId: 'Coach ID',
+		lessonPlanId: 'Lesson Plan ID',
+		scheduledAt: 'Scheduled At',
+		completedAt: 'Completed At',
+		status: 'Status',
+		cancelReason: 'Cancel Reason',
+		createTime: 'Create Time',
+		createBy: 'Create By',
+		updateTime: 'Update Time',
+		updateBy: 'Update By',
+		inputMemberIdTip: 'Please input member ID',
+		inputCoachIdTip: 'Please input coach ID',
+		inputLessonPlanIdTip: 'Please input lesson plan ID',
+		inputScheduledAtTip: 'Please select scheduled time',
+		inputCompletedAtTip: 'Please select completed time',
+		inputStatusTip: 'Please select status',
+		inputCancelReasonTip: 'Please input cancel reason',
+	},
+};

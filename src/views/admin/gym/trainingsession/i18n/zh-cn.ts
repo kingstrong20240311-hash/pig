@@ -1,0 +1,23 @@
+export default {
+	trainingsession: {
+		index: '序号',
+		memberId: '会员ID',
+		coachId: '教练ID',
+		lessonPlanId: '备课ID',
+		scheduledAt: '预约时间',
+		completedAt: '结课时间',
+		status: '课程状态',
+		cancelReason: '取消原因',
+		createTime: '创建时间',
+		createBy: '创建人',
+		updateTime: '更新时间',
+		updateBy: '更新人',
+		inputMemberIdTip: '请输入会员ID',
+		inputCoachIdTip: '请输入教练ID',
+		inputLessonPlanIdTip: '请输入备课ID',
+		inputScheduledAtTip: '请选择预约时间',
+		inputCompletedAtTip: '请选择结课时间',
+		inputStatusTip: '请选择课程状态',
+		inputCancelReasonTip: '请输入取消原因',
+	},
+};
