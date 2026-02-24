@@ -48,6 +48,12 @@
 			<artifactId>pig-quartz</artifactId>
 			<version>${revision}</version>
 		</dependency>
+		<!--可选：健身管理模块 -->
+		<dependency>
+			<groupId>com.pig4cloud</groupId>
+			<artifactId>pig-gym-biz</artifactId>
+			<version>${revision}</version>
+		</dependency>
 		<!--安全模块 -->
 		<dependency>
 			<groupId>com.pig4cloud</groupId>

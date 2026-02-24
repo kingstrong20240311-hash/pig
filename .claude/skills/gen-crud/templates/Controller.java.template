@@ -1,0 +1,116 @@
+/*
+ *    Copyright (c) 2018-2025, lengleng All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions are met:
+ *
+ * Redistributions of source code must retain the above copyright notice,
+ * this list of conditions and the following disclaimer.
+ * Redistributions in binary form must reproduce the above copyright
+ * notice, this list of conditions and the following disclaimer in the
+ * documentation and/or other materials provided with the distribution.
+ * Neither the name of the pig4cloud.com developer nor the names of its
+ * contributors may be used to endorse or promote products derived from
+ * this software without specific prior written permission.
+ * Author: lengleng (wangiegie@gmail.com)
+ */
+
+package {{PACKAGE}};
+
+import cn.hutool.core.util.StrUtil;
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.toolkit.Wrappers;
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import {{ENTITY_PACKAGE}}.{{CLASS_NAME}};
+import {{SERVICE_PACKAGE}}.{{CLASS_NAME}}Service;
+import com.pig4cloud.pig.common.core.util.R;
+import com.pig4cloud.pig.common.log.annotation.SysLog;
+import com.pig4cloud.pig.common.security.annotation.HasPermission;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
+import io.swagger.v3.oas.annotations.tags.Tag;
+import lombok.AllArgsConstructor;
+import org.springdoc.core.annotations.ParameterObject;
+import org.springframework.http.HttpHeaders;
+import org.springframework.web.bind.annotation.*;
+
+/**
+ * {{TABLE_COMMENT}} Controller
+ *
+ * @author {{AUTHOR}}
+ * @date {{DATE}}
+ */
+@RestController
+@AllArgsConstructor
+@RequestMapping("/{{REQUEST_MAPPING}}")
+@Tag(description = "{{REQUEST_MAPPING}}", name = "{{TABLE_COMMENT}}管理")
+@SecurityRequirement(name = HttpHeaders.AUTHORIZATION)
+public class {{CLASS_NAME}}Controller {
+
+	private final {{CLASS_NAME}}Service {{SERVICE_VAR}}Service;
+
+	/**
+	 * 分页查询{{TABLE_COMMENT}}
+	 * @param page 分页对象
+	 * @param {{ENTITY_VAR}} 查询条件
+	 * @return 分页结果
+	 */
+	@GetMapping("/page")
+	@Operation(description = "分页查询", summary = "分页查询")
+	public R get{{CLASS_NAME}}Page(@ParameterObject Page page, @ParameterObject {{CLASS_NAME}} {{ENTITY_VAR}}) {
+		LambdaQueryWrapper<{{CLASS_NAME}}> wrapper = Wrappers.<{{CLASS_NAME}}>lambdaQuery();
+		// TODO: Add query conditions here
+		return R.ok({{SERVICE_VAR}}Service.page(page, wrapper));
+	}
+
+	/**
+	 * 通过ID查询{{TABLE_COMMENT}}
+	 * @param {{ID_FIELD}} ID
+	 * @return 查询结果
+	 */
+	@Operation(description = "通过ID查询", summary = "通过ID查询")
+	@GetMapping("/details/{{{ID_FIELD}}}")
+	public R getById(@PathVariable("{{ID_FIELD}}") {{ID_TYPE}} {{ID_FIELD}}) {
+		return R.ok({{SERVICE_VAR}}Service.getById({{ID_FIELD}}));
+	}
+
+	/**
+	 * 新增{{TABLE_COMMENT}}
+	 * @param {{ENTITY_VAR}} 对象
+	 * @return 操作结果
+	 */
+	@PostMapping
+	@SysLog("新增{{TABLE_COMMENT}}")
+	@Operation(description = "新增{{TABLE_COMMENT}}", summary = "新增{{TABLE_COMMENT}}")
+	@HasPermission("{{PERMISSION_PREFIX}}_add")
+	public R save(@RequestBody {{CLASS_NAME}} {{ENTITY_VAR}}) {
+		return R.ok({{SERVICE_VAR}}Service.save({{ENTITY_VAR}}));
+	}
+
+	/**
+	 * 修改{{TABLE_COMMENT}}
+	 * @param {{ENTITY_VAR}} 对象
+	 * @return 操作结果
+	 */
+	@PutMapping
+	@SysLog("修改{{TABLE_COMMENT}}")
+	@HasPermission("{{PERMISSION_PREFIX}}_edit")
+	@Operation(description = "修改{{TABLE_COMMENT}}", summary = "修改{{TABLE_COMMENT}}")
+	public R updateById(@RequestBody {{CLASS_NAME}} {{ENTITY_VAR}}) {
+		return R.ok({{SERVICE_VAR}}Service.updateById({{ENTITY_VAR}}));
+	}
+
+	/**
+	 * 通过ID删除{{TABLE_COMMENT}}
+	 * @param ids ID数组
+	 * @return 操作结果
+	 */
+	@DeleteMapping
+	@SysLog("删除{{TABLE_COMMENT}}")
+	@HasPermission("{{PERMISSION_PREFIX}}_del")
+	@Operation(description = "删除{{TABLE_COMMENT}}", summary = "删除{{TABLE_COMMENT}}")
+	public R removeById(@RequestBody {{ID_TYPE}}[] ids) {
+		return R.ok({{SERVICE_VAR}}Service.removeBatchByIds(java.util.Arrays.asList(ids)));
+	}
+
+}

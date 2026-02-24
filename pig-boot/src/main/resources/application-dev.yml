@@ -26,6 +26,11 @@ security:
   # 跳过验证码校验的客户端
   ignore-clients:
     - test
+  cors:
+    enabled: true
+    allowed-origin-patterns:
+      - http://127.0.0.1:*
+      - http://localhost:*
 
 # 配置文件加密根密码
 jasypt:
