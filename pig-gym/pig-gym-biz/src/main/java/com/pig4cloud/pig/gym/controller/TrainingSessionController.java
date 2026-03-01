@@ -24,6 +24,8 @@ import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.pig4cloud.pig.common.core.util.R;
 import com.pig4cloud.pig.common.log.annotation.SysLog;
 import com.pig4cloud.pig.common.security.annotation.HasPermission;
+import com.pig4cloud.pig.common.security.service.PigUser;
+import com.pig4cloud.pig.common.security.util.SecurityUtils;
 import com.pig4cloud.pig.gym.api.entity.TrainingSession;
 import com.pig4cloud.pig.gym.service.TrainingSessionService;
 import com.pig4cloud.plugin.excel.annotation.ResponseExcel;
@@ -122,6 +124,22 @@ public class TrainingSessionController {
 	@Operation(description = "删除训练课程", summary = "删除训练课程")
 	public R removeById(@RequestBody Long[] ids) {
 		return R.ok(trainingSessionService.removeBatchByIds(List.of(ids)));
+	}
+
+	/**
+	 * 查询教练当日排课列表
+	 * @param startMs 查询起始时间（epoch millis，前端按本地时区计算当日 00:00）
+	 * @param endMs 查询结束时间（epoch millis，前端按本地时区计算次日 00:00）
+	 * @return 当日排课列表
+	 */
+	@GetMapping("/daily")
+	@Operation(description = "查询当日排课", summary = "查询教练当日排课列表")
+	public R getDailySchedule(@RequestParam Long startMs, @RequestParam Long endMs) {
+		PigUser user = SecurityUtils.getUser();
+		if (user == null) {
+			return R.failed("无法获取当前用户信息");
+		}
+		return R.ok(trainingSessionService.getDailySchedule(user.getId(), startMs, endMs));
 	}
 
 	/**

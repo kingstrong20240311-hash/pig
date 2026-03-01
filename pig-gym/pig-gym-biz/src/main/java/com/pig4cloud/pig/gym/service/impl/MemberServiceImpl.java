@@ -14,19 +14,24 @@
  * this software without specific prior written permission.
  * Author: lengleng (wangiegie@gmail.com)
  */
-package {{PACKAGE}};
 
-import com.baomidou.mybatisplus.core.mapper.BaseMapper;
-import {{ENTITY_PACKAGE}}.{{CLASS_NAME}};
-import org.apache.ibatis.annotations.Mapper;
+package com.pig4cloud.pig.gym.service.impl;
+
+import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
+import com.pig4cloud.pig.gym.api.entity.Member;
+import com.pig4cloud.pig.gym.mapper.MemberMapper;
+import com.pig4cloud.pig.gym.service.MemberService;
+import lombok.RequiredArgsConstructor;
+import org.springframework.stereotype.Service;
 
 /**
- * {{TABLE_COMMENT}} Mapper
+ * 会员服务实现
  *
- * @author {{AUTHOR}}
- * @date {{DATE}}
+ * @author claude
+ * @date 2026-02-25
  */
-@Mapper
-public interface {{CLASS_NAME}}Mapper extends BaseMapper<{{CLASS_NAME}}> {
+@Service
+@RequiredArgsConstructor
+public class MemberServiceImpl extends ServiceImpl<MemberMapper, Member> implements MemberService {
 
 }

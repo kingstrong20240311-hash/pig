@@ -1,6 +1,6 @@
--- 为「{{PARENT_MENU_NAME}}」新增「{{ENTITY_DISPLAY_NAME}}」菜单（{{ENTITY_EN_NAME}}）
+-- 为「健身房管理」新增「InBody体测」菜单（inbody-test）
 -- 说明：
--- 1) 自动按名称定位父菜单：{{PARENT_MENU_NAME}}
+-- 1) 自动按名称定位父菜单：健身房管理
 -- 2) 幂等执行：重复执行不会重复插入
 -- 3) 自动补齐按钮权限并赋权给管理员角色（固定 role_id=1）
 -- 4) 递归授权整条祖先菜单链，确保菜单可见
@@ -10,7 +10,7 @@ USE `pig`;
 SET @parent_menu := (
 	SELECT menu_id
 	FROM sys_menu
-	WHERE name = '{{PARENT_MENU_NAME}}'
+	WHERE name = '健身房管理'
 		AND menu_type = '0'
 		AND del_flag = '0'
 	ORDER BY menu_id
@@ -33,7 +33,7 @@ INSERT INTO sys_menu (
 	sort_order, keep_alive, embedded, menu_type, create_by, create_time, update_by, update_time, del_flag
 )
 SELECT
-	@menu_id_candidate, '{{ENTITY_DISPLAY_NAME}}', '{{ENTITY_EN_NAME}}', NULL, '{{VUE_ROUTE_PATH}}', @parent_menu, '{{ICON}}',
+	@menu_id_candidate, 'InBody体测', 'inbody-test', NULL, '/admin/gym/inbody-test/index', @parent_menu, 'ele-DataAnalysis',
 	'1', @menu_sort, '0', '0', '0', 'admin', NOW(), 'admin', NOW(), '0'
 FROM dual
 WHERE @parent_menu IS NOT NULL
@@ -41,7 +41,7 @@ WHERE @parent_menu IS NOT NULL
 		SELECT 1
 		FROM sys_menu
 		WHERE parent_id = @parent_menu
-			AND path = '{{VUE_ROUTE_PATH}}'
+			AND path = '/admin/gym/inbody-test/index'
 			AND del_flag = '0'
 	);
 
@@ -50,7 +50,7 @@ SET @menu_entity := (
 	SELECT menu_id
 	FROM sys_menu
 	WHERE parent_id = @parent_menu
-		AND path = '{{VUE_ROUTE_PATH}}'
+		AND path = '/admin/gym/inbody-test/index'
 		AND del_flag = '0'
 	ORDER BY menu_id
 	LIMIT 1
@@ -63,11 +63,11 @@ INSERT INTO sys_menu (
 	sort_order, keep_alive, embedded, menu_type, create_by, create_time, update_by, update_time, del_flag
 )
 SELECT
-	@btn_add_id, '{{ENTITY_DISPLAY_NAME}}新增', NULL, '{{PERMISSION_PREFIX}}_add', NULL, @menu_entity, NULL,
+	@btn_add_id, 'InBody体测新增', NULL, 'gym_inbody_test_add', NULL, @menu_entity, NULL,
 	'1', 1, '0', NULL, '1', 'admin', NOW(), 'admin', NOW(), '0'
 FROM dual
 WHERE @menu_entity IS NOT NULL
-	AND NOT EXISTS (SELECT 1 FROM sys_menu WHERE permission = '{{PERMISSION_PREFIX}}_add' AND del_flag = '0');
+	AND NOT EXISTS (SELECT 1 FROM sys_menu WHERE permission = 'gym_inbody_test_add' AND del_flag = '0');
 
 SET @btn_edit_id := (SELECT IFNULL(MAX(menu_id), 10000) + 1 FROM sys_menu);
 INSERT INTO sys_menu (
@@ -75,11 +75,11 @@ INSERT INTO sys_menu (
 	sort_order, keep_alive, embedded, menu_type, create_by, create_time, update_by, update_time, del_flag
 )
 SELECT
-	@btn_edit_id, '{{ENTITY_DISPLAY_NAME}}修改', NULL, '{{PERMISSION_PREFIX}}_edit', NULL, @menu_entity, NULL,
+	@btn_edit_id, 'InBody体测修改', NULL, 'gym_inbody_test_edit', NULL, @menu_entity, NULL,
 	'1', 2, '0', NULL, '1', 'admin', NOW(), 'admin', NOW(), '0'
 FROM dual
 WHERE @menu_entity IS NOT NULL
-	AND NOT EXISTS (SELECT 1 FROM sys_menu WHERE permission = '{{PERMISSION_PREFIX}}_edit' AND del_flag = '0');
+	AND NOT EXISTS (SELECT 1 FROM sys_menu WHERE permission = 'gym_inbody_test_edit' AND del_flag = '0');
 
 SET @btn_del_id := (SELECT IFNULL(MAX(menu_id), 10000) + 1 FROM sys_menu);
 INSERT INTO sys_menu (
@@ -87,11 +87,11 @@ INSERT INTO sys_menu (
 	sort_order, keep_alive, embedded, menu_type, create_by, create_time, update_by, update_time, del_flag
 )
 SELECT
-	@btn_del_id, '{{ENTITY_DISPLAY_NAME}}删除', NULL, '{{PERMISSION_PREFIX}}_del', NULL, @menu_entity, NULL,
+	@btn_del_id, 'InBody体测删除', NULL, 'gym_inbody_test_del', NULL, @menu_entity, NULL,
 	'1', 3, '0', NULL, '1', 'admin', NOW(), 'admin', NOW(), '0'
 FROM dual
 WHERE @menu_entity IS NOT NULL
-	AND NOT EXISTS (SELECT 1 FROM sys_menu WHERE permission = '{{PERMISSION_PREFIX}}_del' AND del_flag = '0');
+	AND NOT EXISTS (SELECT 1 FROM sys_menu WHERE permission = 'gym_inbody_test_del' AND del_flag = '0');
 
 SET @btn_export_id := (SELECT IFNULL(MAX(menu_id), 10000) + 1 FROM sys_menu);
 INSERT INTO sys_menu (
@@ -99,11 +99,11 @@ INSERT INTO sys_menu (
 	sort_order, keep_alive, embedded, menu_type, create_by, create_time, update_by, update_time, del_flag
 )
 SELECT
-	@btn_export_id, '{{ENTITY_DISPLAY_NAME}}导出', NULL, '{{PERMISSION_PREFIX}}_export', NULL, @menu_entity, NULL,
+	@btn_export_id, 'InBody体测导出', NULL, 'gym_inbody_test_export', NULL, @menu_entity, NULL,
 	'1', 4, '0', NULL, '1', 'admin', NOW(), 'admin', NOW(), '0'
 FROM dual
 WHERE @menu_entity IS NOT NULL
-	AND NOT EXISTS (SELECT 1 FROM sys_menu WHERE permission = '{{PERMISSION_PREFIX}}_export' AND del_flag = '0');
+	AND NOT EXISTS (SELECT 1 FROM sys_menu WHERE permission = 'gym_inbody_test_export' AND del_flag = '0');
 
 -- -------------------------------------------------------------------------
 -- 授权给管理员角色（role_id=1）
@@ -134,10 +134,10 @@ SELECT @admin_role_id, m.menu_id
 FROM sys_menu m
 WHERE m.del_flag = '0'
 	AND m.permission IN (
-		'{{PERMISSION_PREFIX}}_add',
-		'{{PERMISSION_PREFIX}}_edit',
-		'{{PERMISSION_PREFIX}}_del',
-		'{{PERMISSION_PREFIX}}_export'
+		'gym_inbody_test_add',
+		'gym_inbody_test_edit',
+		'gym_inbody_test_del',
+		'gym_inbody_test_export'
 	);
 
 -- 结果汇总
@@ -152,10 +152,10 @@ SELECT
 			AND menu_id IN (
 				@parent_menu,
 				@menu_entity,
-				(SELECT menu_id FROM sys_menu WHERE permission = '{{PERMISSION_PREFIX}}_add' AND del_flag = '0' LIMIT 1),
-				(SELECT menu_id FROM sys_menu WHERE permission = '{{PERMISSION_PREFIX}}_edit' AND del_flag = '0' LIMIT 1),
-				(SELECT menu_id FROM sys_menu WHERE permission = '{{PERMISSION_PREFIX}}_del' AND del_flag = '0' LIMIT 1),
-				(SELECT menu_id FROM sys_menu WHERE permission = '{{PERMISSION_PREFIX}}_export' AND del_flag = '0' LIMIT 1)
+				(SELECT menu_id FROM sys_menu WHERE permission = 'gym_inbody_test_add' AND del_flag = '0' LIMIT 1),
+				(SELECT menu_id FROM sys_menu WHERE permission = 'gym_inbody_test_edit' AND del_flag = '0' LIMIT 1),
+				(SELECT menu_id FROM sys_menu WHERE permission = 'gym_inbody_test_del' AND del_flag = '0' LIMIT 1),
+				(SELECT menu_id FROM sys_menu WHERE permission = 'gym_inbody_test_export' AND del_flag = '0' LIMIT 1)
 			)
 	) AS granted_menu_count,
-	IF(@parent_menu IS NULL, '未找到父菜单【{{PARENT_MENU_NAME}}】', '处理完成') AS result;
+	IF(@parent_menu IS NULL, '未找到父菜单【健身房管理】', '处理完成') AS result;

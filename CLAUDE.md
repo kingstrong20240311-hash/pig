@@ -98,6 +98,14 @@ mvn clean package docker:build
 # or individual service application.yml files
 ```
 
+## File Structure
+- back/pig-ui – Admin dashboard frontend
+- back/docs/api – Backend API documentation
+
+## Frontend–Backend Interaction Specification
+All time-related fields must be returned by the backend as timestamps.
+The frontend is responsible for formatting and displaying them appropriately.
+
 ## Module Structure
 
 ### Core Modules

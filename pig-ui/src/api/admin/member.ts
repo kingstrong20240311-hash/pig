@@ -2,7 +2,7 @@ import request from '/@/utils/request';
 
 export function fetchList(query?: Object) {
 	return request({
-		url: '/{{MODULE}}/{{REQUEST_MAPPING}}/page',
+		url: '/admin/gym/member/page',
 		method: 'get',
 		params: query,
 	});
@@ -10,22 +10,22 @@ export function fetchList(query?: Object) {
 
 export function addObj(obj?: Object) {
 	return request({
-		url: '/{{MODULE}}/{{REQUEST_MAPPING}}',
+		url: '/admin/gym/member',
 		method: 'post',
 		data: obj,
 	});
 }
 
-export function getObj(id?: {{ID_TYPE_TS}}) {
+export function getObj(id?: string) {
 	return request({
-		url: '/{{MODULE}}/{{REQUEST_MAPPING}}/details/' + id,
+		url: '/admin/gym/member/details/' + id,
 		method: 'get',
 	});
 }
 
 export function delObj(ids?: Object) {
 	return request({
-		url: '/{{MODULE}}/{{REQUEST_MAPPING}}',
+		url: '/admin/gym/member',
 		method: 'delete',
 		data: ids,
 	});
@@ -33,7 +33,7 @@ export function delObj(ids?: Object) {
 
 export function putObj(obj?: Object) {
 	return request({
-		url: '/{{MODULE}}/{{REQUEST_MAPPING}}',
+		url: '/admin/gym/member',
 		method: 'put',
 		data: obj,
 	});

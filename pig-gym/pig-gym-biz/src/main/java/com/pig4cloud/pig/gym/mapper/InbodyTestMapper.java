@@ -15,26 +15,19 @@
  * Author: lengleng (wangiegie@gmail.com)
  */
 
-package {{PACKAGE}};
+package com.pig4cloud.pig.gym.mapper;
 
-import org.springframework.stereotype.Service;
-
-import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
-import {{ENTITY_PACKAGE}}.{{CLASS_NAME}};
-import {{MAPPER_PACKAGE}}.{{CLASS_NAME}}Mapper;
-import {{SERVICE_PACKAGE}}.{{CLASS_NAME}}Service;
-
-import lombok.AllArgsConstructor;
+import com.baomidou.mybatisplus.core.mapper.BaseMapper;
+import com.pig4cloud.pig.gym.api.entity.InbodyTest;
+import org.apache.ibatis.annotations.Mapper;
 
 /**
- * {{TABLE_COMMENT}} Service Implementation
+ * InBody体测记录 Mapper
  *
- * @author {{AUTHOR}}
- * @date {{DATE}}
+ * @author claude
+ * @date 2026-02-25
  */
-@Service
-@AllArgsConstructor
-public class {{CLASS_NAME}}ServiceImpl extends ServiceImpl<{{CLASS_NAME}}Mapper, {{CLASS_NAME}}>
-		implements {{CLASS_NAME}}Service {
+@Mapper
+public interface InbodyTestMapper extends BaseMapper<InbodyTest> {
 
 }

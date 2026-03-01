@@ -15,26 +15,19 @@
  * Author: lengleng (wangiegie@gmail.com)
  */
 
-package {{PACKAGE}};
+package com.pig4cloud.pig.gym.mapper;
 
-import com.baomidou.mybatisplus.annotation.*;
-import com.pig4cloud.pig.common.mybatis.base.BaseEntity;
-import io.swagger.v3.oas.annotations.media.Schema;
-import lombok.Data;
-import lombok.EqualsAndHashCode;
-
-{{IMPORTS}}
+import com.baomidou.mybatisplus.core.mapper.BaseMapper;
+import com.pig4cloud.pig.gym.api.entity.Member;
+import org.apache.ibatis.annotations.Mapper;
 
 /**
- * {{TABLE_COMMENT}}
+ * 会员 Mapper
  *
- * @author {{AUTHOR}}
- * @date {{DATE}}
+ * @author claude
+ * @date 2026-02-25
  */
-@Data
-@Schema(description = "{{TABLE_COMMENT}}")
-@EqualsAndHashCode(callSuper = true)
-public class {{CLASS_NAME}} extends BaseEntity {
+@Mapper
+public interface MemberMapper extends BaseMapper<Member> {
 
-{{FIELDS}}
 }
