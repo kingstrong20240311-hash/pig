@@ -9,13 +9,16 @@ import com.pig4cloud.pig.gym.api.entity.TrainingSession;
 import com.pig4cloud.pig.gym.api.enums.SessionStatus;
 import com.pig4cloud.pig.gym.mapper.TrainingExerciseRecordMapper;
 import com.pig4cloud.pig.gym.mapper.TrainingSessionMapper;
+import com.pig4cloud.pig.gym.api.vo.DailySessionVO;
 import com.pig4cloud.pig.gym.service.TrainingSessionService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.time.Instant;
 import java.time.LocalDateTime;
+import java.util.List;
 
 /**
  * 训练课程服务实现
@@ -83,6 +86,11 @@ public class TrainingSessionServiceImpl extends ServiceImpl<TrainingSessionMappe
 		session.setCompletedAt(request.getCompletedAt() == null ? LocalDateTime.now() : request.getCompletedAt());
 		baseMapper.updateById(session);
 		return session;
+	}
+
+	@Override
+	public List<DailySessionVO> getDailySchedule(Long coachId, Long startMs, Long endMs) {
+		return baseMapper.selectDailySchedule(coachId, Instant.ofEpochMilli(startMs), Instant.ofEpochMilli(endMs));
 	}
 
 	private TrainingSession getExistingSession(Long sessionId) {

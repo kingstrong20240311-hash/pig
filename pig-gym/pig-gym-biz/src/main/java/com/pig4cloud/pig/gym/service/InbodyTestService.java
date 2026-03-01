@@ -15,17 +15,17 @@
  * Author: lengleng (wangiegie@gmail.com)
  */
 
-package {{PACKAGE}};
+package com.pig4cloud.pig.gym.service;
 
 import com.baomidou.mybatisplus.extension.service.IService;
-import {{ENTITY_PACKAGE}}.{{CLASS_NAME}};
+import com.pig4cloud.pig.gym.api.entity.InbodyTest;
 
 /**
- * {{TABLE_COMMENT}} Service
+ * InBody体测记录服务
  *
- * @author {{AUTHOR}}
- * @date {{DATE}}
+ * @author claude
+ * @date 2026-02-25
  */
-public interface {{CLASS_NAME}}Service extends IService<{{CLASS_NAME}}> {
+public interface InbodyTestService extends IService<InbodyTest> {
 
 }

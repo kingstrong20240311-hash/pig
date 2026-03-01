@@ -9,8 +9,8 @@ BUILD_LOG_FILE="${LOG_DIR}/build.log"
 RUN_LOG_FILE="${LOG_DIR}/standalone.log"
 mkdir -p "${LOG_DIR}"
 
-echo "Building pig-boot and dependent modules (skip tests)..."
-if ! mvn -Pboot -pl pig-boot -am -DskipTests install > "${BUILD_LOG_FILE}" 2>&1; then
+echo "Building pig-boot and dependent modules (clean + skip tests)..."
+if ! mvn -Pboot -pl pig-boot -am -DskipTests clean install > "${BUILD_LOG_FILE}" 2>&1; then
   echo "Build failed. See log: ${BUILD_LOG_FILE}"
   tail -n 40 "${BUILD_LOG_FILE}" || true
   exit 1
